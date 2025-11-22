@@ -1,5 +1,6 @@
 package iuh.fit.se.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -30,8 +31,13 @@ public class Product {
     private Category category;
 
     private LocalDateTime createdAt;
+    @PrePersist
+    public void prePersist() {
+        createdAt = LocalDateTime.now();
+    }
     private Boolean showHomepage;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<ProductItem> items;
 }
