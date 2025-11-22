@@ -1,5 +1,6 @@
 package iuh.fit.se.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ public class ProductItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long itemId;
 
+    @JsonBackReference
     @ManyToOne
     @JoinColumn(name = "product_id")
     private Product product;
@@ -26,7 +28,10 @@ public class ProductItem {
     private Integer stockQuantity;
     private BigDecimal price;
     private LocalDateTime createdAt;
-
+    @PrePersist
+    public void prePersist() {
+        createdAt = LocalDateTime.now();
+    }
     @OneToMany(mappedBy = "productItem")
     private List<OrderItem> orderItems;
 
