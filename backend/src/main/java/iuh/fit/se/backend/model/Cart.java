@@ -21,7 +21,10 @@ public class Cart {
     private User user;
 
     private LocalDateTime createdAt;
-
+    @PrePersist
+    public void prePersist() {
+        createdAt = LocalDateTime.now();
+    }
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL)
     private List<CartItem> cartItems;
 }
