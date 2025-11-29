@@ -10,15 +10,17 @@ import {
     Card,
     InputNumber,
     Divider,
-    Tag
+    Tag,
+    Image,
+    Alert
 } from "antd";
 import { LoadingOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 import type { Product, ProductItem } from "../types";
 import { fetchProductDetail, fetchProducts } from "../api/productAPI";
 import ProductCard from "../components/ProductCard";
+import useCart from "../hooks/useCart";
 
 const { Title, Text, Paragraph } = Typography;
-const PLACEHOLDER = "https://placehold.co/600x400";
 
 export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
@@ -31,8 +33,16 @@ export default function ProductDetail() {
     const [qty, setQty] = useState(1);
     const [mainImg, setMainImg] = useState<string>();
 
+    const [alert, setAlert] = useState<{
+        type: "success" | "error";
+        message: string;
+    } | null>(null);
+
+    const { addItem } = useCart();
+
     if (!id || isNaN(productId)) return <Navigate to="/" replace />;
 
+    /* ================= FETCH PRODUCT ================= */
     useEffect(() => {
         setLoading(true);
 
@@ -57,6 +67,7 @@ export default function ProductDetail() {
             .finally(() => setLoading(false));
     }, [productId]);
 
+    /* ================= IMAGE BY COLOR ================= */
     useEffect(() => {
         if (!product || !selectedItem) return;
         const imgByColor = product.images.find(img =>
@@ -65,13 +76,21 @@ export default function ProductDetail() {
         if (imgByColor) setMainImg(imgByColor);
     }, [selectedItem, product]);
 
-    if (loading)
+    /* ================= AUTO HIDE ALERT ================= */
+    useEffect(() => {
+        if (!alert) return;
+        const timer = setTimeout(() => setAlert(null), 500);
+        return () => clearTimeout(timer);
+    }, [alert]);
+
+    if (loading) {
         return (
             <Spin
-                style={{ display: "flex", justifyContent: "center", marginTop: 120 }}
+                style={{ display: "block", margin: "100px auto" }}
                 indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
             />
         );
+    }
 
     if (!product) return null;
 
@@ -79,43 +98,72 @@ export default function ProductDetail() {
 
     return (
         <Row justify="center" style={{ padding: "32px 16px" }}>
+            {/* ✅ ALERT GÓC PHẢI */}
+            {alert && (
+                <div
+                    style={{
+                        position: "fixed",
+                        top: 32,
+                        right: 32,
+                        zIndex: 1000,
+                        width: 320,
+                    }}
+                >
+                    <Alert
+                        message={alert.message}
+                        type={alert.type}
+                        showIcon
+                        closable
+                        onClose={() => setAlert(null)}
+                    />
+                </div>
+            )}
+
             <Col xs={24} lg={20}>
                 <Card style={{ borderRadius: 16 }}>
-                    <Row gutter={[32, 32]}>
-                        {/* LEFT - IMAGE + THUMBNAILS */}
+                    <Row gutter={[24, 24]}>
+                        {/* ================= LEFT ================= */}
                         <Col xs={24} md={12}>
                             <div
                                 style={{
                                     background: "#f5f5f5",
                                     borderRadius: 16,
                                     padding: 16,
-                                    textAlign: "center"
                                 }}
                             >
-                                <img
-                                    /* src={mainImg} */ src={"https://placehold.co/600x400"}
+                                <Image
+                                    src="https://placehold.co/600x400"
                                     alt={product.name}
                                     style={{
                                         width: "100%",
-                                        height: 420,
+                                        height: 480,
                                         objectFit: "cover",
-                                        transition: "transform .3s",
                                     }}
                                 />
-                                {/* THUMBNAILS */}
-                                <div style={{ display: "flex", justifyContent: "center", marginTop: 12, gap: 8, flexWrap: "wrap" }}>
-                                    {(product.images.length ? product.images : [PLACEHOLDER]).map((img, idx) => (
+
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        marginTop: 12,
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    {product.images.map((img, idx) => (
                                         <img
                                             key={idx}
-                                            /* src={img} */ src={"https://placehold.co/600x400"}
-                                            alt={`thumb-${idx}`}
+                                            src="https://placehold.co/600x400"
                                             style={{
                                                 width: 60,
                                                 height: 60,
                                                 objectFit: "cover",
-                                                border: mainImg === img ? "2px solid #1890ff" : "1px solid #ccc",
+                                                border:
+                                                    mainImg === img
+                                                        ? "2px solid #1890ff"
+                                                        : "1px solid #ccc",
                                                 borderRadius: 4,
-                                                cursor: "pointer"
+                                                cursor: "pointer",
                                             }}
                                             onClick={() => setMainImg(img)}
                                         />
@@ -124,87 +172,103 @@ export default function ProductDetail() {
                             </div>
                         </Col>
 
-                        {/* RIGHT - INFO */}
+                        {/* ================= RIGHT ================= */}
                         <Col xs={24} md={12}>
-                            <Title level={2} style={{ marginBottom: 0 }}>{product.name}</Title>
-                            <Tag color="blue" style={{ marginTop: 8 }}>{product.categoryName}</Tag>
+                            <Title level={2}>{product.name}</Title>
+                            <Tag color="blue">{product.categoryName}</Tag>
                             <Divider />
-                            <Text style={{ fontSize: 28, fontWeight: 600, color: "#cf1322" }}>
+
+                            <Text
+                                style={{
+                                    fontSize: 28,
+                                    fontWeight: 600,
+                                    color: "#cf1322",
+                                }}
+                            >
                                 {selectedItem?.price?.toLocaleString()} ₫
                             </Text>
-                            <Paragraph style={{ marginTop: 12, color: "#555" }}>{product.description}</Paragraph>
+
+                            <Paragraph style={{ marginTop: 12 }}>
+                                {product.description}
+                            </Paragraph>
 
                             {/* COLOR */}
-                            <div style={{ marginTop: 24 }}>
-                                <Text strong>Màu sắc</Text>
-                                <Select
-                                    size="large"
-                                    style={{ width: "100%", marginTop: 8 }}
-                                    value={selectedItem?.color}
-                                    onChange={color => {
-                                        const item = product.items.find(i => i.color === color);
-                                        setSelectedItem(item || null);
-                                        setQty(1);
-                                    }}
-                                >
-                                    {colors.map(color => (
-                                        <Select.Option key={color} value={color}>{color}</Select.Option>
-                                    ))}
-                                </Select>
-                            </div>
+                            <Text strong>Màu sắc</Text>
+                            <Select
+                                size="large"
+                                style={{ width: "100%", marginTop: 8 }}
+                                value={selectedItem?.color}
+                                onChange={(color) => {
+                                    const item = product.items.find(i => i.color === color);
+                                    setSelectedItem(item || null);
+                                    setQty(1);
+                                }}
+                            >
+                                {colors.map(color => (
+                                    <Select.Option key={color} value={color}>
+                                        {color}
+                                    </Select.Option>
+                                ))}
+                            </Select>
 
                             {/* SIZE */}
-                            <div style={{ marginTop: 16 }}>
-                                <Text strong>Size</Text>
-                                <Select
-                                    size="large"
-                                    style={{ width: "100%", marginTop: 8 }}
-                                    value={selectedItem?.itemId}
-                                    onChange={itemId => {
-                                        const item = product.items.find(i => i.itemId === itemId);
-                                        setSelectedItem(item || null);
-                                    }}
-                                >
-                                    {product.items
-                                        .filter(i => i.color === selectedItem?.color)
-                                        .map(item => (
-                                            <Select.Option key={item.itemId} value={item.itemId}>
-                                                {item.size}
-                                            </Select.Option>
-                                        ))}
-                                </Select>
-                            </div>
+                            <Text strong style={{ marginTop: 16, display: "block" }}>
+                                Size
+                            </Text>
+                            <Select
+                                size="large"
+                                style={{ width: "100%", marginTop: 8 }}
+                                value={selectedItem?.itemId}
+                                onChange={(itemId) => {
+                                    const item = product.items.find(i => i.itemId === itemId);
+                                    setSelectedItem(item || null);
+                                }}
+                            >
+                                {product.items
+                                    .filter(i => i.color === selectedItem?.color)
+                                    .map(item => (
+                                        <Select.Option key={item.itemId} value={item.itemId}>
+                                            {item.size}
+                                        </Select.Option>
+                                    ))}
+                            </Select>
 
-                            {/* QUANTITY */}
-                            <div style={{ marginTop: 16 }}>
-                                <Text strong>Số lượng</Text>
-                                <div style={{ marginTop: 8, display: "flex", alignItems: "center" }}>
-                                    <InputNumber
-                                        min={1}
-                                        max={selectedItem?.stockQuantity}
-                                        value={qty}
-                                        size="large"
-                                        onChange={(v) => setQty(v || 1)}
-                                    />
-                                    <Text type="secondary" style={{ marginLeft: 12 }}>
-                                        Còn {selectedItem?.stockQuantity} sản phẩm
-                                    </Text>
-                                </div>
-                            </div>
+                            {/* QTY */}
+                            <Text strong style={{ marginTop: 16, display: "block" }}>
+                                Số lượng
+                            </Text>
+                            <InputNumber
+                                min={1}
+                                max={selectedItem?.stockQuantity}
+                                value={qty}
+                                size="large"
+                                onChange={(v) => setQty(v || 1)}
+                            />
+                            <Text type="secondary" style={{ marginLeft: 12 }}>
+                                Còn {selectedItem?.stockQuantity} sản phẩm
+                            </Text>
 
                             {/* ADD TO CART */}
                             <Button
                                 type="primary"
                                 size="large"
                                 icon={<ShoppingCartOutlined />}
-                                style={{
-                                    marginTop: 32,
-                                    height: 50,
-                                    width: "100%",
-                                    fontSize: 16,
-                                    borderRadius: 12
-                                }}
+                                style={{ marginTop: 32, width: "100%", height: 50 }}
                                 disabled={!selectedItem}
+                                onClick={async () => {
+                                    try {
+                                        await addItem(product, selectedItem!, qty);
+                                        setAlert({
+                                            type: "success",
+                                            message: "Đã thêm vào giỏ hàng",
+                                        });
+                                    } catch {
+                                        setAlert({
+                                            type: "error",
+                                            message: "Không thể thêm vào giỏ hàng",
+                                        });
+                                    }
+                                }}
                             >
                                 Thêm vào giỏ hàng
                             </Button>
@@ -212,20 +276,16 @@ export default function ProductDetail() {
                     </Row>
                 </Card>
 
-                {/* ================= RELATED PRODUCTS ================= */}
+                {/* ================= RELATED ================= */}
                 <div style={{ marginTop: 64 }}>
-                    <Title level={3} style={{ marginBottom: 0 }}>Có thể bạn cũng thích</Title>
-                    <Text type="secondary">Các sản phẩm cùng danh mục</Text>
-                    <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                    <Title level={3}>Có thể bạn cũng thích</Title>
+                    <Row gutter={[16, 16]}>
                         {relatedProducts.slice(0, 4).map(p => (
                             <Col xs={24} sm={12} md={6} key={p.productId}>
                                 <ProductCard product={p} />
                             </Col>
                         ))}
                     </Row>
-                    {!relatedProducts.length && (
-                        <Text type="secondary">Không có sản phẩm gợi ý.</Text>
-                    )}
                 </div>
             </Col>
         </Row>

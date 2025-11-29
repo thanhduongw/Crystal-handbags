@@ -21,9 +21,11 @@ export default function ProductList() {
     }, [data])
 
     if (loading) return (
-        <Spin style={{ alignSelf: 'center' }} indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
-    )
-
+        <Spin
+            style={{ display: 'block', margin: '100px auto' }}
+            indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
+        />
+    );
     return (
         <>
             <Row gutter={[16, 16]} style={{ padding: 16 }}>

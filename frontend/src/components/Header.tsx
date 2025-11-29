@@ -15,12 +15,14 @@ export default function Header() {
         {
             key: 'cart',
             label: 'Giỏ hàng',
-            icon: <Badge count={lines.length}><ShoppingCartOutlined /></Badge>,
+            icon: <Badge count={lines.length} dot>
+                <ShoppingCartOutlined />
+            </Badge>,
             onClick: () => navigate('/cart'),
         },
     ];
 
     return (
-        <Menu mode="horizontal" selectedKeys={[]} items={menuItems} />
+        <Menu style={{ justifyContent: 'center', fontWeight: 'bold' }} mode="horizontal" selectedKeys={[]} items={menuItems} />
     );
 }

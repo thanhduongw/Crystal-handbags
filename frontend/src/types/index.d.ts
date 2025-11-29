@@ -22,10 +22,11 @@ export interface Product {
     images: string[]
     categoryName: string
     items: ProductItem[]
+    showHomepage: boolean
 }
 
 export interface CartLine {
-    id: number;
+    itemId: number;
     name: string;
     avatar: string;
     price: number;

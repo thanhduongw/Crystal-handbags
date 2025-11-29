@@ -10,12 +10,15 @@ export default function Cart() {
 
     const columns = [
         { title: 'Tên', dataIndex: 'name', key: 'name' },
-        { title: 'Ảnh', key: 'img', render: (_: any, r: CartLine) => <img src={r.avatar} alt="" width={60} /> },
+        {
+            title: 'Ảnh', key: 'img', render: (_: any, r: CartLine) =>
+                <img /* src={r.avatar} */ src={"https://placehold.co/600x400"} alt="" width={60} />
+        },
         { title: 'Đơn giá', dataIndex: 'price', render: (p: number) => `${p.toLocaleString()} đ` },
         {
             title: 'Số lượng', key: 'qty', render: (_: any, r: CartLine) => (
                 <InputNumber min={1} value={r.qty}
-                    onChange={val => updateQty(r.id, (val || 0) - r.qty)} />
+                    onChange={val => updateQty(r.itemId, (val || 0) - r.qty)} />
             )
         },
         {
@@ -24,7 +27,7 @@ export default function Cart() {
         },
         {
             title: '', key: 'del', render: (_: any, r: CartLine) => (
-                <Button danger icon={<DeleteOutlined />} onClick={() => removeItem(r.id)} />
+                <Button danger icon={<DeleteOutlined />} onClick={() => removeItem(r.itemId)} />
             )
         },
     ];
