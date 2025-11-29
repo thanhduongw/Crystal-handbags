@@ -24,7 +24,8 @@ public class CategoryServiceImpl implements iuh.fit.se.backend.service.CategoryS
                 .map(c -> new CategoryDto(
                         c.getCategoryId(),
                         c.getName(),
-                        c.getImageUrl()
+                        c.getImageUrl(),
+                        c.getDescription()
                 ))
                 .collect(Collectors.toList());
     }

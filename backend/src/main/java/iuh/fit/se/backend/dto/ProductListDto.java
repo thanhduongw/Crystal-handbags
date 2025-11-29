@@ -7,5 +7,6 @@ public record ProductListDto(
         String name,
         String avatar,
         BigDecimal basePrice,
-        String categoryName
+        String categoryName,
+        Boolean showHomepage
 ) {}

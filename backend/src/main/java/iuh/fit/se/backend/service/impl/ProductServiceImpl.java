@@ -19,15 +19,30 @@ public class ProductServiceImpl implements iuh.fit.se.backend.service.ProductSer
     private final ProductItemRepository productItemRepository;
 
     @Override
-    public List<ProductListDto> getByCategory(Long categoryId) {
-        return productRepository.findByCategoryId(categoryId)
+    public List<ProductListDto> getAll() {
+        return productRepository.findAll()
                 .stream()
-                .map(p ->  new ProductListDto(
+                .map(p -> new ProductListDto(
                         p.getProductId(),
                         p.getName(),
                         p.getAvatar(),
                         p.getBasePrice(),
-                        p.getCategory().getName()))
+                        p.getCategory().getName(),
+                        p.getShowHomepage()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ProductListDto> getByCategory(Long categoryId) {
+        return productRepository.findByCategoryId(categoryId)
+                .stream()
+                .map(p -> new ProductListDto(
+                        p.getProductId(),
+                        p.getName(),
+                        p.getAvatar(),
+                        p.getBasePrice(),
+                        p.getCategory().getName(),
+                        p.getShowHomepage()))
                 .collect(Collectors.toList());
     }
 
@@ -60,12 +75,13 @@ public class ProductServiceImpl implements iuh.fit.se.backend.service.ProductSer
     public List<ProductListDto> search(String keyword) {
         return productRepository.search(keyword)
                 .stream()
-                .map(p ->  new ProductListDto(
-                p.getProductId(),
-                p.getName(),
-                p.getAvatar(),
-                p.getBasePrice(),
-                p.getCategory().getName()))
+                .map(p -> new ProductListDto(
+                        p.getProductId(),
+                        p.getName(),
+                        p.getAvatar(),
+                        p.getBasePrice(),
+                        p.getCategory().getName(),
+                        p.getShowHomepage()))
                 .collect(Collectors.toList());
     }
 

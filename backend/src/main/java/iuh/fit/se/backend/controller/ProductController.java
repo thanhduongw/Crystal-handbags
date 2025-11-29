@@ -8,12 +8,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class ProductController {
+
     private final ProductService productService;
+
+    @GetMapping("/products")
+    public ResponseEntity<List<ProductListDto>> getAll() {
+        return ResponseEntity.ok(productService.getAll());
+    }
 
     @GetMapping("/categories/{id}/products")
     public ResponseEntity<List<ProductListDto>> getByCategory(@PathVariable Long id) {

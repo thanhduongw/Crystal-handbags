@@ -1,7 +1,8 @@
 package iuh.fit.se.backend.dto;
 
 public record CategoryDto(
-        Long categoryId,
+        Long id,
         String name,
-        String imageUrl
+        String imageUrl,
+        String description
 ) {}

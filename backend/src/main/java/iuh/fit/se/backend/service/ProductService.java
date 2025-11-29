@@ -6,6 +6,8 @@ import iuh.fit.se.backend.dto.ProductListDto;
 import java.util.List;
 
 public interface ProductService {
+    List<ProductListDto> getAll();
+
     List<ProductListDto> getByCategory(Long categoryId);
 
     ProductDetailDto getDetail(Long id);
