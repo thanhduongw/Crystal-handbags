@@ -34,4 +34,11 @@ public class OrderController {
     public ResponseEntity<OrderDetailDto> getDetail(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getDetail(id));
     }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelOrder(@PathVariable Long id) {
+        orderService.cancelOrder(id);
+        return ResponseEntity.ok().build();
+    }
+
 }

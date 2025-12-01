@@ -20,6 +20,10 @@ export default function Header() {
             </Badge>,
             onClick: () => navigate('/cart'),
         },
+        {
+            key: 'orders',
+            label: <Link to="/orders">Đơn hàng</Link>
+        }
     ];
 
     return (

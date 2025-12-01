@@ -64,6 +64,22 @@ public class OrderServiceImpl implements OrderService {
         );
     }
 
+    @Override
+    public void cancelOrder(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("Order not found: " + orderId));
+
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING orders can be cancelled");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+    }
+
+
     /* ======================= MAPPER ======================= */
 
     private OrderListDto toListDto(Order o) {

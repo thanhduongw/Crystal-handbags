@@ -32,3 +32,32 @@ export interface CartLine {
     price: number;
     qty: number;
 }
+
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+
+export interface OrderListDto {
+    orderId: number;
+    orderDate: string;
+    status: OrderStatus;
+    totalAmount: number;
+}
+
+export interface OrderItemDto {
+    itemId: number;
+    productName: string;
+    color: string;
+    size: string;
+    quantity: number;
+    price: number;
+}
+
+export interface OrderDetailDto {
+    orderId: number;
+    orderDate: string;
+    status: OrderStatus;
+    totalAmount: number;
+    shippingFee: number;
+    receiver: string;
+    address: string;
+    items: OrderItemDto[];
+}
