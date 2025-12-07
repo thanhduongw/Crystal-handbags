@@ -29,4 +29,24 @@ public class CategoryServiceImpl implements iuh.fit.se.backend.service.CategoryS
                 ))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public CategoryDto getCategoryById(Long id) {
+        return null;
+    }
+
+    @Override
+    public CategoryDto createCategory(CategoryDto categoryDto) {
+        return null;
+    }
+
+    @Override
+    public CategoryDto updateCategory(Long id, CategoryDto categoryDto) {
+        return null;
+    }
+
+    @Override
+    public void deleteCategory(Long id) {
+
+    }
 }

@@ -7,11 +7,11 @@ import iuh.fit.se.backend.model.OrderStatus;
 import java.util.List;
 
 public interface OrderService {
-
-    List<OrderListDto> getAll();
-
-    List<OrderListDto> getByStatus(OrderStatus status);
-
-    OrderDetailDto getDetail(Long orderId);
+    List<OrderListDto> getAllOrders();
+    List<OrderListDto> getOrdersByStatus(OrderStatus status);
+    OrderDetailDto getOrderDetail(Long orderId);
     void cancelOrder(Long orderId);
+    OrderDetailDto createOrder(String email, Long addressId);
+    List<OrderListDto> getUserOrders(String email);
+    OrderDetailDto adminUpdateOrder(Long orderId, OrderStatus status);
 }

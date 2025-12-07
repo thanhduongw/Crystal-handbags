@@ -16,14 +16,14 @@ public class SessionCartServiceImpl implements SessionCartService {
 
     @SuppressWarnings("unchecked")
     @Override
-    public List<CartLineDto> getCart(HttpSession session) {
+    public List<CartLineDto> getAllCart(HttpSession session) {
         List<CartLineDto> cart = (List<CartLineDto>) session.getAttribute(CART_ATTR);
         return cart == null ? new ArrayList<>() : cart;
     }
 
     @Override
-    public void addItem(HttpSession session, CartLineDto dto) {
-        List<CartLineDto> cart = getCart(session);
+    public void addCartItem(HttpSession session, CartLineDto dto) {
+        List<CartLineDto> cart = getAllCart(session);
         cart.stream()
                 .filter(l -> l.getItemId().equals(dto.getItemId()))
                 .findFirst()
@@ -34,8 +34,8 @@ public class SessionCartServiceImpl implements SessionCartService {
     }
 
     @Override
-    public void updateQty(HttpSession session, Long itemId, int delta) {
-        List<CartLineDto> cart = getCart(session);
+    public void updateCartQuantity(HttpSession session, Long itemId, int delta) {
+        List<CartLineDto> cart = getAllCart(session);
         cart.forEach(l -> {
             if (l.getItemId().equals(itemId))
                 l.setQty(Math.max(0, l.getQty() + delta));
@@ -45,8 +45,8 @@ public class SessionCartServiceImpl implements SessionCartService {
     }
 
     @Override
-    public void removeItem(HttpSession session, Long itemId) {
-        List<CartLineDto> cart = getCart(session);
+    public void removeCartItem(HttpSession session, Long itemId) {
+        List<CartLineDto> cart = getAllCart(session);
         cart.removeIf(l -> l.getItemId().equals(itemId));
         session.setAttribute(CART_ATTR, cart);
     }

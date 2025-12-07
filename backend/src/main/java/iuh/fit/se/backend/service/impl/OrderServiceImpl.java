@@ -1,47 +1,51 @@
 package iuh.fit.se.backend.service.impl;
 
-import iuh.fit.se.backend.dto.OrderDetailDto;
-import iuh.fit.se.backend.dto.OrderItemDto;
-import iuh.fit.se.backend.dto.OrderListDto;
-import iuh.fit.se.backend.model.Order;
-import iuh.fit.se.backend.model.OrderItem;
-import iuh.fit.se.backend.model.OrderStatus;
-import iuh.fit.se.backend.repository.OrderRepository;
+import iuh.fit.se.backend.dto.*;
+import iuh.fit.se.backend.model.*;
+import iuh.fit.se.backend.repository.*;
+import iuh.fit.se.backend.service.DatabaseCartService;
+import iuh.fit.se.backend.service.EmailService;
 import iuh.fit.se.backend.service.OrderService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
-
-    /* ======================= LIST ======================= */
+    private final UserRepository userRepository;
+    private final AddressRepository addressRepository;
+    private final DatabaseCartService cartService;
+    private final EmailService emailService;
+    private final PaymentRepository paymentRepository;
 
     @Override
-    public List<OrderListDto> getAll() {
+    public List<OrderListDto> getAllOrders() {
         return orderRepository.findAll()
                 .stream()
                 .map(this::toListDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<OrderListDto> getByStatus(OrderStatus status) {
+    public List<OrderListDto> getOrdersByStatus(OrderStatus status) {
         return orderRepository.findByStatus(status)
                 .stream()
                 .map(this::toListDto)
-                .toList();
+                .collect(Collectors.toList());
     }
 
-    /* ======================= DETAIL ======================= */
-
     @Override
-    public OrderDetailDto getDetail(Long orderId) {
+    public OrderDetailDto getOrderDetail(Long orderId) {
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() ->
@@ -60,13 +64,14 @@ public class OrderServiceImpl implements OrderService {
                 order.getShippingFee(),
                 order.getAddress() != null ? order.getAddress().getFullName() : "",
                 buildFullAddress(order),
-                items
+                items,
+                order.getUser().getUserId()
         );
     }
 
     @Override
+    @Transactional
     public void cancelOrder(Long orderId) {
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() ->
                         new EntityNotFoundException("Order not found: " + orderId));
@@ -79,8 +84,79 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
+    @Override
+    @Transactional
+    public OrderDetailDto createOrder(String email, Long addressId) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    /* ======================= MAPPER ======================= */
+        Address address = addressRepository.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        List<CartItemDto> cartItems = cartService.getAllCart(email);
+        if (cartItems.isEmpty()) {
+            throw new RuntimeException("Cart is empty");
+        }
+
+        Order order = Order.builder()
+                .user(user)
+                .address(address)
+                .orderDate(LocalDateTime.now())
+                .status(OrderStatus.PENDING)
+                .shippingFee(new BigDecimal("15000"))
+                .build();
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        for (CartItemDto cartItem : cartItems) {
+            OrderItem orderItem = OrderItem.builder()
+                    .order(order)
+                    .productItem(ProductItem.builder().itemId(cartItem.getItemId()).build())
+                    .quantity(cartItem.getQuantity())
+                    .price(cartItem.getPrice())
+                    .build();
+            order.getOrderItems().add(orderItem);
+            totalAmount = totalAmount.add(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQuantity())));
+        }
+
+        order.setTotalAmount(totalAmount.add(order.getShippingFee()));
+        Order savedOrder = orderRepository.save(order);
+
+        // Create payment record
+        Payment payment = Payment.builder()
+                .order(savedOrder)
+                .amount(savedOrder.getTotalAmount())
+                .paymentDate(LocalDateTime.now())
+                .status(false)
+                .build();
+        paymentRepository.save(payment);
+
+        // Clear cart
+        cartService.clearCart(email);
+
+        // Send confirmation email
+        emailService.sendOrderConfirmationEmail(email, savedOrder.getOrderId());
+
+        return getOrderDetail(savedOrder.getOrderId());
+    }
+
+    @Override
+    public List<OrderListDto> getUserOrders(String email) {
+        return orderRepository.findByUserEmail(email).stream()
+                .map(this::toListDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public OrderDetailDto adminUpdateOrder(Long orderId, OrderStatus status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+        order.setStatus(status);
+        orderRepository.save(order);
+
+        return getOrderDetail(orderId);
+    }
 
     private OrderListDto toListDto(Order o) {
         return new OrderListDto(

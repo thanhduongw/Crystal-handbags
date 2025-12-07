@@ -1,11 +1,15 @@
 package iuh.fit.se.backend.service;
 
-import iuh.fit.se.backend.dto.auth.LoginRequest;
-import iuh.fit.se.backend.dto.auth.LoginResponse;
+import iuh.fit.se.backend.dto.auth.*;
 
 import java.text.ParseException;
 
 public interface AuthenticationService {
     LoginResponse login(LoginRequest request);
+    RegisterResponse register(RegisterRequest request);
+    LoginResponse refreshToken(RefreshTokenRequest request);
     void logout(String token) throws ParseException;
+    void verifyEmail(String token);
+    void forgotPassword(ForgotPasswordRequest request);
+    void resetPassword(ResetPasswordRequest request);
 }

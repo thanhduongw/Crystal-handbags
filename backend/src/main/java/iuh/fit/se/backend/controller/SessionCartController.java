@@ -18,25 +18,25 @@ public class SessionCartController {
 
     @GetMapping
     public List<CartLineDto> getCart(HttpSession session) {
-        return sessionCartService.getCart(session);
+        return sessionCartService.getAllCart(session);
     }
 
     @PostMapping("/items")
     @ResponseStatus(HttpStatus.CREATED)
     public void addItem(HttpSession session, @Valid @RequestBody CartLineDto dto) {
-        sessionCartService.addItem(session, dto);
+        sessionCartService.addCartItem(session, dto);
     }
 
     @PatchMapping("/items/{itemId}")
     public void updateQty(HttpSession session,
                           @PathVariable Long itemId,
                           @RequestParam int delta) {
-        sessionCartService.updateQty(session, itemId, delta);
+        sessionCartService.updateCartQuantity(session, itemId, delta);
     }
 
     @DeleteMapping("/items/{itemId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeItem(HttpSession session, @PathVariable Long itemId) {
-        sessionCartService.removeItem(session, itemId);
+        sessionCartService.removeCartItem(session, itemId);
     }
 }

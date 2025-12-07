@@ -1,11 +1,19 @@
 package iuh.fit.se.backend.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 
-public record OrderItemDto(Long itemId,
-                           String productName,
-                           String color,
-                           String size,
-                           int quantity,
-                           BigDecimal price) {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class OrderItemDto {
+    private Long itemId;
+    private String productName;
+    private String color;
+    private String size;
+    private int quantity;
+    private BigDecimal price;
 }

@@ -1,10 +1,8 @@
 package iuh.fit.se.backend.dto.auth;
 
 import lombok.Data;
-import lombok.Getter;
 
 @Data
-public class LoginRequest {
+public class ForgotPasswordRequest {
     private String email;
-    private String password;
 }

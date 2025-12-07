@@ -1,13 +1,18 @@
 package iuh.fit.se.backend.service.impl;
 
+import iuh.fit.se.backend.dto.UserProfileDto;
 import iuh.fit.se.backend.dto.auth.UserCreateRequest;
 import iuh.fit.se.backend.dto.auth.UserCreateResponse;
+import iuh.fit.se.backend.model.Gender;
 import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -17,7 +22,7 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
     @Override
     public UserCreateResponse createUser(UserCreateRequest request) {
         if(userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email da ton tai");
+            throw new RuntimeException("Email already exists");
         }
 
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -31,6 +36,68 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
 
         return UserCreateResponse.builder()
                 .email(user.getEmail())
+                .build();
+    }
+
+    @Override
+    public UserProfileDto getUserProfile(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return convertToProfileDto(user);
+    }
+
+    @Override
+    public UserProfileDto updateUserProfile(String email, UserProfileDto userProfileDto) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setFirstName(userProfileDto.getFirstName());
+        user.setLastName(userProfileDto.getLastName());
+        user.setPhoneNumber(userProfileDto.getPhoneNumber());
+        user.setGender(Gender.valueOf(userProfileDto.getGender()));
+        user.setDob(userProfileDto.getDob());
+        user.setPhotoUrl(userProfileDto.getPhotoUrl());
+
+        userRepository.save(user);
+        return convertToProfileDto(user);
+    }
+
+    @Override
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+    @Override
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found: " + id));
+    }
+
+    @Override
+    @Transactional
+    public User updateUser(Long id, User user) {
+        User existing = getUserById(id);
+        existing.setFirstName(user.getFirstName());
+        existing.setLastName(user.getLastName());
+        existing.setPhoneNumber(user.getPhoneNumber());
+        existing.setRole(user.getRole());
+        return userRepository.save(existing);
+    }
+
+    @Override
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id);
+    }
+
+    private UserProfileDto convertToProfileDto(User user) {
+        return UserProfileDto.builder()
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .phoneNumber(user.getPhoneNumber())
+                .gender(user.getGender() != null ? user.getGender().name() : null)
+                .dob(user.getDob())
+                .photoUrl(user.getPhotoUrl())
                 .build();
     }
 }
