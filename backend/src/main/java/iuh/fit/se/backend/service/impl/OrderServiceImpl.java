@@ -8,12 +8,12 @@ import iuh.fit.se.backend.service.EmailService;
 import iuh.fit.se.backend.service.OrderService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +24,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
+    private final ProductItemRepository productItemRepository;
     private final DatabaseCartService cartService;
     private final EmailService emailService;
     private final PaymentRepository paymentRepository;
@@ -46,10 +47,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDetailDto getOrderDetail(Long orderId) {
-
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new EntityNotFoundException("Order not found: " + orderId));
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
         List<OrderItemDto> items = order.getOrderItems()
                 .stream()
@@ -73,11 +72,10 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void cancelOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new EntityNotFoundException("Order not found: " + orderId));
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("Only PENDING orders can be cancelled");
+        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.CONFIRMED) {
+            throw new IllegalStateException("Only PENDING or CONFIRMED orders can be cancelled");
         }
 
         order.setStatus(OrderStatus.CANCELLED);
@@ -98,23 +96,40 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Cart is empty");
         }
 
+        // Initialize order with empty list of order items
         Order order = Order.builder()
                 .user(user)
                 .address(address)
                 .orderDate(LocalDateTime.now())
                 .status(OrderStatus.PENDING)
                 .shippingFee(new BigDecimal("15000"))
+                .orderItems(new ArrayList<>()) // Initialize empty list
                 .build();
 
+        // Calculate total and create order items
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (CartItemDto cartItem : cartItems) {
+            ProductItem productItem = productItemRepository.findById(cartItem.getItemId())
+                    .orElseThrow(() -> new RuntimeException("Product item not found: " + cartItem.getItemId()));
+
+            // Check stock availability
+            if (productItem.getStockQuantity() < cartItem.getQuantity()) {
+                throw new RuntimeException("Insufficient stock for product: " + productItem.getProduct().getName());
+            }
+
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
-                    .productItem(ProductItem.builder().itemId(cartItem.getItemId()).build())
+                    .productItem(productItem)
                     .quantity(cartItem.getQuantity())
                     .price(cartItem.getPrice())
                     .build();
+
             order.getOrderItems().add(orderItem);
+
+            // Update stock
+            productItem.setStockQuantity(productItem.getStockQuantity() - cartItem.getQuantity());
+            productItemRepository.save(productItem);
+
             totalAmount = totalAmount.add(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQuantity())));
         }
 
@@ -126,7 +141,8 @@ public class OrderServiceImpl implements OrderService {
                 .order(savedOrder)
                 .amount(savedOrder.getTotalAmount())
                 .paymentDate(LocalDateTime.now())
-                .status(false)
+                .paymentMethod(PaymentMethod.CASH) // Default payment method
+                .status(false) // Unpaid
                 .build();
         paymentRepository.save(payment);
 
@@ -134,7 +150,12 @@ public class OrderServiceImpl implements OrderService {
         cartService.clearCart(email);
 
         // Send confirmation email
-        emailService.sendOrderConfirmationEmail(email, savedOrder.getOrderId());
+        try {
+            emailService.sendOrderConfirmationEmail(email, savedOrder.getOrderId());
+        } catch (Exception e) {
+            // Log error but don't fail the order creation
+            System.err.println("Failed to send order confirmation email: " + e.getMessage());
+        }
 
         return getOrderDetail(savedOrder.getOrderId());
     }
@@ -152,10 +173,33 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
+        // Validate status transition
+        validateStatusTransition(order.getStatus(), status);
+
         order.setStatus(status);
+
+        // If order is delivered, mark payment as completed
+        if (status == OrderStatus.DELIVERED && order.getPayment() != null) {
+            order.getPayment().setStatus(true);
+            paymentRepository.save(order.getPayment());
+        }
+
         orderRepository.save(order);
 
         return getOrderDetail(orderId);
+    }
+
+    private void validateStatusTransition(OrderStatus currentStatus, OrderStatus newStatus) {
+        // Define valid transitions
+        if (currentStatus == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot change status of cancelled order");
+        }
+
+        if (currentStatus == OrderStatus.DELIVERED) {
+            throw new IllegalStateException("Cannot change status of delivered order");
+        }
+
+        // Add more validation rules as needed
     }
 
     private OrderListDto toListDto(Order o) {

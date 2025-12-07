@@ -41,6 +41,8 @@ public class JwtServiceImpl implements iuh.fit.se.backend.service.JwtService {
                 .issueTime(issueTime)
                 .expirationTime(expiredTime)
                 .jwtID(jwtId)
+                .claim("scope", buildScope(user))
+                .claim("userId", user.getUserId())
                 .build();
 
         Payload payload = new Payload(claimsSet.toJSONObject());
@@ -49,7 +51,7 @@ public class JwtServiceImpl implements iuh.fit.se.backend.service.JwtService {
         try {
             jwsObject.sign(new MACSigner(secretKey));
         } catch (JOSEException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to generate access token", e);
         }
 
         String token = jwsObject.serialize();
@@ -73,6 +75,7 @@ public class JwtServiceImpl implements iuh.fit.se.backend.service.JwtService {
                 .issueTime(issueTime)
                 .expirationTime(expiredTime)
                 .jwtID(jwtId)
+                .claim("type", "refresh")
                 .build();
 
         Payload payload = new Payload(claimsSet.toJSONObject());
@@ -81,7 +84,7 @@ public class JwtServiceImpl implements iuh.fit.se.backend.service.JwtService {
         try {
             jwsObject.sign(new MACSigner(secretKey));
         } catch (JOSEException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to generate refresh token", e);
         }
 
         String token = jwsObject.serialize();
@@ -97,16 +100,15 @@ public class JwtServiceImpl implements iuh.fit.se.backend.service.JwtService {
         SignedJWT signedJWT = SignedJWT.parse(token);
 
         Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
-        if(expirationTime.before(new Date())) {
+        if (expirationTime.before(new Date())) {
             return false;
         }
 
         String jwtId = signedJWT.getJWTClaimsSet().getJWTID();
         Optional<RedisToken> byId = redisTokenRepository.findById(jwtId);
-        if(byId.isPresent()){
-            throw new RuntimeException("JWT token already exists");
+        if (byId.isPresent()) {
+            throw new RuntimeException("JWT token has been revoked");
         }
-
 
         return signedJWT.verify(new MACVerifier(secretKey));
     }
@@ -123,5 +125,16 @@ public class JwtServiceImpl implements iuh.fit.se.backend.service.JwtService {
                 .issueTime(issueTime)
                 .expiredTime(expiredTime)
                 .build();
+    }
+
+    // Helper method to extract subject (email) from token
+    public String getSubjectFromToken(String token) throws ParseException {
+        SignedJWT signedJWT = SignedJWT.parse(token);
+        return signedJWT.getJWTClaimsSet().getSubject();
+    }
+
+    // Helper method to build scope claim from user role
+    private String buildScope(User user) {
+        return "ROLE_" + user.getRole().name();
     }
 }
