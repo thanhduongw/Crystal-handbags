@@ -1,6 +1,7 @@
 package iuh.fit.se.backend.config;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -10,12 +11,15 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String SESSION_ATTR =
+            "org.springframework.session.web.http.SessionRepositoryFilter.SESSION";
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex) {
         ErrorResponse error = new ErrorResponse(
@@ -47,13 +51,30 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
-        ErrorResponse error = new ErrorResponse(
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex,
+                                                            HttpServletRequest request) {
+
+        // 1. Nếu lỗi do session invalidated -> gỡ nó
+        removeInvalidSessionIfNeed(request);
+
+        // 2. Trả lỗi 400, không động đến response body nữa
+        ErrorResponse err = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
-                System.currentTimeMillis()
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                System.currentTimeMillis());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+    }
+
+    private void removeInvalidSessionIfNeed(HttpServletRequest request) {
+        try {
+            Object session = request.getAttribute(SESSION_ATTR);
+            if (session == null) return;
+            Method isInvalidated = session.getClass().getMethod("isInvalidated");
+            if ((Boolean) isInvalidated.invoke(session)) {
+                request.removeAttribute(SESSION_ATTR);
+            }
+        } catch (Exception ignore) {
+        }
     }
 
     @ExceptionHandler(RuntimeException.class)
@@ -77,6 +98,7 @@ public class GlobalExceptionHandler {
         });
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
+
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
