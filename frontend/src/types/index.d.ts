@@ -1,28 +1,28 @@
 export interface Category {
-    id: number,
-    name: string,
-    imageUrl?: string,
-    description?: string
+    id: number;
+    name: string;
+    imageUrl?: string;
+    description?: string;
 }
 
 export interface ProductItem {
-    itemId: number,
-    color: string,
-    size: string,
-    price: number,
-    stockQuantity: number
+    itemId: number;
+    color: string;
+    size: string;
+    price: number;
+    stockQuantity: number;
 }
 
 export interface Product {
-    productId: number
-    name: string
-    description: string
-    basePrice: number
-    avatar: string
-    images: string[]
-    categoryName: string
-    items: ProductItem[]
-    showHomepage: boolean
+    productId: number;
+    name: string;
+    description: string;
+    basePrice: number;
+    avatar: string;
+    images: string[];
+    categoryName: string;
+    items: ProductItem[];
+    showHomepage: boolean;
 }
 
 export interface CartLine {
@@ -60,4 +60,34 @@ export interface OrderDetailDto {
     receiver: string;
     address: string;
     items: OrderItemDto[];
+    userId: number;
+}
+
+export interface UserProfileDto {
+    email: string;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+    gender: string;
+    dob?: string;
+    photoUrl?: string;
+}
+
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
+export interface RegisterRequest {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+}
+
+export interface AuthUser {
+    email: string;
+    role: string;
+    userId: number;
 }

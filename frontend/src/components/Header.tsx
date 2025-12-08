@@ -1,32 +1,98 @@
-import { Badge, Menu } from 'antd';
-import { ShoppingCartOutlined } from '@ant-design/icons';
+import { Menu, Dropdown, Avatar, Typography, Badge, type MenuProps } from 'antd';
+import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, DashboardOutlined, HistoryOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import useCart from '../hooks/useCart';
+
+const { Text } = Typography;
 
 export default function Header() {
     const navigate = useNavigate();
     const { lines } = useCart();
+    const { user, logout, isAdmin } = useAuth();
 
-    const menuItems = [
+    const userMenuItems: MenuProps['items'] = [
+        {
+            key: 'profile',
+            icon: <UserOutlined />,
+            label: 'Hồ sơ',
+            onClick: () => navigate('/profile'),
+        },
+        {
+            key: 'orders',
+            icon: <HistoryOutlined />,
+            label: 'Đơn hàng',
+            onClick: () => navigate('/orders'),
+        },
+        ...(isAdmin
+            ? [
+                {
+                    key: 'admin',
+                    icon: <DashboardOutlined />,
+                    label: 'Quản trị',
+                    onClick: () => navigate('/admin'),
+                },
+            ]
+            : []),
+        {
+            type: 'divider' as const, // <-- cast to 'divider' to satisfy TS
+        },
+        {
+            key: 'logout',
+            icon: <LogoutOutlined />,
+            label: 'Đăng xuất',
+            onClick: logout,
+        },
+    ];
+
+    const menuItems: MenuProps['items'] = [
         {
             key: 'home',
             label: <Link to="/">Trang chủ</Link>,
         },
         {
             key: 'cart',
-            label: 'Giỏ hàng',
-            icon: <Badge count={lines.length} dot>
-                <ShoppingCartOutlined />
-            </Badge>,
+            label: (
+                <Badge count={lines.length} offset={[10, 0]}>
+                    Giỏ hàng
+                </Badge>
+            ),
+            icon: <ShoppingCartOutlined />,
             onClick: () => navigate('/cart'),
         },
-        {
-            key: 'orders',
-            label: <Link to="/orders">Đơn hàng</Link>
-        }
     ];
 
+    if (user) {
+        menuItems.push({
+            key: 'user',
+            label: (
+                <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                    <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Avatar size="small" icon={<UserOutlined />} />
+                        <Text>{user.email}</Text>
+                    </div>
+                </Dropdown>
+            ),
+        });
+    } else {
+        menuItems.push(
+            {
+                key: 'login',
+                label: <Link to="/login">Đăng nhập</Link>,
+            },
+            {
+                key: 'register',
+                label: <Link to="/register">Đăng ký</Link>,
+            }
+        );
+    }
+
     return (
-        <Menu style={{ justifyContent: 'center', fontWeight: 'bold' }} mode="horizontal" selectedKeys={[]} items={menuItems} />
+        <Menu
+            mode="horizontal"
+            selectedKeys={[]}
+            style={{ justifyContent: 'center', fontWeight: 'bold' }}
+            items={menuItems}
+        />
     );
 }

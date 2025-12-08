@@ -1,4 +1,3 @@
-// src/api/sessionCartAPI.ts
 import type { CartLine } from '../types';
 import instance from './axiosInstance';
 
@@ -13,3 +12,6 @@ export const updateQty = (itemId: number, delta: number) =>
 
 export const removeItem = (itemId: number) =>
     instance.delete(`/session-cart/items/${itemId}`);
+
+export const clearCart = () =>
+    instance.delete('/session-cart');

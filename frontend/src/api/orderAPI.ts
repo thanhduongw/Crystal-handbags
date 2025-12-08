@@ -1,4 +1,3 @@
-// src/api/orderAPI.ts
 import type { OrderDetailDto, OrderListDto } from '../types';
 import instance from './axiosInstance';
 
@@ -12,3 +11,9 @@ export const fetchOrderDetail = (id: number) =>
 
 export const cancelOrder = (id: number) =>
     instance.put(`/orders/${id}/cancel`);
+
+export const fetchAdminOrders = () =>
+    instance.get<OrderListDto[]>('/admin/orders').then(r => r.data);
+
+export const updateAdminOrderStatus = (id: number, status: string) =>
+    instance.put(`/admin/orders/${id}/status?status=${status}`).then(r => r.data);
