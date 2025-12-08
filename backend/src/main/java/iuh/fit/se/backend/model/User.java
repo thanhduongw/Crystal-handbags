@@ -41,8 +41,6 @@ public class User implements UserDetails {
     private String photoUrl;
     private LocalDateTime createdAt;
 
-    private Boolean emailVerified = false;
-
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
@@ -50,9 +48,6 @@ public class User implements UserDetails {
         }
         if (role == null) {
             role = Role.CUSTOMER;
-        }
-        if (emailVerified == null) {
-            emailVerified = false;
         }
     }
 
@@ -92,6 +87,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return emailVerified;
+        return true;
     }
 }

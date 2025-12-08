@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -18,9 +19,9 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true) // Enable @PreAuthorize
+@EnableMethodSecurity
 @RequiredArgsConstructor
-public class WebSecurityConfig {
+public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtDecoderConfig jwtDecoderConfig;
@@ -29,9 +30,12 @@ public class WebSecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configure(http)) // Enable CORS
+                .cors(Customizer.withDefaults())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // Public
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/products/**",
@@ -39,35 +43,30 @@ public class WebSecurityConfig {
                                 "/api/session-cart/**"
                         ).permitAll()
 
-                        // Admin endpoints
+                        // Admin
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // User endpoints (requires authentication)
+                        // Authenticated user
                         .requestMatchers(
                                 "/api/cart/**",
                                 "/api/orders/**",
                                 "/api/users/profile"
                         ).authenticated()
 
-                        // All other requests
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoderConfig))
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .oauth2ResourceServer(oauth2 ->
+                        oauth2.jwt(jwt -> jwt.decoder(jwtDecoderConfig))
                 )
                 .build();
     }
 
     @Bean
     public AuthenticationManager authenticationManager() {
-        DaoAuthenticationProvider authenticationProvider =
+        DaoAuthenticationProvider provider =
                 new DaoAuthenticationProvider(userDetailsService);
-        authenticationProvider.setPasswordEncoder(passwordEncoder());
-
-        return new ProviderManager(authenticationProvider);
+        provider.setPasswordEncoder(passwordEncoder());
+        return new ProviderManager(provider);
     }
 
     @Bean

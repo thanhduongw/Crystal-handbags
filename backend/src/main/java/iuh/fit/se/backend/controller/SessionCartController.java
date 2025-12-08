@@ -1,11 +1,15 @@
 package iuh.fit.se.backend.controller;
 
 import iuh.fit.se.backend.dto.CartLineDto;
+import iuh.fit.se.backend.model.User;
+import iuh.fit.se.backend.service.DatabaseCartService;
 import iuh.fit.se.backend.service.SessionCartService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SessionCartController {
     private final SessionCartService sessionCartService;
+    private final DatabaseCartService databaseCartService;
 
     @GetMapping
     public List<CartLineDto> getCart(HttpSession session) {
@@ -27,12 +32,21 @@ public class SessionCartController {
         sessionCartService.addCartItem(session, dto);
     }
 
-    @PatchMapping("/items/{itemId}")
-    public void updateQty(HttpSession session,
-                          @PathVariable Long itemId,
-                          @RequestParam int delta) {
-        sessionCartService.updateCartQuantity(session, itemId, delta);
+    @PutMapping("/items/{itemId}")
+    public ResponseEntity<?> updateQuantity(
+            @AuthenticationPrincipal User user,
+            HttpSession session,
+            @PathVariable Long itemId,
+            @RequestParam int quantity) {
+
+        if (user != null) {
+            databaseCartService.updateQuantity(user.getEmail(), itemId, quantity);
+        } else {
+            sessionCartService.updateCartQuantity(session, itemId, quantity);
+        }
+        return ResponseEntity.ok().build();
     }
+
 
     @DeleteMapping("/items/{itemId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

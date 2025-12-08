@@ -7,10 +7,7 @@ import iuh.fit.se.backend.dto.auth.*;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.RedisTokenRepository;
 import iuh.fit.se.backend.repository.UserRepository;
-import iuh.fit.se.backend.repository.VerificationTokenRepository;
 import iuh.fit.se.backend.service.AuthenticationService;
-import iuh.fit.se.backend.service.DatabaseCartService;
-import iuh.fit.se.backend.service.EmailService;
 import iuh.fit.se.backend.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.Date;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,9 +30,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final RedisTokenRepository redisTokenRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final DatabaseCartService databaseCartService;
-    private final EmailService emailService;
-    private final VerificationTokenRepository verificationTokenRepository;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -45,11 +38,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
         User user = (User) authentication.getPrincipal();
-
-        // Check if email is verified
-        if (!user.getEmailVerified()) {
-            throw new RuntimeException("Please verify your email before logging in");
-        }
 
         TokenPayload accessTokenPayload = jwtService.generateAccessToken(user);
         TokenPayload refreshTokenPayload = jwtService.generateRefreshToken(user);
@@ -80,30 +68,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .lastName(request.getLastName())
                 .phoneNumber(request.getPhoneNumber())
                 .role(Role.CUSTOMER)
-                .emailVerified(false)
                 .createdAt(LocalDateTime.now())
                 .build();
 
         userRepository.save(user);
 
-        // Generate verification token
-        String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = VerificationToken.builder()
-                .token(token)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusHours(24))
-                .tokenType(VerificationToken.TokenType.EMAIL_VERIFICATION)
-                .used(false)
-                .build();
-
-        verificationTokenRepository.save(verificationToken);
-
-        // Send verification email
-        emailService.sendVerificationEmail(user.getEmail(), token);
-
         return RegisterResponse.builder()
                 .email(user.getEmail())
-                .message("Registration successful. Please check your email to verify your account.")
+                .message("Registration successful. You can now login.")
                 .build();
     }
 
@@ -170,79 +142,5 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
 
         redisTokenRepository.save(redisToken);
-    }
-
-    @Override
-    @Transactional
-    public void verifyEmail(String token) {
-        VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid verification token"));
-
-        if (verificationToken.isExpired()) {
-            throw new RuntimeException("Verification token has expired");
-        }
-
-        if (verificationToken.isUsed()) {
-            throw new RuntimeException("Verification token has already been used");
-        }
-
-        if (verificationToken.getTokenType() != VerificationToken.TokenType.EMAIL_VERIFICATION) {
-            throw new RuntimeException("Invalid token type");
-        }
-
-        User user = verificationToken.getUser();
-        user.setEmailVerified(true);
-        userRepository.save(user);
-
-        verificationToken.setUsed(true);
-        verificationTokenRepository.save(verificationToken);
-    }
-
-    @Override
-    @Transactional
-    public void forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Generate password reset token
-        String token = UUID.randomUUID().toString();
-        VerificationToken resetToken = VerificationToken.builder()
-                .token(token)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusHours(1))
-                .tokenType(VerificationToken.TokenType.PASSWORD_RESET)
-                .used(false)
-                .build();
-
-        verificationTokenRepository.save(resetToken);
-
-        // Send password reset email
-        emailService.sendPasswordResetEmail(user.getEmail(), token);
-    }
-
-    @Override
-    @Transactional
-    public void resetPassword(ResetPasswordRequest request) {
-        VerificationToken resetToken = verificationTokenRepository.findByToken(request.getToken())
-                .orElseThrow(() -> new RuntimeException("Invalid reset token"));
-
-        if (resetToken.isExpired()) {
-            throw new RuntimeException("Reset token has expired");
-        }
-
-        if (resetToken.isUsed()) {
-            throw new RuntimeException("Reset token has already been used");
-        }
-
-        if (resetToken.getTokenType() != VerificationToken.TokenType.PASSWORD_RESET) {
-            throw new RuntimeException("Invalid token type");
-        }
-
-        User user = resetToken.getUser();
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
-
-        resetToken.setUsed(true);
-        verificationTokenRepository.save(resetToken);
     }
 }

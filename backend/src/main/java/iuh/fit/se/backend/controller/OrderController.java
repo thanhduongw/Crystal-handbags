@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
@@ -33,17 +32,30 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<OrderDetailDto> getDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(orderService.getOrderDetail(id));
-    }
+    public ResponseEntity<OrderDetailDto> getDetail(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
 
-    @PutMapping("/{id}/cancel")
-    public ResponseEntity<Void> cancelOrder(@AuthenticationPrincipal User user, @PathVariable Long id) {
-        // Verify order belongs to user
         OrderDetailDto order = orderService.getOrderDetail(id);
+
         if (!order.getUserId().equals(user.getUserId())) {
             return ResponseEntity.status(403).build();
         }
+
+        return ResponseEntity.ok(order);
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelOrder(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+
+        OrderDetailDto order = orderService.getOrderDetail(id);
+
+        if (!order.getUserId().equals(user.getUserId())) {
+            return ResponseEntity.status(403).build();
+        }
+
         orderService.cancelOrder(id);
         return ResponseEntity.ok().build();
     }

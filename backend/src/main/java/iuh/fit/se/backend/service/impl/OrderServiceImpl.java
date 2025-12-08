@@ -4,10 +4,10 @@ import iuh.fit.se.backend.dto.*;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.*;
 import iuh.fit.se.backend.service.DatabaseCartService;
-import iuh.fit.se.backend.service.EmailService;
 import iuh.fit.se.backend.service.OrderService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
@@ -26,7 +27,6 @@ public class OrderServiceImpl implements OrderService {
     private final AddressRepository addressRepository;
     private final ProductItemRepository productItemRepository;
     private final DatabaseCartService cartService;
-    private final EmailService emailService;
     private final PaymentRepository paymentRepository;
 
     @Override
@@ -103,7 +103,7 @@ public class OrderServiceImpl implements OrderService {
                 .orderDate(LocalDateTime.now())
                 .status(OrderStatus.PENDING)
                 .shippingFee(new BigDecimal("15000"))
-                .orderItems(new ArrayList<>()) // Initialize empty list
+                .orderItems(new ArrayList<>())
                 .build();
 
         // Calculate total and create order items
@@ -141,21 +141,15 @@ public class OrderServiceImpl implements OrderService {
                 .order(savedOrder)
                 .amount(savedOrder.getTotalAmount())
                 .paymentDate(LocalDateTime.now())
-                .paymentMethod(PaymentMethod.CASH) // Default payment method
-                .status(false) // Unpaid
+                .paymentMethod(PaymentMethod.CASH)
+                .status(false)
                 .build();
         paymentRepository.save(payment);
 
         // Clear cart
         cartService.clearCart(email);
 
-        // Send confirmation email
-        try {
-            emailService.sendOrderConfirmationEmail(email, savedOrder.getOrderId());
-        } catch (Exception e) {
-            // Log error but don't fail the order creation
-            System.err.println("Failed to send order confirmation email: " + e.getMessage());
-        }
+        log.info("Order created successfully: {}", savedOrder.getOrderId());
 
         return getOrderDetail(savedOrder.getOrderId());
     }
@@ -190,7 +184,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void validateStatusTransition(OrderStatus currentStatus, OrderStatus newStatus) {
-        // Define valid transitions
         if (currentStatus == OrderStatus.CANCELLED) {
             throw new IllegalStateException("Cannot change status of cancelled order");
         }
@@ -198,8 +191,6 @@ public class OrderServiceImpl implements OrderService {
         if (currentStatus == OrderStatus.DELIVERED) {
             throw new IllegalStateException("Cannot change status of delivered order");
         }
-
-        // Add more validation rules as needed
     }
 
     private OrderListDto toListDto(Order o) {

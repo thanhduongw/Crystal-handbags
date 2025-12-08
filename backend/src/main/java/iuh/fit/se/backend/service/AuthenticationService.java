@@ -9,7 +9,4 @@ public interface AuthenticationService {
     RegisterResponse register(RegisterRequest request);
     LoginResponse refreshToken(RefreshTokenRequest request);
     void logout(String token) throws ParseException;
-    void verifyEmail(String token);
-    void forgotPassword(ForgotPasswordRequest request);
-    void resetPassword(ResetPasswordRequest request);
 }
