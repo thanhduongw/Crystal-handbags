@@ -3,6 +3,7 @@ package iuh.fit.se.backend.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -16,7 +17,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -25,6 +25,7 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtDecoderConfig jwtDecoderConfig;
+    private final JwtAuthConverter jwtAuthConverter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -35,29 +36,49 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Public
+
+                        // ===== PUBLIC (GET only) =====
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/products",
+                                "/api/products/{id}",
+                                "/api/products/search",
+                                "/api/categories",
+                                "/api/categories/{id}"
+                        ).permitAll()
+
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/products/**",
-                                "/api/categories/**",
                                 "/api/session-cart/**"
                         ).permitAll()
 
-                        // Admin
+                        // ===== ADMIN =====
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/categories/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasRole("ADMIN")
 
-                        // Authenticated user
+                        // ===== AUTHENTICATED USER =====
                         .requestMatchers(
                                 "/api/cart/**",
                                 "/api/orders/**",
                                 "/api/users/profile"
                         ).authenticated()
 
+                        .requestMatchers("/api/addresses/**")
+                        .hasAnyRole("USER", "ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt -> jwt.decoder(jwtDecoderConfig))
+                        oauth2.jwt(jwt -> jwt
+                                .decoder(jwtDecoderConfig)
+                                .jwtAuthenticationConverter(jwtAuthConverter)
+                        )
                 )
+
                 .build();
     }
 

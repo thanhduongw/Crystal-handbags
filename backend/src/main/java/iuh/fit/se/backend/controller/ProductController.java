@@ -25,6 +25,24 @@ public class ProductController {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
+    @GetMapping("/products/{id}")
+    public ProductDetailDto getProductById(@PathVariable Long id) {
+        return productService.getProductDetail(id);
+    }
+
+    @GetMapping("/products/categories")
+    public ResponseEntity<List<ProductListDto>> getProductsByCategory(@RequestParam Long categoryId
+    ) {
+        return ResponseEntity.ok(productService.getProductsByCategory(categoryId));
+    }
+
+
+    @GetMapping("/products/search")
+    public List<ProductListDto> searchProducts(@RequestParam String keyword) {
+        return productService.searchProducts(keyword);
+    }
+
+
     @PostMapping("/products")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDetailDto> createProduct(@RequestBody ProductDetailDto productDto) {

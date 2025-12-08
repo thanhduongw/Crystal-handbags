@@ -37,8 +37,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductDetailDto createProduct(ProductDetailDto productDto) {
-        Category category = categoryRepository.findById(Long.parseLong(productDto.getCategoryName()))
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+        Category category = categoryRepository.findByName(productDto.getCategoryName())
+                .stream()
+                .findFirst()
+                .orElseThrow(() ->
+                        new RuntimeException("Category not found: " + productDto.getCategoryName())
+                );
 
         Product product = Product.builder()
                 .name(productDto.getName())

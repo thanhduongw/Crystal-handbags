@@ -38,6 +38,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
     }
 
     @Override
+    @Transactional
     public void addCartItem(String email, Long productItemId, int quantity) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -66,6 +67,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
     }
 
     @Override
+    @Transactional
     public void updateQuantity(String email, Long productItemId, int quantity) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -86,6 +88,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
     }
 
     @Override
+    @Transactional
     public void removeCartItem(String email, Long productItemId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -97,6 +100,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
     }
 
     @Override
+    @Transactional
     public void clearCart(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));

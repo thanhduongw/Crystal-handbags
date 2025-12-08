@@ -38,8 +38,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public List<OrderListDto> getOrdersByStatus(OrderStatus status) {
-        return orderRepository.findByStatus(status)
+    public List<OrderListDto> getUserOrdersByStatus(String email, OrderStatus status) {
+        return orderRepository.findByUserEmailAndStatus(email, status)
                 .stream()
                 .map(this::toListDto)
                 .collect(Collectors.toList());

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,19 +22,20 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserCreateResponse createUser(@RequestBody UserCreateRequest userCreateRequest) {
         return userService.createUser(userCreateRequest);
     }
 
     @GetMapping("/users/profile")
-    public UserProfileDto getProfile(@AuthenticationPrincipal User user) {
-        return userService.getUserProfile(user.getEmail());
+    public UserProfileDto getProfile(@AuthenticationPrincipal Jwt jwt) {
+        return userService.getUserProfile(jwt.getSubject());
     }
 
     @PutMapping("/users/profile")
-    public UserProfileDto updateProfile(@AuthenticationPrincipal User user,
+    public UserProfileDto updateProfile(@AuthenticationPrincipal Jwt jwt,
                                         @RequestBody UserProfileDto profileDto) {
-        return userService.updateUserProfile(user.getEmail(), profileDto);
+        return userService.updateUserProfile(jwt.getSubject(), profileDto);
     }
 
     @GetMapping("/users")

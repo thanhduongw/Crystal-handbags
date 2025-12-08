@@ -6,12 +6,15 @@ import iuh.fit.se.backend.model.OrderStatus;
 import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
@@ -21,25 +24,29 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<List<OrderListDto>> getOrders(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) OrderStatus status) {
 
-        List<OrderListDto> orders = status == null
-                ? orderService.getUserOrders(user.getEmail())
-                : orderService.getOrdersByStatus(status);
+        String email = jwt.getSubject();
+        List<OrderListDto> orders = (status == null)
+                ? orderService.getUserOrders(email)
+                : orderService.getUserOrdersByStatus(email, status);
 
         return ResponseEntity.ok(orders);
     }
 
+
     @GetMapping("/{id}")
     public ResponseEntity<OrderDetailDto> getDetail(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id) {
 
         OrderDetailDto order = orderService.getOrderDetail(id);
 
-        if (!order.getUserId().equals(user.getUserId())) {
-            return ResponseEntity.status(403).build();
+        Long userId = jwt.getClaim("userId");
+
+        if (!order.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         return ResponseEntity.ok(order);
@@ -47,16 +54,24 @@ public class OrderController {
 
     @PutMapping("/{id}/cancel")
     public ResponseEntity<Void> cancelOrder(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id) {
+
+        if (jwt == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Long userId = jwt.getClaim("userId");
 
         OrderDetailDto order = orderService.getOrderDetail(id);
 
-        if (!order.getUserId().equals(user.getUserId())) {
-            return ResponseEntity.status(403).build();
+        if (!order.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         orderService.cancelOrder(id);
         return ResponseEntity.ok().build();
     }
+
 }
+
