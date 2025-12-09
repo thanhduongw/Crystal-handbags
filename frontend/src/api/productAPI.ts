@@ -10,7 +10,7 @@ export const fetchCategories = () => {
 };
 
 export const fetchProductsByCat = (catId: number) => {
-    return instance.get<Product[]>(`/products?categoryId=${catId}`).then((r) => r.data);
+    return instance.get<Product[]>(`/categories/${catId}/products`).then(r => r.data);
 };
 
 export const fetchProductDetail = (productId: number) => {

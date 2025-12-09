@@ -6,10 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -31,18 +28,28 @@ public class JwtDecoderConfig implements JwtDecoder {
     @Override
     public Jwt decode(String token) throws JwtException {
         try {
-            if(!jwtService.verifyToken(token)){
-                throw new RuntimeException("Invalid token");
+            // 1. Không làm gì nếu không có token
+            if (token == null || token.isBlank()) {
+                throw new BadJwtException("No token provided");
             }
-            if(Objects.isNull(nimbusJwtDecoder)){
-                SecretKey secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HS512");
+
+            // 2. Kiểm tra signature & expiry
+            if (!jwtService.verifyToken(token)) {
+                throw new BadJwtException("Invalid token");
+            }
+
+            // 3. Decode bình thường
+            if (nimbusJwtDecoder == null) {
+                SecretKey secretKeySpec = new SecretKeySpec(
+                        secretKey.getBytes(StandardCharsets.UTF_8), "HS512");
                 nimbusJwtDecoder = NimbusJwtDecoder.withSecretKey(secretKeySpec)
                         .macAlgorithm(MacAlgorithm.HS512)
                         .build();
             }
             return nimbusJwtDecoder.decode(token);
+
         } catch (ParseException | JOSEException e) {
-            throw new RuntimeException(e);
+            throw new BadJwtException("Malformed token", e);
         }
     }
 }

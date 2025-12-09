@@ -14,7 +14,7 @@ export default function ProductCard({ product }: Props) {
                 style={{ width: "100%", borderRadius: 10 }}
                 cover={
                     <img
-                        /*src={product.avatar}*/ src={"https://placehold.co/600x400"}
+                        src={product.avatar}
                         alt={product.name}
                         style={{
                             height: 380,

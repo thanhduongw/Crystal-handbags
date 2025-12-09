@@ -1,5 +1,5 @@
 export interface Category {
-    id: number;
+    categoryId: number;
     name: string;
     imageUrl?: string;
     description?: string;
@@ -90,4 +90,15 @@ export interface AuthUser {
     email: string;
     role: string;
     userId: number;
+}
+
+export interface Address {
+    addressId: number;
+    fullName: string;
+    phoneNumber: string;
+    street: string;
+    ward: string;
+    district: string;
+    province: string;
+    isDefault: boolean;
 }

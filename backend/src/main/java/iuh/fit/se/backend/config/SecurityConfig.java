@@ -43,7 +43,8 @@ public class SecurityConfig {
                                 "/api/products/{id}",
                                 "/api/products/search",
                                 "/api/categories",
-                                "/api/categories/{id}"
+                                "/api/categories/{id}",
+                                "/api/categories/*/products"
                         ).permitAll()
 
                         .requestMatchers(
@@ -68,7 +69,7 @@ public class SecurityConfig {
                         ).authenticated()
 
                         .requestMatchers("/api/addresses/**")
-                        .hasAnyRole("USER", "ADMIN")
+                        .hasAnyRole("CUSTOMER", "ADMIN")
 
                         .anyRequest().authenticated()
                 )

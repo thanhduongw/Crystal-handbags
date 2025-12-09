@@ -1,17 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Carousel, Col, Row, Spin, Input } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Carousel, Col, Row, Spin, Typography, Button, Space, Divider } from 'antd';
 import type { Product, Category } from '../types';
-import { fetchCategories, fetchProducts, searchProducts } from '../api/productAPI';
+import { fetchCategories, fetchProducts } from '../api/productAPI';
 import ProductCard from '../components/ProductCard';
 import CategoryCard from '../components/CategoryCard';
+import { useNavigate } from 'react-router-dom';
 
-const { Search } = Input;
+const { Title } = Typography;
 
 export default function Home() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const images = [
+        'https://cdn.hstatic.net/files/1000003969/file/khong-lineee.jpg',
+        'https://file.hstatic.net/1000003969/file/1920x870_6f0552ad424b4c4dba7d8ed47e215225.jpg',
+        'https://file.hstatic.net/1000003969/file/kvm.jpg',
+        'https://file.hstatic.net/1000003969/file/1920x870_b5e84ea3a70d430c8b33f479c64fb560.jpg'
+    ];
 
     useEffect(() => {
         loadData();
@@ -30,63 +37,55 @@ export default function Home() {
         }
     };
 
-    const onSearch = async (keyword: string) => {
-        if (!keyword.trim()) {
-            loadData();
-            return;
-        }
-        try {
-            setLoading(true);
-            const results = await searchProducts(keyword);
-            setProducts(results);
-        } catch (error) {
-            console.error('Search failed:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
-    if (loading) return <Spin style={{ display: 'block', margin: '100px auto' }} />;
+    if (loading) return <Spin style={{ display: 'block', margin: '100px auto' }} size="large" />;
 
     return (
         <div>
-            <Carousel arrows draggable autoplay autoplaySpeed={4000}>
-                {['slide1', 'slide2', 'slide3'].map((slide, idx) => (
-                    <div key={slide}>
-                        <img
-                            src="https://placehold.co/1200x400"
-                            alt={`Slide ${idx + 1}`}
-                            style={{ width: '100%', height: 400, objectFit: 'cover' }}
-                        />
+            <Carousel arrows draggable autoplay autoplaySpeed={3000}>
+                {images.map((img, idx) => (
+                    <div key={idx}>
+                        <div style={{ height: 600 }}>
+                            <img
+                                src={img}
+                                alt={`Slide ${idx + 1}`}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover'
+                                }}
+                            />
+                        </div>
                     </div>
                 ))}
             </Carousel>
 
-            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px' }}>
-                <Search
-                    placeholder="Tìm kiếm sản phẩm..."
-                    enterButton="Tìm kiếm"
-                    size="large"
-                    onSearch={onSearch}
-                    style={{ margin: '24px 0' }}
-                    prefix={<SearchOutlined />}
-                />
 
-                <div style={{ marginTop: 32 }}>
-                    <h2>Danh mục sản phẩm</h2>
-                    <Row gutter={[16, 16]}>
-                        {categories.map((cat) => (
-                            <Col xs={24} sm={12} md={8} key={cat.id}>
+            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px' }}>
+                <div style={{ margin: '32px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                        <Title level={2} style={{ margin: 0 }}>Danh mục sản phẩm</Title>
+                    </div>
+                    <Row gutter={[24, 24]}>
+                        {categories.slice(0, 6).map((cat) => (
+                            <Col xs={24} sm={12} md={8} lg={6} key={cat.categoryId}>
                                 <CategoryCard category={cat} />
                             </Col>
                         ))}
                     </Row>
                 </div>
 
-                <div style={{ marginTop: 48 }}>
-                    <h2>Sản phẩm mới</h2>
+                <Divider />
+
+                <div style={{ marginBottom: 48 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                        <Space>
+                            <Title level={2} style={{ margin: 0 }}>Sản phẩm nổi bật</Title>
+                        </Space>
+                        <Button type="link" onClick={() => navigate('/products')}>Xem tất cả →</Button>
+                    </div>
                     <Row gutter={[16, 16]}>
-                        {products.map((product) => (
+                        {products.slice(0, 8).map((product) => (
                             <Col xs={24} sm={12} md={8} lg={6} key={product.productId}>
                                 <ProductCard product={product} />
                             </Col>

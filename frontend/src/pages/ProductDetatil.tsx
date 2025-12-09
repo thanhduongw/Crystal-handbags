@@ -14,6 +14,7 @@ import {
     Image,
     Alert,
     Space,
+    Carousel,
 } from 'antd';
 import { ShoppingCartOutlined } from '@ant-design/icons';
 import type { Product, ProductItem } from '../types';
@@ -27,6 +28,8 @@ export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
     const productId = Number(id);
     const { addItem } = useCart();
+    const [activeImage, setActiveImage] = useState<string>('');
+
 
     const [product, setProduct] = useState<Product | null>(null);
     const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -40,10 +43,16 @@ export default function ProductDetail() {
     useEffect(() => {
         loadProduct();
     }, [productId]);
+    useEffect(() => {
+        if (product?.images?.length) {
+            setActiveImage(product.images[0]);
+        }
+    }, [product]);
+
 
     useEffect(() => {
         if (!alert) return;
-        const timer = setTimeout(() => setAlert(null), 3000);
+        const timer = setTimeout(() => setAlert(null), 500);
         return () => clearTimeout(timer);
     }, [alert]);
 
@@ -79,13 +88,12 @@ export default function ProductDetail() {
     if (!product) return <Navigate to="/" replace />;
 
     const colors = [...new Set(product.items.map((i) => i.color))];
-    const sizes = product.items.filter((i) => i.color === selectedItem?.color);
 
     return (
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px' }}>
             {alert && (
                 <Alert
-                    message={alert.message}
+                    title={alert.message}
                     type={alert.type}
                     showIcon
                     closable
@@ -94,28 +102,70 @@ export default function ProductDetail() {
                 />
             )}
 
-            <Card style={{ marginTop: 24 }}>
+            <Card style={{ marginTop: 12 }}>
                 <Row gutter={[24, 24]}>
                     <Col xs={24} md={12}>
-                        <Image
-                            src={product.images[0] || 'https://placehold.co/600x400'}
-                            alt={product.name}
-                            style={{ width: '100%', height: 400, objectFit: 'cover', borderRadius: 8 }}
-                        />
-                        <Space style={{ marginTop: 16, overflowX: 'auto', width: '100%' }}>
+                        <div
+                            style={{
+                                display: 'flex',               // căn giữa
+                                justifyContent: 'center',
+                                alignItems: 'center',            // chiều cao khung
+                                borderRadius: 12,
+                                overflow: 'hidden',
+                                border: '1px solid #f0f0f0',
+                                marginBottom: 12,
+                            }}
+                        >
+                            <Image
+                                src={activeImage}
+                                alt={product.name}
+                                width={'90%'}
+                                style={{ objectFit: 'contain' }}
+                            />
+                        </div>
+
+                        <Carousel
+                            slidesToShow={6}
+                            infinite={false}
+                            arrows
+                            draggable
+                            swipeToSlide
+                            dots={false}
+                            responsive={[
+                                { breakpoint: 1024, settings: { slidesToShow: 4 } },
+                                { breakpoint: 768, settings: { slidesToShow: 3 } },
+                                { breakpoint: 480, settings: { slidesToShow: 2 } },
+                            ]}
+                        >
                             {product.images.map((img, idx) => (
-                                <Image
-                                    key={idx}
-                                    src={img || 'https://placehold.co/600x400'}
-                                    alt={`${product.name}-${idx}`}
-                                    width={80}
-                                    height={80}
-                                    style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
-                                    onClick={() => window.open(img, '_blank')}
-                                />
+                                <div key={idx} style={{ padding: '0 6px' }}>
+                                    <div
+                                        onClick={() => setActiveImage(img)}
+                                        style={{
+                                            border: activeImage === img
+                                                ? '2px solid #1677ff'
+                                                : '1px solid #eee',
+                                            borderRadius: 6,
+                                            padding: 4,
+                                            cursor: 'pointer',
+                                            background: '#fff',
+                                        }}
+                                    >
+                                        <Image
+                                            src={img}
+                                            preview={false}
+                                            style={{
+                                                objectFit: 'contain',
+                                                borderRadius: 4,
+                                            }}
+                                        />
+                                    </div>
+                                </div>
                             ))}
-                        </Space>
+                        </Carousel>
                     </Col>
+
+
 
                     <Col xs={24} md={12}>
                         <Title level={2}>{product.name}</Title>
@@ -133,7 +183,7 @@ export default function ProductDetail() {
 
                         <Divider />
 
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space orientation="vertical" style={{ width: '100%' }}>
                             <Text strong>Màu sắc:</Text>
                             <Select
                                 value={selectedItem?.color}
@@ -147,22 +197,6 @@ export default function ProductDetail() {
                                 {colors.map((color) => (
                                     <Select.Option key={color} value={color}>
                                         {color}
-                                    </Select.Option>
-                                ))}
-                            </Select>
-
-                            <Text strong>Size:</Text>
-                            <Select
-                                value={selectedItem?.itemId}
-                                onChange={(itemId) => {
-                                    const item = product.items.find((i) => i.itemId === itemId);
-                                    setSelectedItem(item || null);
-                                }}
-                                style={{ width: '100%' }}
-                            >
-                                {sizes.map((item) => (
-                                    <Select.Option key={item.itemId} value={item.itemId}>
-                                        {item.size} (Còn {item.stockQuantity})
                                     </Select.Option>
                                 ))}
                             </Select>

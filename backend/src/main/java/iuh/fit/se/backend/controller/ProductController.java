@@ -30,10 +30,11 @@ public class ProductController {
         return productService.getProductDetail(id);
     }
 
-    @GetMapping("/products/categories")
-    public ResponseEntity<List<ProductListDto>> getProductsByCategory(@RequestParam Long categoryId
+    @GetMapping("/categories/{id}/products")
+    public ResponseEntity<List<ProductListDto>> getProductsByCategory(
+            @PathVariable Long id
     ) {
-        return ResponseEntity.ok(productService.getProductsByCategory(categoryId));
+        return ResponseEntity.ok(productService.getProductsByCategory(id));
     }
 
 

@@ -3,44 +3,44 @@ import { Form, Select, Button, Card, Typography, Spin, message, Radio, Space } f
 import { useNavigate } from 'react-router-dom';
 import useCart from '../hooks/useCart';
 import { fetchCart, clearCart } from '../api/sessionCartAPI';
-import type { CartLine } from '../types';
+import type { Address, CartLine } from '../types';
+import { fetchAddresses } from '../api/addressAPI';
 
 const { Title } = Typography;
 
 export default function Checkout() {
+    const SHIP_FEE = 15_000;
     const [form] = Form.useForm();
     const navigate = useNavigate();
     const { total } = useCart();
     const [loading, setLoading] = useState(true);
-    const [addresses, setAddresses] = useState<any[]>([]);
+    const [addresses, setAddresses] = useState<Address[]>([]);
     const [cartItems, setCartItems] = useState<CartLine[]>([]);
 
     useEffect(() => {
         loadCheckoutData();
     }, []);
-
     const loadCheckoutData = async () => {
         try {
             setLoading(true);
             const [cartData, addressesData] = await Promise.all([
                 fetchCart(),
-                // Fetch user addresses
-                fetch('/api/addresses', {
-                    headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
-                }).then(r => r.json()),
+                fetchAddresses(),           // <-- thay cho fetch('/api/addresses')
             ]);
             setCartItems(cartData);
             setAddresses(addressesData);
-        } catch (error) {
-            message.error('Không thể tải thông tin thanh toán!');
+        } catch (error: any) {
+            console.error(error);
+            message.error(error.message || 'Không thể tải thông tin thanh toán!');
         } finally {
             setLoading(false);
         }
     };
 
+
     const onFinish = async (values: any) => {
         try {
-            const response = await fetch('/api/cart/checkout', {
+            const res = await fetch('/api/cart/checkout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -52,14 +52,16 @@ export default function Checkout() {
                 }),
             });
 
-            if (!response.ok) throw new Error('Checkout failed');
-
-            const order = await response.json();
+            if (!res.ok) {
+                const txt = await res.text();
+                throw new Error(txt || 'Checkout thất bại');
+            }
+            const order = await res.json();
             await clearCart();
             message.success('Đặt hàng thành công!');
             navigate(`/orders/${order.orderId}`);
-        } catch (error) {
-            message.error('Đặt hàng thất bại!');
+        } catch (err: any) {
+            message.error(err.message || 'Đặt hàng thất bại!');
         }
     };
 
@@ -127,7 +129,7 @@ export default function Checkout() {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, color: '#cf1322' }}>
                                 <strong>Thành tiền:</strong>
-                                <strong>{(total + 15000).toLocaleString()} đ</strong>
+                                <strong>{(total + SHIP_FEE).toLocaleString()} đ</strong>
                             </div>
                         </div>
                     </Card>

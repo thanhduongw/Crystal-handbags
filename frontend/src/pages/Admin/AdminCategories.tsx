@@ -53,7 +53,7 @@ export default function AdminCategories() {
     const handleSubmit = async (values: any) => {
         try {
             if (editingCategory) {
-                await updateCategory(editingCategory.id, values);
+                await updateCategory(editingCategory.categoryId, values);
                 message.success('Cập nhật thành công!');
             } else {
                 await createCategory(values);
@@ -83,7 +83,7 @@ export default function AdminCategories() {
                         }}
                         style={{ marginRight: 8 }}
                     />
-                    <Button icon={<DeleteOutlined />} danger onClick={() => handleDelete(r.id)} />
+                    <Button icon={<DeleteOutlined />} danger onClick={() => handleDelete(r.categoryId)} />
                 </>
             ),
         },

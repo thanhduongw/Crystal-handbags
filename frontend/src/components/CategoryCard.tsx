@@ -6,16 +6,16 @@ interface Props {
 }
 
 export default function CategoryCard({ category }: Props) {
-    console.log(category.id)
+    console.log(category.categoryId)
     return (
-        <Link to={`/categories/${category.id}/products`}>
+        <Link to={`/categories/${category.categoryId}/products`}>
             <Card
                 hoverable
                 cover={
                     <img
                         alt={category.name}
-                        /* src={category.imageUrl} */ src={"https://placehold.co/600x400"}
-                        style={{ height: 200, objectFit: 'cover' }}
+                        src={category.imageUrl}
+                        style={{ height: 300, objectFit: 'cover' }}
                     />
                 }
             >

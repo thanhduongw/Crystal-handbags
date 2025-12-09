@@ -67,7 +67,7 @@ export default function ProductForm({ visible, onCancel, onSubmit, initialValues
                 <Form.Item name="categoryName" label="Danh mục" rules={[{ required: true }]}>
                     <Select loading={loading}>
                         {categories.map((cat) => (
-                            <Select.Option key={cat.id} value={cat.name}>
+                            <Select.Option key={cat.categoryId} value={cat.name}>
                                 {cat.name}
                             </Select.Option>
                         ))}

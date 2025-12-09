@@ -5,6 +5,10 @@ export const fetchCategories = () => {
     return instance.get<Category[]>("/categories").then((r) => r.data);
 };
 
+export const fetchCategory = (id: number) => {
+    return instance.get<Category>(`/categories/${id}`).then((r) => r.data)
+}
+
 export const createCategory = (category: Omit<Category, "id">) => {
     return instance.post("/categories", category).then((r) => r.data);
 };

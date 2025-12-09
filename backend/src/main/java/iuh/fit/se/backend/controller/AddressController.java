@@ -5,9 +5,11 @@ import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.repository.UserRepository;
 import iuh.fit.se.backend.service.AddressService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -22,26 +24,43 @@ public class AddressController {
 
     @GetMapping
     public List<Address> getAddresses(@AuthenticationPrincipal Jwt jwt) {
-        User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
+
+        if (jwt == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Missing or invalid JWT"
+            );
+        }
+
+        User user = userRepository
+                .findByEmail(jwt.getSubject())
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found")
+                );
+
         return addressService.getUserAddresses(user);
     }
 
+
     @PostMapping
-    public Address createAddress(@AuthenticationPrincipal User user,
+    public Address createAddress(@AuthenticationPrincipal Jwt jwt,
                                  @RequestBody Address address) {
+        User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
         return addressService.createAddress(user, address);
     }
 
     @PutMapping("/{id}")
     public Address updateAddress(@PathVariable Long id,
-                                 @AuthenticationPrincipal  User user,
+                                 @AuthenticationPrincipal  Jwt jwt,
                                  @RequestBody Address address) {
+        User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
         return addressService.updateAddress(id, user, address);
     }
 
     @DeleteMapping("/{id}")
     public void deleteAddress(@PathVariable Long id,
-                              @AuthenticationPrincipal  User user) {
+                              @AuthenticationPrincipal  Jwt jwt) {
+        User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
         addressService.deleteAddress(id, user);
     }
 }
