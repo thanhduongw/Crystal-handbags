@@ -1,8 +1,8 @@
 import { Card } from "antd";
-import type { Category } from "../types";
+import type { CategoryDto } from "../types";
 import { Link } from "react-router-dom";
 interface Props {
-    category: Category;
+    category: CategoryDto;
 }
 
 export default function CategoryCard({ category }: Props) {

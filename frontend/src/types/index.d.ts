@@ -1,11 +1,19 @@
-export interface Category {
+// ==================== ENUMS ====================
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+export type Role = 'ROLE_CUSTOMER' | 'ROLE_ADMIN';
+export type PaymentMethod = 'CASH' | 'CARD' | 'UPI' | 'BANK_TRANSFER';
+
+// ==================== CATEGORY ====================
+export interface CategoryDto {
     categoryId: number;
     name: string;
     imageUrl?: string;
     description?: string;
 }
 
-export interface ProductItem {
+// ==================== PRODUCT ====================
+export interface ProductItemDto {
     itemId: number;
     color: string;
     size: string;
@@ -13,7 +21,16 @@ export interface ProductItem {
     stockQuantity: number;
 }
 
-export interface Product {
+export interface ProductListDto {
+    productId: number;
+    name: string;
+    avatar: string;
+    basePrice: number;
+    categoryName: string;
+    showHomepage: boolean;
+}
+
+export interface ProductDetailDto {
     productId: number;
     name: string;
     description: string;
@@ -21,11 +38,12 @@ export interface Product {
     avatar: string;
     images: string[];
     categoryName: string;
-    items: ProductItem[];
-    showHomepage: boolean;
+    items: ProductItemDto[];
+    showHomePage: boolean;
 }
 
-export interface CartLine {
+// ==================== CART ====================
+export interface CartLineDto {
     itemId: number;
     name: string;
     avatar: string;
@@ -33,15 +51,17 @@ export interface CartLine {
     qty: number;
 }
 
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-
-export interface OrderListDto {
-    orderId: number;
-    orderDate: string;
-    status: OrderStatus;
-    totalAmount: number;
+export interface CartItemDto {
+    itemId: number;
+    productName: string;
+    avatar: string;
+    color: string;
+    size: string;
+    price: number;
+    quantity: number;
 }
 
+// ==================== ORDER ====================
 export interface OrderItemDto {
     itemId: number;
     productName: string;
@@ -51,9 +71,16 @@ export interface OrderItemDto {
     price: number;
 }
 
+export interface OrderListDto {
+    orderId: number;
+    orderDate: string; // ISO string
+    status: OrderStatus;
+    totalAmount: number;
+}
+
 export interface OrderDetailDto {
     orderId: number;
-    orderDate: string;
+    orderDate: string; // ISO string
     status: OrderStatus;
     totalAmount: number;
     shippingFee: number;
@@ -63,16 +90,36 @@ export interface OrderDetailDto {
     userId: number;
 }
 
+// ==================== USER ====================
 export interface UserProfileDto {
     email: string;
     firstName: string;
     lastName: string;
     phoneNumber: string;
-    gender: string;
-    dob?: string;
+    gender: Gender;
+    dob?: string; // ISO date string
     photoUrl?: string;
 }
 
+export interface AuthUser {
+    email: string;
+    role: Role;
+    userId: number;
+}
+
+// ==================== ADDRESS ====================
+export interface Address {
+    addressId: number;
+    fullName: string;
+    phoneNumber: string;
+    street: string;
+    ward: string;
+    district: string;
+    province: string;
+    isDefault: boolean;
+}
+
+// ==================== AUTH ====================
 export interface LoginRequest {
     email: string;
     password: string;
@@ -86,19 +133,48 @@ export interface RegisterRequest {
     phoneNumber: string;
 }
 
-export interface AuthUser {
-    email: string;
-    role: string;
-    userId: number;
+export interface LoginResponse {
+    accessToken: string;
+    refreshToken: string;
 }
 
-export interface Address {
-    addressId: number;
-    fullName: string;
+export interface RegisterResponse {
+    email: string;
+    message: string;
+}
+
+export interface RefreshTokenRequest {
+    refreshToken: string;
+}
+
+export interface UserCreateRequest {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
     phoneNumber: string;
-    street: string;
-    ward: string;
-    district: string;
-    province: string;
-    isDefault: boolean;
+}
+
+export interface UserCreateResponse {
+    email: string;
+}
+
+// ==================== CHECKOUT ====================
+export interface CheckoutRequest {
+    addressId: number;
+    paymentMethod: PaymentMethod;
+    cartItemIds?: number[]; // optional nếu backend không yêu cầu
+}
+
+// ==================== TOKEN ====================
+export interface TokenPayload {
+    token: string;
+    jwtId: string;
+    expiredTime: string; // ISO date string
+}
+
+export interface JwtInfo {
+    jwtId: string;
+    issueTime: string;
+    expiredTime: string;
 }

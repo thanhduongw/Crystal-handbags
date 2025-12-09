@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Table, Button, Spin, Typography, message, Modal } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { fetchCategories, createCategory, updateCategory, deleteCategory } from '../../api/categoryAPI';
-import type { Category } from '../../types';
+import type { CategoryDto } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import CategoryForm from '../../components/CategoryForm';
@@ -11,10 +11,10 @@ const { Title } = Typography;
 
 export default function AdminCategories() {
     const { isAdmin } = useAuth();
-    const [categories, setCategories] = useState<Category[]>([]);
+    const [categories, setCategories] = useState<CategoryDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
-    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [editingCategory, setEditingCategory] = useState<CategoryDto | null>(null);
 
     if (!isAdmin) return <Navigate to="/" replace />;
 
@@ -73,7 +73,7 @@ export default function AdminCategories() {
         {
             title: 'Thao tác',
             key: 'action',
-            render: (_: any, r: Category) => (
+            render: (_: any, r: CategoryDto) => (
                 <>
                     <Button
                         icon={<EditOutlined />}

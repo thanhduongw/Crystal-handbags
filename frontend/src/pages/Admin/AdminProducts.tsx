@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Table, Button, Spin, Typography, message, Modal, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { fetchProducts, createProduct, updateProduct, deleteProduct } from '../../api/productAPI';
-import type { Product } from '../../types';
+import type { ProductListDto } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import ProductForm from '../../components/ProductForm';
@@ -11,10 +11,10 @@ const { Title } = Typography;
 
 export default function AdminProducts() {
     const { isAdmin } = useAuth();
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<ProductListDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [editingProduct, setEditingProduct] = useState<ProductListDto | null>(null);
 
     if (!isAdmin) return <Navigate to="/" replace />;
 
@@ -98,7 +98,7 @@ export default function AdminProducts() {
         {
             title: 'Thao tác',
             key: 'action',
-            render: (_: any, r: Product) => (
+            render: (_: any, r: ProductListDto) => (
                 <Space>
                     <Button
                         icon={<EditOutlined />}

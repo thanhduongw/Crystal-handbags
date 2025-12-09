@@ -17,10 +17,10 @@ import {
     Carousel,
 } from 'antd';
 import { ShoppingCartOutlined } from '@ant-design/icons';
-import type { Product, ProductItem } from '../types';
 import { fetchProductDetail, fetchProducts } from '../api/productAPI';
 import ProductCard from '../components/ProductCard';
 import useCart from '../hooks/useCart';
+import type { ProductDetailDto, ProductItemDto, ProductListDto } from '../types';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -31,10 +31,10 @@ export default function ProductDetail() {
     const [activeImage, setActiveImage] = useState<string>('');
 
 
-    const [product, setProduct] = useState<Product | null>(null);
-    const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+    const [product, setProduct] = useState<ProductDetailDto | null>(null);
+    const [relatedProducts, setRelatedProducts] = useState<ProductListDto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedItem, setSelectedItem] = useState<ProductItem | null>(null);
+    const [selectedItem, setSelectedItem] = useState<ProductItemDto | null>(null);
     const [qty, setQty] = useState(1);
     const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 

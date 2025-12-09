@@ -1,12 +1,12 @@
 import { Modal, Form, Input } from 'antd';
-import type { Category } from '../types';
+import type { CategoryDto } from '../types';
 import { useEffect } from 'react';
 
 interface CategoryFormProps {
     visible: boolean;
     onCancel: () => void;
     onSubmit: (values: any) => void;
-    initialValues?: Category;
+    initialValues?: CategoryDto;
 }
 
 export default function CategoryForm({ visible, onCancel, onSubmit, initialValues }: CategoryFormProps) {

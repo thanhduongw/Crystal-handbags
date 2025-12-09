@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Carousel, Col, Row, Spin, Typography, Button, Space, Divider } from 'antd';
-import type { Product, Category } from '../types';
-import { fetchCategories, fetchProducts } from '../api/productAPI';
+import type { ProductListDto, CategoryDto } from '../types';
+import { fetchProducts } from '../api/productAPI';
 import ProductCard from '../components/ProductCard';
 import CategoryCard from '../components/CategoryCard';
 import { useNavigate } from 'react-router-dom';
+import { fetchCategories } from '../api/categoryAPI';
 
 const { Title } = Typography;
 
 export default function Home() {
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<CategoryDto[]>([]);
+    const [products, setProducts] = useState<ProductListDto[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const images = [

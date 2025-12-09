@@ -1,146 +1,181 @@
-import { useState, useEffect } from 'react';
-import { Form, Select, Button, Card, Typography, Spin, message, Radio, Space } from 'antd';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    Row,
+    Col,
+    Typography,
+    Radio,
+    Table,
+    Card,
+    Button,
+    Spin,
+    Alert,
+    Divider,
+    Space,
+    message,
+    Tag,
+} from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { useAuth } from '../contexts/AuthContext';
 import useCart from '../hooks/useCart';
-import { fetchCart, clearCart } from '../api/sessionCartAPI';
-import type { Address, CartLine } from '../types';
 import { fetchAddresses } from '../api/addressAPI';
+import { checkout as checkoutAPI } from '../api/cartAPI';
+import type { Address, CartLineDto, PaymentMethod } from '../types';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export default function Checkout() {
-    const SHIP_FEE = 15_000;
-    const [form] = Form.useForm();
     const navigate = useNavigate();
-    const { total } = useCart();
-    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
+    const { lines, total: cartTotal, loading: cartLoading, clearCart } = useCart();
     const [addresses, setAddresses] = useState<Address[]>([]);
-    const [cartItems, setCartItems] = useState<CartLine[]>([]);
+    const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const shippingFee = 30000; // Có thể thay đổi theo logic tính phí ship
+    const totalAmount = cartTotal + shippingFee;
 
     useEffect(() => {
-        loadCheckoutData();
-    }, []);
-    const loadCheckoutData = async () => {
+        if (!user) {
+            navigate('/login', { replace: true });
+            return;
+        }
+        loadAddresses();
+    }, [user, navigate]);
+
+    const loadAddresses = async () => {
         try {
-            setLoading(true);
-            const [cartData, addressesData] = await Promise.all([
-                fetchCart(),
-                fetchAddresses(),           // <-- thay cho fetch('/api/addresses')
-            ]);
-            setCartItems(cartData);
-            setAddresses(addressesData);
+            const data = await fetchAddresses();
+            setAddresses(data);
+            const defaultAddr = data.find((a) => a.isDefault);
+            if (defaultAddr) setSelectedAddressId(defaultAddr.addressId);
+            else if (data.length > 0) setSelectedAddressId(data[0].addressId);
+        } catch (error) {
+            message.error('Không thể tải danh sách địa chỉ!');
+        }
+    };
+
+    const handleCheckout = async () => {
+        if (!selectedAddressId) {
+            setError('Vui lòng chọn địa chỉ giao hàng!');
+            return;
+        }
+        if (lines.length === 0) {
+            setError('Giỏ hàng trống!');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        try {
+            await checkoutAPI(selectedAddressId);
+            await clearCart();
+            message.success('Đặt hàng thành công! Chuyển hướng đến lịch sử đơn hàng...');
+            setTimeout(() => navigate('/orders'), 1500);
         } catch (error: any) {
-            console.error(error);
-            message.error(error.message || 'Không thể tải thông tin thanh toán!');
+            setError(error?.response?.data?.message || 'Đặt hàng thất bại. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
     };
 
+    if (cartLoading) return <Spin style={{ display: 'block', margin: '100px auto' }} size="large" />;
+    if (!user) return null;
 
-    const onFinish = async (values: any) => {
-        try {
-            const res = await fetch('/api/cart/checkout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-                },
-                body: JSON.stringify({
-                    addressId: values.addressId,
-                    paymentMethod: values.paymentMethod,
-                }),
-            });
-
-            if (!res.ok) {
-                const txt = await res.text();
-                throw new Error(txt || 'Checkout thất bại');
-            }
-            const order = await res.json();
-            await clearCart();
-            message.success('Đặt hàng thành công!');
-            navigate(`/orders/${order.orderId}`);
-        } catch (err: any) {
-            message.error(err.message || 'Đặt hàng thất bại!');
-        }
-    };
-
-    if (loading) return <Spin style={{ display: 'block', margin: '100px auto' }} />;
-
-    if (cartItems.length === 0) {
-        return (
-            <div style={{ maxWidth: 800, margin: '50px auto', textAlign: 'center' }}>
-                <Title level={4}>Giỏ hàng trống</Title>
-                <Button type="primary" onClick={() => navigate('/')}>
-                    Tiếp tục mua sắm
-                </Button>
-            </div>
-        );
-    }
+    const columns = [
+        {
+            title: 'Sản phẩm',
+            render: (record: CartLineDto) => (
+                <Space size="middle">
+                    <img
+                        src={record.avatar || 'https://placehold.co/600x400'}
+                        alt={record.name}
+                        width={50}
+                        height={50}
+                        style={{ objectFit: 'cover', borderRadius: 6 }}
+                    />
+                    <Text strong>{record.name}</Text>
+                </Space>
+            ),
+        },
+        { title: 'Số lượng', dataIndex: 'qty', align: 'center' as const },
+        { title: 'Đơn giá', render: (record: CartLineDto) => `${record.price.toLocaleString()} đ` },
+        { title: 'Thành tiền', render: (record: CartLineDto) => `${(record.price * record.qty).toLocaleString()} đ` },
+    ];
 
     return (
-        <div style={{ maxWidth: 800, margin: '50px auto', padding: '0 16px' }}>
-            <Card>
-                <Title level={3}>Thanh toán</Title>
-                <Form form={form} onFinish={onFinish} layout="vertical">
-                    <Form.Item
-                        name="addressId"
-                        label="Địa chỉ nhận hàng"
-                        rules={[{ required: true, message: 'Vui lòng chọn địa chỉ!' }]}
-                    >
-                        <Select placeholder="Chọn địa chỉ">
-                            {addresses.map((addr) => (
-                                <Select.Option key={addr.addressId} value={addr.addressId}>
-                                    {addr.fullName} - {addr.street}, {addr.ward}, {addr.district}, {addr.province}
-                                </Select.Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
+            <Title level={2} style={{ marginBottom: 24 }}>Thanh toán</Title>
+            {error && <Alert message={error} type="error" showIcon closable style={{ marginBottom: 24 }} />}
 
-                    <Form.Item
-                        name="paymentMethod"
-                        label="Phương thức thanh toán"
-                        rules={[{ required: true }]}
-                    >
-                        <Radio.Group>
-                            <Space direction="vertical">
-                                <Radio value="CASH">Thanh toán khi nhận hàng</Radio>
-                                <Radio value="CARD" disabled>Thẻ tín dụng (Chưa hỗ trợ)</Radio>
-                            </Space>
-                        </Radio.Group>
-                    </Form.Item>
-
-                    <Card style={{ marginBottom: 24 }}>
-                        <Title level={5}>Tóm tắt đơn hàng</Title>
-                        {cartItems.map((item) => (
-                            <div key={item.itemId} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                <span>{item.name} x {item.qty}</span>
-                                <span>{(item.price * item.qty).toLocaleString()} đ</span>
-                            </div>
-                        ))}
-                        <div style={{ borderTop: '1px solid #e8e8e8', marginTop: 16, paddingTop: 16 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <strong>Tổng cộng:</strong>
-                                <strong>{total.toLocaleString()} đ</strong>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Phí vận chuyển:</span>
-                                <span>15.000 đ</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, color: '#cf1322' }}>
-                                <strong>Thành tiền:</strong>
-                                <strong>{(total + SHIP_FEE).toLocaleString()} đ</strong>
-                            </div>
-                        </div>
+            <Row gutter={[24, 24]}>
+                <Col xs={24} md={16}>
+                    <Card title={<Title level={4}>Địa chỉ giao hàng</Title>} style={{ marginBottom: 24 }}>
+                        {addresses.length === 0 ? (
+                            <Alert
+                                message="Bạn chưa có địa chỉ nào"
+                                type="warning"
+                                action={<Button type="primary" size="small" onClick={() => navigate('/addresses')}>Thêm địa chỉ</Button>}
+                            />
+                        ) : (
+                            <Radio.Group value={selectedAddressId} onChange={(e) => setSelectedAddressId(e.target.value)} style={{ width: '100%' }}>
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                    {addresses.map((addr) => (
+                                        <Card key={addr.addressId} size="small" hoverable
+                                            style={{ width: '100%', cursor: 'pointer', borderColor: selectedAddressId === addr.addressId ? '#1890ff' : '#d9d9d9', backgroundColor: selectedAddressId === addr.addressId ? '#e6f7ff' : '#fff' }}
+                                            onClick={() => setSelectedAddressId(addr.addressId)}>
+                                            <Radio value={addr.addressId} style={{ width: '100%' }}>
+                                                <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                                                    <div>
+                                                        <Text strong>{addr.fullName} - {addr.phoneNumber}</Text>
+                                                        {addr.isDefault && <Tag color="blue" style={{ marginLeft: 8 }}>Mặc định</Tag>}
+                                                    </div>
+                                                    <Text type="secondary">{addr.street}, {addr.ward}, {addr.district}, {addr.province}</Text>
+                                                </Space>
+                                            </Radio>
+                                        </Card>
+                                    ))}
+                                </Space>
+                            </Radio.Group>
+                        )}
+                        <Button type="dashed" block icon={<PlusOutlined />} style={{ marginTop: 16 }} onClick={() => navigate('/addresses')}>
+                            Quản lý địa chỉ
+                        </Button>
                     </Card>
 
-                    <Form.Item>
-                        <Button type="primary" htmlType="submit" size="large" block>
-                            Xác nhận đặt hàng
-                        </Button>
-                    </Form.Item>
-                </Form>
-            </Card>
+                    <Card title={<Title level={4}>Phương thức thanh toán</Title>}>
+                        <Radio.Group value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: '100%' }}>
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                                <Radio value="CASH">Thanh toán khi nhận hàng (COD)</Radio>
+                                <Radio value="CARD">Thẻ tín dụng/ghi nợ</Radio>
+                                <Radio value="UPI">UPI</Radio>
+                                <Radio value="BANK_TRANSFER">Chuyển khoản ngân hàng</Radio>
+                            </Space>
+                        </Radio.Group>
+                    </Card>
+                </Col>
+
+                <Col xs={24} md={8}>
+                    <Card title={<Title level={4}>Tóm tắt đơn hàng</Title>}>
+                        <Table dataSource={lines} columns={columns} pagination={false} rowKey="itemId" size="small" />
+                        <Divider />
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text>Tạm tính:</Text><Text>{cartTotal.toLocaleString()} đ</Text></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text>Phí vận chuyển:</Text><Text>{shippingFee.toLocaleString()} đ</Text></div>
+                            <Divider style={{ margin: '8px 0' }} />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 600 }}>
+                                <Text strong>Tổng cộng:</Text>
+                                <Text type="danger" strong>{totalAmount.toLocaleString()} đ</Text>
+                            </div>
+                            <Button type="primary" size="large" block onClick={handleCheckout} disabled={lines.length === 0 || !selectedAddressId} loading={loading} style={{ marginTop: 16 }}>
+                                Đặt hàng
+                            </Button>
+                        </Space>
+                    </Card>
+                </Col>
+            </Row>
         </div>
     );
 }

@@ -2,7 +2,7 @@ import { Table, Button, InputNumber, Typography, Card, Empty } from 'antd';
 import { DeleteOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import useCart from '../hooks/useCart';
-import type { CartLine } from '../types';
+import type { CartLineDto } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 const { Title } = Typography;
@@ -21,7 +21,7 @@ export default function Cart() {
         {
             title: 'Ảnh',
             key: 'img',
-            render: (_: any, r: CartLine) => (
+            render: (_: any, r: CartLineDto) => (
                 <img src={r.avatar || 'https://placehold.co/600x400'} alt="" width={60} style={{ borderRadius: 8 }} />
             ),
         },
@@ -33,23 +33,24 @@ export default function Cart() {
         {
             title: 'Số lượng',
             key: 'qty',
-            render: (_: any, r: CartLine) => (
+            render: (_: any, r: CartLineDto) => (
                 <InputNumber
                     min={1}
                     value={r.qty}
-                    onChange={(val) => updateQty(r.itemId, (val || 0) - r.qty)}
+                    // Trong Cart.tsx, sửa dòng updateQty:
+                    onChange={(val) => updateQty(r.itemId, val || 1)}
                 />
             ),
         },
         {
             title: 'Thành tiền',
             key: 'total',
-            render: (_: any, r: CartLine) => `${(r.price * r.qty).toLocaleString()} đ`,
+            render: (_: any, r: CartLineDto) => `${(r.price * r.qty).toLocaleString()} đ`,
         },
         {
             title: '',
             key: 'del',
-            render: (_: any, r: CartLine) => (
+            render: (_: any, r: CartLineDto) => (
                 <Button danger icon={<DeleteOutlined />} onClick={() => removeItem(r.itemId)} />
             ),
         },

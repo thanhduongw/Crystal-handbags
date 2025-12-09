@@ -1,6 +1,6 @@
 import { Modal, Form, Input, InputNumber, Select, Upload, Button, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
-import type { Category } from '../types';
+import type { CategoryDto } from '../types';
 import { fetchCategories } from '../api/categoryAPI';
 import { useEffect, useState } from 'react';
 
@@ -13,7 +13,7 @@ interface ProductFormProps {
 
 export default function ProductForm({ visible, onCancel, onSubmit, initialValues }: ProductFormProps) {
     const [form] = Form.useForm();
-    const [categories, setCategories] = useState<Category[]>([]);
+    const [categories, setCategories] = useState<CategoryDto[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
