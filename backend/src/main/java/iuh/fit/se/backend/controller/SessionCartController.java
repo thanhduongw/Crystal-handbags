@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,24 +35,36 @@ public class SessionCartController {
     }
 
     @PutMapping("/items/{itemId}")
-    public ResponseEntity<?> updateQuantity(
-            @AuthenticationPrincipal User user,
+    public ResponseEntity<Void> updateQuantity(
             HttpSession session,
             @PathVariable Long itemId,
             @RequestParam int quantity) {
 
-        if (user != null) {
-            databaseCartService.updateQuantity(user.getEmail(), itemId, quantity);
-        } else {
-            sessionCartService.updateCartQuantity(session, itemId, quantity);
-        }
+        sessionCartService.updateCartQuantity(session, itemId, quantity);
         return ResponseEntity.ok().build();
     }
 
+    // THÊM: Endpoint clear session cart còn thiếu
+    @DeleteMapping
+    public ResponseEntity<Void> clearCart(HttpSession session) {
+        sessionCartService.clearCart(session);
+        return ResponseEntity.noContent().build();
+    }
+    @PostMapping("/merge")
+    public ResponseEntity<Void> mergeSessionCart(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpSession session) {
 
-    @DeleteMapping("/items/{itemId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeItem(HttpSession session, @PathVariable Long itemId) {
-        sessionCartService.removeCartItem(session, itemId);
+        // Lấy session cart
+        List<CartLineDto> sessionCart = sessionCartService.getAllCart(session);
+
+        // Merge vào database
+        if (!sessionCart.isEmpty()) {
+            databaseCartService.mergeSessionCart(jwt.getSubject(), sessionCart);
+            // Xóa session cart sau merge
+            sessionCartService.clearCart(session);
+        }
+
+        return ResponseEntity.ok().build();
     }
 }

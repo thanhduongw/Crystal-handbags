@@ -20,13 +20,13 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderServiceImpl implements OrderService {
+public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements OrderService (không phải DatabaseCartService)
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final ProductItemRepository productItemRepository;
-    private final DatabaseCartService cartService;
+    private final DatabaseCartService cartService; // ✅ SỬA: Dùng DatabaseCartService, không phải implement
     private final PaymentRepository paymentRepository;
 
     @Override
@@ -91,7 +91,8 @@ public class OrderServiceImpl implements OrderService {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new RuntimeException("Address not found"));
 
-        List<CartItemDto> cartItems = cartService.getAllCart(email);
+        // ✅ SỬA: Dùng CartLineDto thay vì CartItemDto
+        List<CartLineDto> cartItems = cartService.getAllCart(email);
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty");
         }
@@ -108,29 +109,31 @@ public class OrderServiceImpl implements OrderService {
 
         // Calculate total and create order items
         BigDecimal totalAmount = BigDecimal.ZERO;
-        for (CartItemDto cartItem : cartItems) {
+        for (CartLineDto cartItem : cartItems) { // ✅ SỬA: Loop CartLineDto
             ProductItem productItem = productItemRepository.findById(cartItem.getItemId())
                     .orElseThrow(() -> new RuntimeException("Product item not found: " + cartItem.getItemId()));
 
             // Check stock availability
-            if (productItem.getStockQuantity() < cartItem.getQuantity()) {
+            // ✅ SỬA: Dùng getQty() thay vì getQuantity()
+            if (productItem.getStockQuantity() < cartItem.getQty()) {
                 throw new RuntimeException("Insufficient stock for product: " + productItem.getProduct().getName());
             }
 
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .productItem(productItem)
-                    .quantity(cartItem.getQuantity())
+                    .quantity(cartItem.getQty()) // ✅ SỬA: Dùng getQty()
                     .price(cartItem.getPrice())
                     .build();
 
             order.getOrderItems().add(orderItem);
 
             // Update stock
-            productItem.setStockQuantity(productItem.getStockQuantity() - cartItem.getQuantity());
+            productItem.setStockQuantity(productItem.getStockQuantity() - cartItem.getQty()); // ✅ SỬA: Dùng getQty()
             productItemRepository.save(productItem);
 
-            totalAmount = totalAmount.add(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQuantity())));
+            // ✅ SỬA: Tính total với getQty()
+            totalAmount = totalAmount.add(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQty())));
         }
 
         order.setTotalAmount(totalAmount.add(order.getShippingFee()));

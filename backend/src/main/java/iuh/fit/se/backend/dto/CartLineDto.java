@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class CartLineDto implements Serializable {
     private Long itemId;
     private String name;

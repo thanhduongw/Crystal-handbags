@@ -11,4 +11,5 @@ public interface SessionCartService {
     void updateCartQuantity(HttpSession session, Long itemId, int delta);
     void removeCartItem(HttpSession session, Long itemId);
     void clearCart(HttpSession session);
+    void mergeSessionCart(String email, List<CartLineDto> sessionCart);
 }

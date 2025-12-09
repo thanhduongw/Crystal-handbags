@@ -6,7 +6,7 @@ import iuh.fit.se.backend.dto.CartLineDto;
 import java.util.List;
 
 public interface DatabaseCartService {
-    List<CartItemDto> getAllCart(String email);
+    List<CartLineDto> getAllCart(String email);
     void addCartItem(String email, Long productItemId, int quantity);
     void updateQuantity(String email, Long productItemId, int quantity);
     void removeCartItem(String email, Long productItemId);

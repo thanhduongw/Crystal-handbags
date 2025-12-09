@@ -19,13 +19,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class DatabaseCartServiceImpl implements DatabaseCartService {
+public
+class DatabaseCartServiceImpl implements DatabaseCartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductItemRepository productItemRepository;
     private final UserRepository userRepository;
     @Override
-    public List<CartItemDto> getAllCart(String email) {
+    public List<CartLineDto> getAllCart(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -33,7 +34,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
         return cartItemRepository.findByCartCartId(cart.getCartId()).stream()
-                .map(this::convertToDto)
+                .map(this::convertToCartLineDto) // Đổi tên method
                 .collect(Collectors.toList());
     }
 
@@ -135,6 +136,15 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
                 .size(cartItem.getProductItem().getSize())
                 .price(cartItem.getProductItem().getPrice())
                 .quantity(cartItem.getQuantity())
+                .build();
+    }
+    private CartLineDto convertToCartLineDto(CartItem cartItem) {
+        return CartLineDto.builder()
+                .itemId(cartItem.getProductItem().getItemId())
+                .name(cartItem.getProductItem().getProduct().getName())
+                .avatar(cartItem.getProductItem().getProduct().getAvatar())
+                .price(cartItem.getProductItem().getPrice())
+                .qty(cartItem.getQuantity())
                 .build();
     }
 }

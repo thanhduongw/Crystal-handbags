@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Col, Row, Spin, Pagination, Typography } from 'antd';
-import type { Category, Product } from '../types';
 import { fetchProducts, fetchProductsByCat } from '../api/productAPI';
 import ProductCard from '../components/ProductCard';
 import { fetchCategory } from '../api/categoryAPI';
+import type { CategoryDto, ProductListDto } from '../types';
 
 const { Title } = Typography;
 
@@ -12,11 +12,11 @@ export default function ProductList() {
     const { id } = useParams<{ id?: string }>();
     const categoryId = id ? Number(id) : null;
 
-    const [data, setData] = useState<Product[]>([]);
+    const [data, setData] = useState<ProductListDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [total, setTotal] = useState(0);
-    const [category, setCategory] = useState<Category>();
+    const [category, setCategory] = useState<CategoryDto>();
     const pageSize = 12;
 
     useEffect(() => {
@@ -26,7 +26,7 @@ export default function ProductList() {
     const loadProducts = async () => {
         try {
             setLoading(true);
-            let products: Product[];
+            let products: ProductListDto[];
             if (categoryId && !isNaN(categoryId)) {
                 products = await fetchProductsByCat(categoryId);
                 setCategory(await fetchCategory(categoryId))
