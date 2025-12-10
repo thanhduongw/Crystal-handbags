@@ -107,49 +107,90 @@ export default function AdminDashboard() {
             <Title level={3}>Bảng điều khiển</Title>
 
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                {/* Tổng doanh thu */}
                 <Col xs={24} sm={12} md={6}>
-                    <Card>
+                    <Card
+                        style={{
+                            height: 130,
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
                         <Statistic
                             title="Tổng doanh thu"
                             value={stats?.totalRevenue || 0}
                             prefix={<DollarOutlined />}
-                            styles={{ content: { color: '#3f8600' } }}
-                            formatter={(value) => `${Number(value).toLocaleString('vi-VN')} đ`}
+                            formatter={(value) =>
+                                `${Number(value).toLocaleString('vi-VN')} đ`
+                            }
+                            valueStyle={{ color: '#3f8600' }}
                         />
                     </Card>
                 </Col>
+
+                {/* Đơn hàng */}
                 <Col xs={24} sm={12} md={6}>
-                    <Card>
+                    <Card
+                        style={{
+                            height: 130,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                        }}
+                    >
                         <Statistic
                             title="Đơn hàng"
                             value={stats?.totalOrders || 0}
                             prefix={<ShoppingOutlined />}
-                            styles={{ content: { color: '#1890ff' } }}
+                            valueStyle={{ color: '#1890ff' }}
                         />
-                        {stats?.pendingOrders ? (
-                            <div style={{ marginTop: 8, fontSize: 12, color: '#faad14' }}>
+
+                        {stats?.pendingOrders && stats.pendingOrders > 0 && (
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 12,
+                                    color: '#faad14',
+                                }}
+                            >
                                 {stats.pendingOrders} đơn chờ xử lý
                             </div>
-                        ) : null}
+                        )}
                     </Card>
                 </Col>
+
+                {/* Người dùng */}
                 <Col xs={24} sm={12} md={6}>
-                    <Card>
+                    <Card
+                        style={{
+                            height: 130,
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
                         <Statistic
                             title="Người dùng"
                             value={stats?.totalUsers || 0}
                             prefix={<UserOutlined />}
-                            styles={{ content: { color: '#722ed1' } }}
+                            valueStyle={{ color: '#722ed1' }}
                         />
                     </Card>
                 </Col>
+
+                {/* Sản phẩm */}
                 <Col xs={24} sm={12} md={6}>
-                    <Card>
+                    <Card
+                        style={{
+                            height: 130,
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
                         <Statistic
                             title="Sản phẩm"
                             value={stats?.totalProducts || 0}
                             prefix={<ProductOutlined />}
-                            styles={{ content: { color: '#eb2f96' } }}
+                            valueStyle={{ color: '#eb2f96' }}
                         />
                     </Card>
                 </Col>

@@ -35,7 +35,9 @@ export default function Home() {
                 fetchCategories()
             ]);
 
-            setProducts(prods.filter((p) => p.showHomepage));
+            // Filter featured products
+            const featuredProducts = prods.filter((p) => p.showHomepage);
+            setProducts(featuredProducts);
             setCategories(cats);
         } catch (error) {
             console.error('Failed to load data:', error);
@@ -64,14 +66,16 @@ export default function Home() {
                 arrows
                 draggable
                 autoplay
-                autoplaySpeed={4000}
+                autoplaySpeed={2800}
                 effect="fade"
+                style={{ marginBottom: 0 }}
             >
                 {CAROUSEL_IMAGES.map((img, idx) => (
                     <div key={idx}>
                         <div style={{
                             height: 600,
                             position: 'relative',
+                            overflow: 'hidden',
                         }}>
                             <img
                                 src={img}
@@ -80,6 +84,9 @@ export default function Home() {
                                     width: '100%',
                                     height: '100%',
                                     objectFit: 'cover'
+                                }}
+                                onError={(e) => {
+                                    e.currentTarget.src = 'https://placehold.co/1920x600/e0e0e0/666?text=Banner';
                                 }}
                             />
                         </div>
@@ -103,6 +110,14 @@ export default function Home() {
                         <Title level={2} style={{ margin: 0 }}>
                             Danh mục sản phẩm
                         </Title>
+                        {categories.length > 6 && (
+                            <Button
+                                type="link"
+                                onClick={() => navigate('/products')}
+                            >
+                                Xem tất cả danh mục
+                            </Button>
+                        )}
                     </div>
 
                     {categories.length > 0 ? (
@@ -120,7 +135,10 @@ export default function Home() {
                             ))}
                         </Row>
                     ) : (
-                        <Empty description="Chưa có danh mục nào" />
+                        <Empty
+                            description="Chưa có danh mục nào"
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
                     )}
                 </section>
 
@@ -164,7 +182,14 @@ export default function Home() {
                         <Empty
                             description="Chưa có sản phẩm nổi bật"
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
+                        >
+                            <Button
+                                type="primary"
+                                onClick={() => navigate('/products')}
+                            >
+                                Xem tất cả sản phẩm
+                            </Button>
+                        </Empty>
                     )}
                 </section>
             </div>

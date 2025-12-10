@@ -38,6 +38,12 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     }
 
     @Override
+    public OrderDetailDto adminGetOrderDetail(Long id) {
+        return getOrderDetail(id);
+    }
+
+
+    @Override
     public List<OrderListDto> getUserOrdersByStatus(String email, OrderStatus status) {
         return orderRepository.findByUserEmailAndStatus(email, status)
                 .stream()
@@ -61,7 +67,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 order.getStatus(),
                 order.getTotalAmount(),
                 order.getShippingFee(),
-                order.getAddress() != null ? order.getAddress().getFullName() : "",
+                order.getAddress() != null ? order.getAddress().getFullName() : null,
                 buildFullAddress(order),
                 items,
                 order.getUser().getUserId()
@@ -204,17 +210,23 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     }
 
     private OrderItemDto toItemDto(OrderItem oi) {
+        ProductItem pi = oi.getProductItem();
+        Product product = pi.getProduct();
+
         return new OrderItemDto(
-                oi.getProductItem().getItemId(),
-                oi.getProductItem().getProduct().getName(),
-                oi.getProductItem().getColor(),
+                pi.getItemId(),
+                product.getProductId(),
+                product.getName(),
+                pi.getColor(),
                 oi.getQuantity(),
-                oi.getPrice()
+                oi.getPrice(),
+                product.getAvatar()
         );
     }
 
+
     private String buildFullAddress(Order order) {
-        if (order.getAddress() == null) return "";
+        if (order.getAddress() == null) return null;
         return String.join(", ",
                 order.getAddress().getStreet(),
                 order.getAddress().getWard(),

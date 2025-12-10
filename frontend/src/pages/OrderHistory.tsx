@@ -1,105 +1,217 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Button, Spin, Typography, Empty, Select } from 'antd';
+import {
+    Card,
+    Table,
+    Typography,
+    Spin,
+    message,
+    Input,
+    Select,
+    DatePicker,
+    Row,
+    Col,
+    Button,
+    Tag
+} from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
+
 import { fetchOrders } from '../api/orderAPI';
 import type { OrderListDto, OrderStatus } from '../types';
-import { useAuth } from '../contexts/AuthContext';
 
 const { Title } = Typography;
+const { RangePicker } = DatePicker;
 
-const statusColor: Record<OrderStatus, string> = {
-    PENDING: 'orange',
-    CONFIRMED: 'blue',
-    SHIPPED: 'cyan',
-    DELIVERED: 'green',
-    CANCELLED: 'red',
-};
+/* ================= CONSTANT ================= */
 
-const statusText: Record<OrderStatus, string> = {
-    PENDING: 'Chờ xác nhận',
-    CONFIRMED: 'Đã xác nhận',
-    SHIPPED: 'Đang giao',
-    DELIVERED: 'Hoàn thành',
-    CANCELLED: 'Đã huỷ',
-};
+const statusOptions = [
+    { value: 'PENDING', label: 'Chờ xác nhận' },
+    { value: 'CONFIRMED', label: 'Đã xác nhận' },
+    { value: 'SHIPPED', label: 'Đang giao' },
+    { value: 'DELIVERED', label: 'Đã giao' },
+    { value: 'CANCELLED', label: 'Đã hủy' }
+];
+
+/* ================= COMPONENT ================= */
 
 export default function OrderHistory() {
     const navigate = useNavigate();
-    const { user } = useAuth();
+
+    const [loading, setLoading] = useState(false);
     const [orders, setOrders] = useState<OrderListDto[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [status, setStatus] = useState<OrderStatus | undefined>();
+    const [filteredOrders, setFilteredOrders] = useState<OrderListDto[]>([]);
+
+    // filter state
+    const [searchText, setSearchText] = useState('');
+    const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>();
+    const [dateRange, setDateRange] = useState<
+        [dayjs.Dayjs, dayjs.Dayjs] | null
+    >(null);
 
     useEffect(() => {
-        if (user) loadOrders();
-    }, [user, status]);
+        loadOrders();
+    }, []);
 
     const loadOrders = async () => {
         try {
             setLoading(true);
-            const data = await fetchOrders(status);
-            setOrders(data);
-        } catch (error) {
-            console.error('Failed to load orders:', error);
+            const res = await fetchOrders();
+            setOrders(res);
+            setFilteredOrders(res);
+        } catch (err) {
+            message.error('Không thể tải danh sách đơn hàng');
         } finally {
             setLoading(false);
         }
     };
 
+    /* ================= FILTER LOGIC ================= */
+
+    useEffect(() => {
+        applyFilters();
+    }, [orders, searchText, statusFilter, dateRange]);
+
+    const applyFilters = () => {
+        let data = [...orders];
+
+        // ✅ search theo mã đơn
+        if (searchText.trim()) {
+            data = data.filter(o =>
+                o.orderId.toString().includes(searchText.trim())
+            );
+        }
+
+        // ✅ lọc theo trạng thái
+        if (statusFilter) {
+            data = data.filter(o => o.status === statusFilter);
+        }
+
+        // ✅ lọc theo ngày
+        if (dateRange) {
+            const [start, end] = dateRange;
+            data = data.filter(o => {
+                const d = dayjs(o.orderDate);
+                return (
+                    d.isAfter(start.startOf('day')) &&
+                    d.isBefore(end.endOf('day'))
+                );
+            });
+        }
+
+        setFilteredOrders(data);
+    };
+
+    const resetFilters = () => {
+        setSearchText('');
+        setStatusFilter(undefined);
+        setDateRange(null);
+    };
+
+    /* ================= TABLE ================= */
+
     const columns = [
-        { title: 'Mã đơn', dataIndex: 'orderId', key: 'orderId' },
+        {
+            title: 'Mã đơn',
+            dataIndex: 'orderId',
+            key: 'orderId',
+            width: 120
+        },
         {
             title: 'Ngày đặt',
             dataIndex: 'orderDate',
             key: 'orderDate',
-            render: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm'),
-        },
-        {
-            title: 'Trạng thái',
-            dataIndex: 'status',
-            key: 'status',
-            render: (s: OrderStatus) => <Tag color={statusColor[s]}>{statusText[s]}</Tag>,
+            render: (d: string) => dayjs(d).format('DD/MM/YYYY HH:mm')
         },
         {
             title: 'Tổng tiền',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             align: 'right' as const,
-            render: (v: number) => <b>{v.toLocaleString()} đ</b>,
+            render: (v: number) =>
+                v.toLocaleString('vi-VN', {
+                    style: 'currency',
+                    currency: 'VND'
+                })
         },
         {
-            title: '',
-            key: 'action',
-            render: (_: any, r: OrderListDto) => (
-                <Button size="small" onClick={() => navigate(`/orders/${r.orderId}`)}>
-                    Chi tiết
-                </Button>
-            ),
-        },
+            title: 'Trạng thái',
+            dataIndex: 'status',
+            key: 'status',
+            render: (s: OrderStatus) => {
+                const colorMap: Record<OrderStatus, string> = {
+                    PENDING: 'orange',
+                    CONFIRMED: 'blue',
+                    SHIPPED: 'cyan',
+                    DELIVERED: 'green',
+                    CANCELLED: 'red'
+                };
+                return <Tag color={colorMap[s]}>{s}</Tag>;
+            }
+        }
     ];
 
-    if (loading) return <Spin style={{ display: 'block', margin: '100px auto' }} />;
-
-    if (orders.length === 0) {
-        return (
-            <div style={{ maxWidth: 800, margin: '50px auto', textAlign: 'center' }}>
-                <Empty description="Chưa có đơn hàng nào" />
-            </div>
-        );
-    }
+    /* ================= RENDER ================= */
 
     return (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px' }}>
+        <Card>
             <Title level={3}>Lịch sử đơn hàng</Title>
-            <Select
-                allowClear
-                placeholder="Lọc theo trạng thái"
-                style={{ width: 220, marginBottom: 16 }}
-                onChange={(v) => setStatus(v)}
-                options={Object.entries(statusText).map(([value, label]) => ({ value, label }))}
-            />
-            <Table rowKey="orderId" columns={columns} dataSource={orders} pagination={false} />
-        </div>
+
+            {/* FILTER */}
+            <Card style={{ marginBottom: 16 }}>
+                <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={12} md={6}>
+                        <Input
+                            prefix={<SearchOutlined />}
+                            placeholder="Tìm theo mã đơn"
+                            value={searchText}
+                            allowClear
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </Col>
+
+                    <Col xs={24} sm={12} md={6}>
+                        <Select
+                            allowClear
+                            placeholder="Trạng thái"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            style={{ width: '100%' }}
+                            options={statusOptions}
+                        />
+                    </Col>
+
+                    <Col xs={24} sm={12} md={6}>
+                        <RangePicker
+                            value={dateRange}
+                            onChange={(v) => setDateRange(v as any)}
+                            format="DD/MM/YYYY"
+                            style={{ width: '100%' }}
+                        />
+                    </Col>
+
+                    <Col xs={24} sm={12} md={6}>
+                        <Button onClick={resetFilters}>
+                            Xóa bộ lọc
+                        </Button>
+                    </Col>
+                </Row>
+            </Card>
+
+            {/* TABLE */}
+            <Spin spinning={loading}>
+                <Table
+                    rowKey="orderId"
+                    columns={columns}
+                    dataSource={filteredOrders}
+                    pagination={{ pageSize: 10 }}
+                    locale={{ emptyText: 'Chưa có đơn hàng' }}
+                    onRow={(record) => ({
+                        onClick: () =>
+                            navigate(`/orders/${record.orderId}`)
+                    })}
+                />
+            </Spin>
+        </Card>
     );
 }

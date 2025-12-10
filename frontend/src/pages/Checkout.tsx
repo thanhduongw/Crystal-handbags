@@ -112,6 +112,7 @@ export default function Checkout() {
                 </Space>
             ),
         },
+        { title: 'Màu', render: (r: CartLineDto) => `${r.color || 'Không có'}` },
         { title: 'Số lượng', dataIndex: 'qty', align: 'center' as const },
         { title: 'Đơn giá', render: (r: CartLineDto) => `${r.price.toLocaleString()} đ` },
         { title: 'Thành tiền', render: (r: CartLineDto) => `${(r.price * r.qty).toLocaleString()} đ` },
@@ -124,7 +125,7 @@ export default function Checkout() {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
             <Title level={2}>Thanh toán</Title>
             <Row gutter={[24, 24]}>
-                <Col xs={24} md={12}>
+                <Col xs={24} md={9}>
                     <Card title="Địa chỉ giao hàng" style={{ marginBottom: 24 }}>
                         <AddressSelector addresses={addresses} selectedId={selectedAddressId} onSelect={setSelectedAddressId} />
                         <Button
@@ -143,7 +144,7 @@ export default function Checkout() {
                     </Card>
                 </Col>
 
-                <Col xs={24} md={12}>
+                <Col xs={24} md={15}>
                     <Card title="Tóm tắt đơn hàng">
                         <Table dataSource={lines} columns={columns} pagination={false} rowKey="itemId" size="small" />
                         <Divider />

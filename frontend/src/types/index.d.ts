@@ -50,6 +50,7 @@ export interface CartLineDto {
     avatar: string;
     price: number;
     qty: number;
+    color?: string;
 }
 
 export interface CartItemDto {

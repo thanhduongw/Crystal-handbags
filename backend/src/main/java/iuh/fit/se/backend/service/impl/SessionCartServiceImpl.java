@@ -78,7 +78,6 @@ public class SessionCartServiceImpl implements SessionCartService {
         session.removeAttribute(CART_ATTR);
     }
 
-    // FIX CHÍNH: Tạo cart nếu chưa tồn tại, fetch user/cart ngoài vòng lặp
     @Override
     @Transactional
     public void mergeSessionCart(String email, List<CartLineDto> sessionCart) {
@@ -89,15 +88,12 @@ public class SessionCartServiceImpl implements SessionCartService {
 
         log.info("Merging {} session cart items for user: {}", sessionCart.size(), email);
 
-        // Fetch user và cart MỘT LẦN ngoài vòng lặp
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
 
-        // FIX QUAN TRỌNG: Tạo cart mới nếu chưa tồn tại
         Cart cart = cartRepository.findByUserUserId(user.getUserId())
                 .orElseGet(() -> createCart(user));
 
-        // Merge từng item
         for (CartLineDto line : sessionCart) {
             CartItem existingItem = cartItemRepository
                     .findByCartCartIdAndProductItemItemId(cart.getCartId(), line.getItemId())

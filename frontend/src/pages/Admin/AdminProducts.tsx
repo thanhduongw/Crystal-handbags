@@ -1,7 +1,16 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Table, Button, Space, Typography, message, Modal, Spin, Image, Upload, Tag, Input, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, SearchOutlined } from '@ant-design/icons';
-import { fetchProducts, createProduct, updateProduct, deleteProduct, uploadProductImage, deleteProductImage, fetchProductDetail } from '../../api/productAPI';
+import {
+    Table, Button, Space, Typography, message, Modal, Image,
+    Upload, Tag, Input, Row, Col, Card
+} from 'antd';
+import {
+    PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined,
+    PictureOutlined, SearchOutlined, ReloadOutlined
+} from '@ant-design/icons';
+import {
+    fetchProducts, createProduct, updateProduct, deleteProduct,
+    uploadProductImage, deleteProductImage, fetchProductDetail
+} from '../../api/productAPI';
 import type { ProductListDto, ProductDetailDto } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -39,22 +48,22 @@ export default function AdminProducts() {
             setLoading(false);
         }
     };
-
-    const handleDelete = (id: number) => {
+    console.log(submitting)
+    const handleDelete = (id: number, name: string) => {
         Modal.confirm({
-            title: 'Xác nhận xóa?',
-            content: 'Sản phẩm sẽ bị xóa vĩnh viễn cùng tất cả biến thể.',
+            title: 'Xác nhận xóa sản phẩm?',
+            content: `Sản phẩm "${name}" sẽ bị xóa vĩnh viễn cùng tất cả biến thể.`,
             okText: 'Xóa',
             cancelText: 'Hủy',
             okButtonProps: { danger: true },
             async onOk() {
                 try {
                     await deleteProduct(id);
-                    message.success('Đã xóa');
+                    message.success('Đã xóa sản phẩm');
                     load();
-                } catch (error) {
+                } catch (error: any) {
                     console.error('Delete error:', error);
-                    message.error('Xóa thất bại');
+                    message.error(error.response?.data?.message || 'Xóa thất bại');
                 }
             }
         });
@@ -82,7 +91,7 @@ export default function AdminProducts() {
                 message.success('Cập nhật thành công');
             } else {
                 await createProduct(product);
-                message.success('Tạo thành công');
+                message.success('Tạo sản phẩm thành công');
             }
             setModalVisible(false);
             setEditing(null);
@@ -95,21 +104,34 @@ export default function AdminProducts() {
         }
     };
 
-    console.log(submitting)
-
     const handleManageImages = async (record: ProductListDto) => {
         try {
             const detail = await fetchProductDetail(record.productId);
             setSelectedProduct(detail);
             setImageModalVisible(true);
             setNewImageUrl('');
-        } catch {
+        } catch (error) {
+            console.error('Fetch product error:', error);
             message.error('Không thể tải chi tiết sản phẩm');
         }
     };
 
     const handleUploadImage = async (file: File) => {
         if (!selectedProduct) return;
+
+        // Validate file
+        const isImage = file.type.startsWith('image/');
+        if (!isImage) {
+            message.error('Chỉ chấp nhận file ảnh!');
+            return;
+        }
+
+        const isLt5M = file.size / 1024 / 1024 < 5;
+        if (!isLt5M) {
+            message.error('Ảnh phải nhỏ hơn 5MB!');
+            return;
+        }
+
         try {
             setUploadingImage(true);
             await uploadProductImage(selectedProduct.productId!, file);
@@ -117,9 +139,9 @@ export default function AdminProducts() {
             const updated = await fetchProductDetail(selectedProduct.productId!);
             setSelectedProduct(updated);
             load();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Upload error:', error);
-            message.error('Upload thất bại');
+            message.error(error.response?.data?.message || 'Upload thất bại');
         } finally {
             setUploadingImage(false);
         }
@@ -127,6 +149,7 @@ export default function AdminProducts() {
 
     const handleDeleteImage = async (imageUrl: string) => {
         if (!selectedProduct) return;
+
         Modal.confirm({
             title: 'Xác nhận xóa ảnh?',
             content: 'Hành động này không thể hoàn tác!',
@@ -140,9 +163,9 @@ export default function AdminProducts() {
                     const updated = await fetchProductDetail(selectedProduct.productId!);
                     setSelectedProduct(updated);
                     load();
-                } catch (error) {
+                } catch (error: any) {
                     console.error('Delete image error:', error);
-                    message.error('Xóa ảnh thất bại');
+                    message.error(error.response?.data?.message || 'Xóa ảnh thất bại');
                 }
             }
         });
@@ -150,15 +173,26 @@ export default function AdminProducts() {
 
     const handleAddImageByUrl = async () => {
         if (!selectedProduct) return;
-        const url = (newImageUrl || '').trim();
+
+        const url = newImageUrl.trim();
         if (!url) {
             message.error('Vui lòng nhập URL ảnh');
             return;
         }
 
+        // Basic URL validation
+        try {
+            new URL(url);
+        } catch {
+            message.error('URL không hợp lệ');
+            return;
+        }
+
         try {
             setUploadingImage(true);
-            const images: string[] = Array.isArray(selectedProduct.images) ? [...selectedProduct.images] : [];
+            const images = Array.isArray(selectedProduct.images)
+                ? [...selectedProduct.images]
+                : [];
             images.push(url);
 
             const payload: ProductDetailDto = {
@@ -166,39 +200,29 @@ export default function AdminProducts() {
                 images,
             };
 
-            if (selectedProduct.productId) {
-                await updateProduct(selectedProduct.productId, payload);
-            } else {
-                message.error('Sản phẩm không hợp lệ');
-                return;
-            }
-
+            await updateProduct(selectedProduct.productId!, payload);
             message.success('Thêm ảnh bằng URL thành công');
-            const updated = await fetchProductDetail(selectedProduct.productId);
+
+            const updated = await fetchProductDetail(selectedProduct.productId!);
             setSelectedProduct(updated);
             setNewImageUrl('');
             load();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Add image by URL error:', error);
-            message.error('Thêm ảnh thất bại');
+            message.error(error.response?.data?.message || 'Thêm ảnh thất bại');
         } finally {
             setUploadingImage(false);
         }
     };
 
-    // NEW: Filtered and sorted products
     const filteredProducts = useMemo(() => {
-        let filtered = [...products];
+        if (!searchText.trim()) return products;
 
-        // Apply search filter
-        if (searchText.trim()) {
-            filtered = filtered.filter(p =>
-                p.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                p.categoryName.toLowerCase().includes(searchText.toLowerCase())
-            );
-        }
-
-        return filtered;
+        const search = searchText.toLowerCase();
+        return products.filter(p =>
+            p.name.toLowerCase().includes(search) ||
+            p.categoryName.toLowerCase().includes(search)
+        );
     }, [products, searchText]);
 
     const columns = [
@@ -216,12 +240,12 @@ export default function AdminProducts() {
             width: 100,
             render: (avatar: string) => (
                 <Image
-                    src={avatar || 'https://via.placeholder.com/60'}
+                    src={avatar || 'https://placehold.co/60x60?text=No+Image'}
                     alt="Product"
                     width={60}
                     height={60}
                     style={{ objectFit: 'cover', borderRadius: 4 }}
-                    fallback="https://via.placeholder.com/60"
+                    fallback="https://placehold.co/60x60?text=Error"
                 />
             ),
         },
@@ -230,7 +254,8 @@ export default function AdminProducts() {
             dataIndex: 'name',
             key: 'name',
             ellipsis: true,
-            sorter: (a: ProductListDto, b: ProductListDto) => a.name.localeCompare(b.name),
+            sorter: (a: ProductListDto, b: ProductListDto) =>
+                a.name.localeCompare(b.name, 'vi'),
         },
         {
             title: 'Giá',
@@ -238,14 +263,16 @@ export default function AdminProducts() {
             key: 'basePrice',
             width: 120,
             render: (v: number) => `${v?.toLocaleString('vi-VN')} ₫`,
-            sorter: (a: ProductListDto, b: ProductListDto) => a.basePrice - b.basePrice,
+            sorter: (a: ProductListDto, b: ProductListDto) =>
+                a.basePrice - b.basePrice,
         },
         {
             title: 'Danh mục',
             dataIndex: 'categoryName',
             key: 'categoryName',
             width: 150,
-            sorter: (a: ProductListDto, b: ProductListDto) => a.categoryName.localeCompare(b.categoryName),
+            sorter: (a: ProductListDto, b: ProductListDto) =>
+                a.categoryName.localeCompare(b.categoryName, 'vi'),
         },
         {
             title: 'Hiển thị',
@@ -257,6 +284,12 @@ export default function AdminProducts() {
                     {v ? 'Có' : 'Không'}
                 </Tag>
             ),
+            filters: [
+                { text: 'Có', value: true },
+                { text: 'Không', value: false },
+            ],
+            onFilter: (value: any, record: ProductListDto) =>
+                record.showHomepage === value,
         },
         {
             title: 'Thao tác',
@@ -264,21 +297,24 @@ export default function AdminProducts() {
             width: 200,
             fixed: 'right' as const,
             render: (_: any, record: ProductListDto) => (
-                <Space>
+                <Space size="small">
                     <Button
+                        size="small"
                         icon={<PictureOutlined />}
                         onClick={() => handleManageImages(record)}
                         title="Quản lý ảnh"
                     />
                     <Button
+                        size="small"
                         icon={<EditOutlined />}
                         onClick={() => handleEdit(record)}
                         title="Sửa"
                     />
                     <Button
+                        size="small"
                         danger
                         icon={<DeleteOutlined />}
-                        onClick={() => handleDelete(record.productId)}
+                        onClick={() => handleDelete(record.productId, record.name)}
                         title="Xóa"
                     />
                 </Space>
@@ -290,47 +326,58 @@ export default function AdminProducts() {
         return <Navigate to="/" replace />;
     }
 
-    if (loading && !imageModalVisible) {
-        return <Spin style={{ display: 'block', margin: '100px auto' }} />;
-    }
-
     return (
         <div style={{ padding: 24 }}>
-            <Title level={3}>Quản lý sản phẩm</Title>
+            <Card>
+                <Title level={3}>Quản lý sản phẩm</Title>
 
-            {/* NEW: Search bar */}
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={8}>
-                    <Search
-                        placeholder="Tìm kiếm theo tên hoặc danh mục..."
-                        allowClear
-                        enterButton={<SearchOutlined />}
-                        onSearch={(value) => setSearchText(value)}
-                        onChange={(e) => setSearchText(e.target.value)}
-                    />
-                </Col>
-                <Col span={16}>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        style={{ float: 'right' }}
-                        onClick={() => {
-                            setEditing(null);
-                            setModalVisible(true);
-                        }}
-                    >
-                        Thêm sản phẩm
-                    </Button>
-                </Col>
-            </Row>
+                <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col xs={24} sm={12} md={8}>
+                        <Search
+                            placeholder="Tìm kiếm theo tên hoặc danh mục..."
+                            allowClear
+                            enterButton={<SearchOutlined />}
+                            onSearch={(value) => setSearchText(value)}
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} md={16}>
+                        <Space style={{ float: 'right' }}>
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={load}
+                                loading={loading}
+                            >
+                                Làm mới
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => {
+                                    setEditing(null);
+                                    setModalVisible(true);
+                                }}
+                            >
+                                Thêm sản phẩm
+                            </Button>
+                        </Space>
+                    </Col>
+                </Row>
 
-            <Table
-                rowKey="productId"
-                columns={columns}
-                dataSource={filteredProducts}
-                pagination={{ pageSize: 10, showTotal: (total) => `Tổng ${total} sản phẩm` }}
-                scroll={{ x: 1100 }}
-            />
+                <Table
+                    rowKey="productId"
+                    columns={columns}
+                    dataSource={filteredProducts}
+                    loading={loading}
+                    pagination={{
+                        pageSize: 10,
+                        showTotal: (total) => `Tổng ${total} sản phẩm`,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                    }}
+                    scroll={{ x: 1100 }}
+                />
+            </Card>
 
             <ProductForm
                 visible={modalVisible}
@@ -355,7 +402,7 @@ export default function AdminProducts() {
             >
                 {selectedProduct && (
                     <div>
-                        <Row gutter={12} align="middle">
+                        <Row gutter={12} align="middle" style={{ marginBottom: 16 }}>
                             <Col>
                                 <Upload
                                     listType="picture-card"
@@ -377,50 +424,78 @@ export default function AdminProducts() {
                             </Col>
 
                             <Col flex="auto">
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <Space.Compact style={{ width: '100%' }}>
                                     <Input
-                                        placeholder="Dán URL ảnh vào đây, ví dụ https://..."
+                                        placeholder="Hoặc dán URL ảnh vào đây..."
                                         value={newImageUrl}
                                         onChange={(e) => setNewImageUrl(e.target.value)}
                                         onPressEnter={handleAddImageByUrl}
+                                        disabled={uploadingImage}
                                     />
-                                    <Button onClick={handleAddImageByUrl} loading={uploadingImage}>
-                                        Thêm bằng URL
+                                    <Button
+                                        onClick={handleAddImageByUrl}
+                                        loading={uploadingImage}
+                                        type="primary"
+                                    >
+                                        Thêm
                                     </Button>
-                                </div>
+                                </Space.Compact>
                                 <div style={{ marginTop: 8, color: '#888', fontSize: 12 }}>
-                                    Bạn có thể dán URL ảnh (hoặc copy từ ProductForm). Nếu muốn ảnh này làm avatar, dùng nút "Đặt làm avatar" sau khi thêm.
+                                    Hỗ trợ: JPG, PNG, GIF. Tối đa 5MB.
                                 </div>
                             </Col>
                         </Row>
 
-                        <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                            gap: 16
+                        }}>
                             {selectedProduct.images && selectedProduct.images.length > 0 ? (
                                 selectedProduct.images.map((img, idx) => (
                                     <div key={idx} style={{ position: 'relative' }}>
                                         <Image
                                             src={img}
                                             alt={`Product ${idx}`}
-                                            width={150}
+                                            width="100%"
                                             height={150}
-                                            style={{ objectFit: 'cover', borderRadius: 4 }}
+                                            style={{
+                                                objectFit: 'cover',
+                                                borderRadius: 4,
+                                                border: img === selectedProduct.avatar
+                                                    ? '2px solid #1890ff'
+                                                    : '1px solid #d9d9d9'
+                                            }}
                                         />
                                         <Button
                                             danger
                                             size="small"
                                             icon={<DeleteOutlined />}
-                                            style={{ position: 'absolute', top: 8, right: 8 }}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 8,
+                                                right: 8
+                                            }}
                                             onClick={() => handleDeleteImage(img)}
                                         />
                                         {img === selectedProduct.avatar && (
-                                            <Tag color="blue" style={{ position: 'absolute', bottom: 8, left: 8 }}>
+                                            <Tag
+                                                color="blue"
+                                                style={{
+                                                    position: 'absolute',
+                                                    bottom: 8,
+                                                    left: 8
+                                                }}
+                                            >
                                                 Avatar
                                             </Tag>
                                         )}
                                     </div>
                                 ))
                             ) : (
-                                <p style={{ color: '#999' }}>Chưa có ảnh nào</p>
+                                <p style={{ color: '#999', gridColumn: '1 / -1', textAlign: 'center' }}>
+                                    Chưa có ảnh nào
+                                </p>
                             )}
                         </div>
                     </div>

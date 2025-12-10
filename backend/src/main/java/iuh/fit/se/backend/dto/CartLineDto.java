@@ -14,5 +14,6 @@ public class CartLineDto implements Serializable {
     private String name;
     private String avatar;
     private BigDecimal price;
+    private String color;
     private int qty;
 }

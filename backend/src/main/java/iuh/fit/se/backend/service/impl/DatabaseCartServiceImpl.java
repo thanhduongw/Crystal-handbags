@@ -30,7 +30,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Cart cart = cartRepository.findByUserUserId(user.getUserId())
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseGet(() -> createCart(user));
 
         return cartItemRepository.findByCartCartId(cart.getCartId()).stream()
                 .map(this::convertToCartLineDto)
@@ -73,7 +73,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Cart cart = cartRepository.findByUserUserId(user.getUserId())
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseGet(() -> createCart(user));
 
         CartItem item = cartItemRepository
                 .findByCartCartIdAndProductItemItemId(cart.getCartId(), productItemId)
@@ -94,7 +94,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Cart cart = cartRepository.findByUserUserId(user.getUserId())
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseGet(() -> createCart(user));
 
         cartItemRepository.deleteByCartCartIdAndProductItemItemId(cart.getCartId(), productItemId);
     }
@@ -106,7 +106,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Cart cart = cartRepository.findByUserUserId(user.getUserId())
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseGet(() -> createCart(user));
 
         cartItemRepository.deleteByCartCartId(cart.getCartId());
     }
@@ -114,8 +114,34 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
     @Override
     @Transactional
     public void mergeSessionCart(String email, List<CartLineDto> sessionCart) {
+        // Fetch user and cart ONCE outside the loop
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Create cart if it doesn't exist
+        Cart cart = cartRepository.findByUserUserId(user.getUserId())
+                .orElseGet(() -> createCart(user));
+
+        // Merge items
         for (CartLineDto line : sessionCart) {
-            addCartItem(email, line.getItemId(), line.getQty());
+            ProductItem productItem = productItemRepository.findById(line.getItemId())
+                    .orElseThrow(() -> new RuntimeException("Product item not found: " + line.getItemId()));
+
+            CartItem existingItem = cartItemRepository
+                    .findByCartCartIdAndProductItemItemId(cart.getCartId(), line.getItemId())
+                    .orElse(null);
+
+            if (existingItem != null) {
+                existingItem.setQuantity(existingItem.getQuantity() + line.getQty());
+                cartItemRepository.save(existingItem);
+            } else {
+                CartItem newItem = CartItem.builder()
+                        .cart(cart)
+                        .productItem(productItem)
+                        .quantity(line.getQty())
+                        .build();
+                cartItemRepository.save(newItem);
+            }
         }
     }
 
@@ -132,6 +158,7 @@ public class DatabaseCartServiceImpl implements DatabaseCartService {
                 .name(cartItem.getProductItem().getProduct().getName())
                 .avatar(cartItem.getProductItem().getProduct().getAvatar())
                 .price(cartItem.getProductItem().getPrice())
+                .color(cartItem.getProductItem().getColor())
                 .qty(cartItem.getQuantity())
                 .build();
     }

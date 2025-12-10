@@ -1,3 +1,4 @@
+// App.tsx
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Spin } from 'antd';
@@ -23,7 +24,7 @@ import NotFound from './pages/NotFound';
 import ScrollToTop from './components/ScrollToTop';
 import AdminUsers from './pages/Admin/AdminUser';
 import UserLayout from './components/UserLayout';
-import ProductDetail from './pages/ProductDetatil';
+import ProductDetail from './pages/ProductDetail';
 
 function AppContent() {
   const { loading } = useAuth();
@@ -50,9 +51,11 @@ function AppContent() {
       <Route path="/about" element={<UserLayout><About /></UserLayout>} />
       <Route path="/contact" element={<UserLayout><Contact /></UserLayout>} />
       <Route path="/products" element={<UserLayout><ProductList /></UserLayout>} />
+      <Route path="/products/search" element={<UserLayout><ProductList /></UserLayout>} />
       <Route path="/products/:id" element={<UserLayout><ProductDetail /></UserLayout>} />
       <Route path="/categories/:id/products" element={<UserLayout><ProductList /></UserLayout>} />
       <Route path="/cart" element={<UserLayout><Cart /></UserLayout>} />
+      <Route path="*" element={<UserLayout><NotFound /></UserLayout>} />
 
       {/* PROTECTED USER ROUTES */}
       <Route
@@ -96,7 +99,7 @@ function AppContent() {
         }
       />
 
-      {/* ADMIN ROUTES */}
+      {/* ADMIN ROUTES - Order List */}
       <Route
         path="/admin"
         element={

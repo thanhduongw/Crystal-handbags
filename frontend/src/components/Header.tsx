@@ -5,6 +5,7 @@ import {
     Avatar,
     Badge,
     Space,
+    Input,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -14,18 +15,22 @@ import {
     DashboardOutlined,
     HistoryOutlined,
     EnvironmentOutlined,
+    SearchOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import useCart from '../hooks/useCart';
+import { useState } from 'react';
 
 const { Header } = Layout;
+const { Search } = Input;
 
 export default function AppHeader() {
     const navigate = useNavigate();
     const location = useLocation();
     const { lines } = useCart();
     const { user, logout, isAdmin } = useAuth();
+    const [searchValue, setSearchValue] = useState('');
 
     const userMenuItems: MenuProps['items'] = [
         {
@@ -98,6 +103,13 @@ export default function AppHeader() {
         return location.pathname;
     };
 
+    const handleSearch = (value: string) => {
+        if (value.trim()) {
+            navigate(`/products/search?q=${encodeURIComponent(value.trim())}`);
+            setSearchValue('');
+        }
+    };
+
     return (
         <Header
             style={{
@@ -121,7 +133,7 @@ export default function AppHeader() {
                     color: '#1890ff',
                     letterSpacing: 1,
                     textDecoration: 'none',
-                    marginRight: 48,
+                    marginRight: 32,
                     whiteSpace: 'nowrap',
                 }}
             >
@@ -133,13 +145,28 @@ export default function AppHeader() {
                 selectedKeys={[getCurrentMenuKey()]}
                 items={mainMenuItems}
                 style={{
-                    flex: 1,
                     border: 'none',
                     fontWeight: 500,
+                    minWidth: 0,
+                    margin: '0 auto',
+                    flex: 1
+                }}
+            />
+            <Search
+                placeholder="Tìm kiếm sản phẩm..."
+                allowClear
+                enterButton={<SearchOutlined />}
+                size="middle"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onSearch={handleSearch}
+                style={{
+                    maxWidth: 400,
+                    margin: '0 auto',
                 }}
             />
 
-            <Space size="large">
+            <Space size="large" style={{ marginLeft: 32 }}>
                 <Badge count={lines.length} size="small" offset={[-2, 2]}>
                     <ShoppingCartOutlined
                         style={{
@@ -165,14 +192,6 @@ export default function AppHeader() {
                                     backgroundColor: '#1890ff',
                                 }}
                             />
-                            <span style={{
-                                maxWidth: 150,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                            }}>
-                                {user.email}
-                            </span>
                         </Space>
                     </Dropdown>
                 ) : (

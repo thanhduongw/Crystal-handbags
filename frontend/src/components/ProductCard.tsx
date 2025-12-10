@@ -1,6 +1,8 @@
-import { Card } from "antd";
+import { Card, Typography } from "antd";
 import type { ProductListDto } from "../types";
 import { Link } from "react-router-dom";
+
+const { Text } = Typography;
 
 interface Props {
     product: ProductListDto;
@@ -27,7 +29,11 @@ export default function ProductCard({ product }: Props) {
             >
                 <Card.Meta
                     title={product.name}
-                    description={`${product.basePrice.toLocaleString()} đ`}
+                    description={
+                        <Text type="danger" strong>
+                            {product.basePrice.toLocaleString()} đ
+                        </Text>
+                    }
                 />
             </Card>
         </Link>

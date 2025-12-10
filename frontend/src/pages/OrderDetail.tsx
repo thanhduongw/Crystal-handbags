@@ -1,6 +1,9 @@
+// pages/OrderDetail.tsx
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Card, Table, Tag, Button, Spin, Typography, message, Modal } from 'antd';
+import {
+    Card, Table, Tag, Button, Spin, Typography, message, Modal, Space, Divider
+} from 'antd';
 import dayjs from 'dayjs';
 import { fetchOrderDetail, cancelOrder } from '../api/orderAPI';
 import type { OrderDetailDto, OrderItemDto, OrderStatus } from '../types';
@@ -33,21 +36,23 @@ export default function OrderDetail() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (id) loadOrder();
+        if (id) load();
     }, [id]);
 
-    const loadOrder = async () => {
+    const load = async () => {
         try {
             setLoading(true);
             const data = await fetchOrderDetail(Number(id));
+
             if (!user || data.userId !== user.userId) {
-                message.error('Bạn không có quyền xem đơn hàng này!');
+                message.error('Không có quyền truy cập');
                 navigate('/orders');
                 return;
             }
+
             setOrder(data);
-        } catch (error) {
-            message.error('Không tìm thấy đơn hàng!');
+        } catch {
+            message.error('Không tìm thấy đơn hàng');
             navigate('/orders');
         } finally {
             setLoading(false);
@@ -57,48 +62,49 @@ export default function OrderDetail() {
     const handleCancel = () => {
         if (!order) return;
         confirm({
-            title: 'Xác nhận huỷ đơn hàng?',
+            title: 'Huỷ đơn hàng?',
             content: 'Bạn không thể hoàn tác sau khi huỷ.',
-            okText: 'Huỷ đơn',
             okType: 'danger',
-            cancelText: 'Đóng',
             async onOk() {
-                try {
-                    await cancelOrder(order.orderId);
-                    message.success('Đã huỷ đơn hàng');
-                    setOrder({ ...order, status: 'CANCELLED' });
-                } catch {
-                    message.error('Không thể huỷ đơn!');
-                }
+                await cancelOrder(order.orderId);
+                message.success('Đã huỷ đơn hàng');
+                setOrder({ ...order, status: 'CANCELLED' });
             },
         });
     };
 
-    if (loading) return <Spin style={{ display: 'block', margin: '100px auto' }} />;
-
+    if (loading) return <Spin style={{ margin: '100px auto', display: 'block' }} />;
     if (!order) return null;
 
-    const canCancel = order.status === 'PENDING';
-
     const columns = [
-        { title: 'Sản phẩm', dataIndex: 'productName', key: 'productName' },
-        { title: 'Màu', dataIndex: 'color', key: 'color' },
-        { title: 'SL', dataIndex: 'quantity', key: 'quantity' },
+        {
+            title: 'Sản phẩm',
+            dataIndex: 'productName',
+        },
+        {
+            title: 'Màu',
+            dataIndex: 'color',
+            render: (c: string | null) => c || '—',
+        },
+        {
+            title: 'SL',
+            dataIndex: 'quantity',
+            align: 'center' as const,
+        },
         {
             title: 'Đơn giá',
             dataIndex: 'price',
-            key: 'price',
-            render: (v: number) => `${v.toLocaleString()} đ`,
+            render: (v: number) => `${v.toLocaleString()} ₫`,
         },
         {
             title: 'Thành tiền',
-            key: 'total',
-            render: (_: any, r: OrderItemDto) => `${(r.price * r.quantity).toLocaleString()} đ`,
+            render: (_: any, r: OrderItemDto) =>
+                `${(r.price * r.quantity).toLocaleString()} ₫`,
         },
     ];
 
     return (
-        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 16px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: 24 }}>
             <Button onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
                 ← Quay lại
             </Button>
@@ -106,41 +112,43 @@ export default function OrderDetail() {
             <Card
                 title={<Title level={4}>Đơn hàng #{order.orderId}</Title>}
                 extra={
-                    canCancel && (
+                    order.status === 'PENDING' && (
                         <Button danger onClick={handleCancel}>
                             Huỷ đơn
                         </Button>
                     )
                 }
             >
-                <p>
-                    <Text strong>Trạng thái:</Text>{' '}
-                    <Tag color={statusColor[order.status]}>{statusText[order.status]}</Tag>
-                </p>
-                <p>
-                    <Text strong>Ngày đặt:</Text> {dayjs(order.orderDate).format('DD/MM/YYYY HH:mm')}
-                </p>
-                <p>
-                    <Text strong>Người nhận:</Text> {order.receiver || 'N/A'}
-                </p>
-                <p>
-                    <Text strong>Địa chỉ:</Text> {order.address}
-                </p>
-                <p>
-                    <Text strong>Phí ship:</Text> {order.shippingFee.toLocaleString()} đ
-                </p>
-                <p>
-                    <Text strong>Tổng cộng:</Text>{' '}
-                    <Text type="danger">{(order.totalAmount + order.shippingFee).toLocaleString()} đ</Text>
-                </p>
+                <Space direction="vertical" size="small">
+                    <Tag color={statusColor[order.status]}>
+                        {statusText[order.status]}
+                    </Tag>
+
+                    <Text>
+                        <b>Ngày đặt:</b>{' '}
+                        {dayjs(order.orderDate).format('DD/MM/YYYY HH:mm')}
+                    </Text>
+
+                    <Text><b>Người nhận:</b> {order.receiver}</Text>
+                    <Text><b>Địa chỉ:</b> {order.address}</Text>
+                    <Text><b>Phí ship:</b> {order.shippingFee.toLocaleString()} ₫</Text>
+                </Space>
+
+                <Divider />
 
                 <Table
                     rowKey="itemId"
                     columns={columns}
                     dataSource={order.items}
                     pagination={false}
-                    style={{ marginTop: 24 }}
                 />
+
+                <Divider />
+
+                <Title level={5} style={{ textAlign: 'right', color: '#ff4d4f' }}>
+                    Tổng cộng:{' '}
+                    {(order.totalAmount + order.shippingFee).toLocaleString()} ₫
+                </Title>
             </Card>
         </div>
     );

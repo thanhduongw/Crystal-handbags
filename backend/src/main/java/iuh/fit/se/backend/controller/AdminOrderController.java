@@ -26,14 +26,16 @@ public class AdminOrderController {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<OrderDetailDto> getOrderDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(orderService.getOrderDetail(id));
-    }
 
     @PutMapping("/{id}/status")
     public ResponseEntity<OrderDetailDto> updateOrderStatus(@PathVariable Long id,
                                                             @RequestParam OrderStatus status) {
         return ResponseEntity.ok(orderService.adminUpdateOrder(id, status));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OrderDetailDto> getOrderDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.adminGetOrderDetail(id));
+    }
+
 }

@@ -51,6 +51,7 @@ export default function useCart(): UseCartReturn {
                     avatar: product.avatar || '',
                     price: item.price,
                     qty: quantity,
+                    color: item.color || '',
                 };
 
                 if (user) {

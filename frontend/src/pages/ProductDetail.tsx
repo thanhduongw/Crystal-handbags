@@ -192,7 +192,7 @@ export default function ProductDetail() {
 
                     {/* Info Section */}
                     <Col xs={24} md={12}>
-                        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                             <div>
                                 <Title level={2} style={{ marginBottom: 8 }}>
                                     {product.name}

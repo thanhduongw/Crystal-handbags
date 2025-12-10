@@ -17,3 +17,6 @@ export const fetchAdminOrders = (): Promise<OrderListDto[]> =>
 
 export const updateAdminOrderStatus = (id: number, status: OrderStatus): Promise<OrderDetailDto> =>
     instance.put(`/admin/orders/${id}/status`, null, { params: { status } }).then(r => r.data);
+
+export const fetchAdminOrderDetail = (id: number): Promise<OrderDetailDto> =>
+    instance.get(`/admin/orders/${id}`).then(r => r.data);

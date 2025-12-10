@@ -11,6 +11,7 @@ public interface OrderService {
     List<OrderListDto> getUserOrdersByStatus(String email, OrderStatus status);
     OrderDetailDto getOrderDetail(Long orderId);
     void cancelOrder(Long orderId);
+    OrderDetailDto adminGetOrderDetail(Long id);
     OrderDetailDto createOrder(String email, Long addressId);
     List<OrderListDto> getUserOrders(String email);
     OrderDetailDto adminUpdateOrder(Long orderId, OrderStatus status);
