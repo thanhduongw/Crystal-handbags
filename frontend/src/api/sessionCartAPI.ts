@@ -15,3 +15,6 @@ export const removeItem = (itemId: number) =>
 
 export const clearCart = () =>
     instance.delete('/session-cart');
+
+export const mergeCart = () =>
+    instance.post('/session-cart/merge').then(r => r.data);

@@ -21,85 +21,109 @@ export default function useCart(): UseCartReturn {
     const [lines, setLines] = useState<CartLineDto[]>([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        loadCart();
-    }, [user]);
-
     const loadCart = useCallback(async () => {
         try {
             setLoading(true);
-            const data = user ? await cartAPI.getCart() : await sessionCartAPI.fetchCart();
+            const data = user
+                ? await cartAPI.getCart()
+                : await sessionCartAPI.fetchCart();
             setLines(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to load cart:', error);
-            message.error('Không thể tải giỏ hàng!');
             setLines([]);
         } finally {
             setLoading(false);
         }
     }, [user]);
 
+    useEffect(() => {
+        loadCart();
+    }, [loadCart]);
+
     const total = lines.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-    const addItem = useCallback(async (product: ProductDetailDto, item: ProductItemDto, quantity: number) => {
-        try {
-            const dto: CartLineDto = {
-                itemId: typeof item.itemId === 'number' ? item.itemId : 0,
-                name: product.name,
-                avatar: product.avatar || '',
-                price: item.price,
-                qty: quantity,
-            };
-            user ? await cartAPI.addItem(dto) : await sessionCartAPI.addItem(dto);
-            await loadCart();
-            message.success('Đã thêm vào giỏ hàng!');
-        } catch (error) {
-            console.error('Failed to add item:', error);
-            message.error('Không thể thêm vào giỏ hàng!');
-            throw error;
-        }
-    }, [user, loadCart]);
+    const addItem = useCallback(
+        async (product: ProductDetailDto, item: ProductItemDto, quantity: number) => {
+            try {
+                const dto: CartLineDto = {
+                    itemId: item.itemId || 0,
+                    name: product.name,
+                    avatar: product.avatar || '',
+                    price: item.price,
+                    qty: quantity,
+                };
 
-    const removeItem = useCallback(async (itemId: number) => {
-        try {
-            user ? await cartAPI.removeItem(itemId) : await sessionCartAPI.removeItem(itemId);
-            await loadCart();
-            message.success('Đã xóa sản phẩm khỏi giỏ hàng!');
-        } catch (error) {
-            console.error('Failed to remove item:', error);
-            message.error('Không thể xóa sản phẩm!');
-        }
-    }, [user, loadCart]);
+                if (user) {
+                    await cartAPI.addItem(dto);
+                } else {
+                    await sessionCartAPI.addItem(dto);
+                }
 
-    // SỬA: Thêm optimistic update để UI phản hồi nhanh hơn
-    const updateQty = useCallback(async (itemId: number, quantity: number) => {
-        if (quantity < 1) {
-            await removeItem(itemId);
-            return;
-        }
+                await loadCart();
+            } catch (error) {
+                console.error('Failed to add item:', error);
+                throw error;
+            }
+        },
+        [user, loadCart]
+    );
 
-        // Optimistic update
-        const previousLines = [...lines];
-        setLines(prev => prev.map(line =>
-            line.itemId === itemId ? { ...line, qty: quantity } : line
-        ));
+    const updateQty = useCallback(
+        async (itemId: number, quantity: number) => {
+            if (quantity < 1) {
+                await removeItem(itemId);
+                return;
+            }
 
-        try {
-            user
-                ? await cartAPI.updateQuantity(itemId, quantity)
-                : await sessionCartAPI.updateQty(itemId, quantity);
-            // Không cần load lại nếu optimistic thành công
-        } catch (error) {
-            // Rollback nếu fail
-            setLines(previousLines);
-            console.error('Failed to update quantity:', error);
-            message.error('Không thể cập nhật số lượng!');
-        }
-    }, [user, lines]);
+            // Optimistic update
+            const previousLines = [...lines];
+            setLines((prev) =>
+                prev.map((line) =>
+                    line.itemId === itemId ? { ...line, qty: quantity } : line
+                )
+            );
+
+            try {
+                if (user) {
+                    await cartAPI.updateQuantity(itemId, quantity);
+                } else {
+                    await sessionCartAPI.updateQty(itemId, quantity);
+                }
+            } catch (error) {
+                // Rollback on error
+                setLines(previousLines);
+                console.error('Failed to update quantity:', error);
+                message.error('Không thể cập nhật số lượng!');
+            }
+        },
+        [user, lines]
+    );
+
+    const removeItem = useCallback(
+        async (itemId: number) => {
+            try {
+                if (user) {
+                    await cartAPI.removeItem(itemId);
+                } else {
+                    await sessionCartAPI.removeItem(itemId);
+                }
+                await loadCart();
+                message.success('Đã xóa sản phẩm khỏi giỏ hàng!');
+            } catch (error) {
+                console.error('Failed to remove item:', error);
+                message.error('Không thể xóa sản phẩm!');
+            }
+        },
+        [user, loadCart]
+    );
 
     const clearCart = useCallback(async () => {
         try {
-            user ? await cartAPI.clearCart() : await sessionCartAPI.clearCart();
+            if (user) {
+                await cartAPI.clearCart();
+            } else {
+                await sessionCartAPI.clearCart();
+            }
             setLines([]);
         } catch (error) {
             console.error('Failed to clear cart:', error);
@@ -107,5 +131,14 @@ export default function useCart(): UseCartReturn {
         }
     }, [user]);
 
-    return { lines, loading, total, addItem, updateQty, removeItem, clearCart, refreshCart: loadCart };
+    return {
+        lines,
+        loading,
+        total,
+        addItem,
+        updateQty,
+        removeItem,
+        clearCart,
+        refreshCart: loadCart,
+    };
 }

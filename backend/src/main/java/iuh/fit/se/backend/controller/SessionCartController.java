@@ -44,12 +44,12 @@ public class SessionCartController {
         return ResponseEntity.ok().build();
     }
 
-    // THÊM: Endpoint clear session cart còn thiếu
     @DeleteMapping
     public ResponseEntity<Void> clearCart(HttpSession session) {
         sessionCartService.clearCart(session);
         return ResponseEntity.noContent().build();
     }
+
     @PostMapping("/merge")
     public ResponseEntity<Void> mergeSessionCart(
             @AuthenticationPrincipal Jwt jwt,

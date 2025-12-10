@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
+import * as authAPI from '../api/authAPI';
 
 interface AuthContextType {
     user: AuthUser | null;
     login: (token: string, refreshToken: string, user: AuthUser) => void;
-    logout: () => void;
+    logout: () => Promise<void>;
     isAdmin: boolean;
     loading: boolean;
 }
@@ -47,11 +48,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(user);
     };
 
-    const logout = () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        setUser(null);
-        window.location.href = '/login';
+    const logout = async () => {
+        try {
+            await authAPI.logout();
+        } catch (error) {
+            console.error('Logout API error:', error);
+        } finally {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            setUser(null);
+            window.location.href = '/login';
+        }
     };
 
     const isAdmin = user?.role === 'ROLE_ADMIN';

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Table, Button, Space, Typography, message, Modal, Spin, Image, Upload, Tag, Input, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, PictureOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, SearchOutlined } from '@ant-design/icons';
 import { fetchProducts, createProduct, updateProduct, deleteProduct, uploadProductImage, deleteProductImage, fetchProductDetail } from '../../api/productAPI';
 import type { ProductListDto, ProductDetailDto } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,6 +8,7 @@ import { Navigate } from 'react-router-dom';
 import ProductForm from '../../components/ProductForm';
 
 const { Title } = Typography;
+const { Search } = Input;
 
 export default function AdminProducts() {
     const { isAdmin } = useAuth();
@@ -19,9 +20,8 @@ export default function AdminProducts() {
     const [imageModalVisible, setImageModalVisible] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<ProductDetailDto | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
-
-    // NEW: for adding image by URL
     const [newImageUrl, setNewImageUrl] = useState<string>('');
+    const [searchText, setSearchText] = useState<string>('');
 
     useEffect(() => {
         load();
@@ -95,6 +95,8 @@ export default function AdminProducts() {
         }
     };
 
+    console.log(submitting)
+
     const handleManageImages = async (record: ProductListDto) => {
         try {
             const detail = await fetchProductDetail(record.productId);
@@ -105,7 +107,6 @@ export default function AdminProducts() {
             message.error('Không thể tải chi tiết sản phẩm');
         }
     };
-
 
     const handleUploadImage = async (file: File) => {
         if (!selectedProduct) return;
@@ -147,7 +148,6 @@ export default function AdminProducts() {
         });
     };
 
-    // NEW: add image by URL (updates product via updateProduct)
     const handleAddImageByUrl = async () => {
         if (!selectedProduct) return;
         const url = (newImageUrl || '').trim();
@@ -166,7 +166,6 @@ export default function AdminProducts() {
                 images,
             };
 
-            // Ensure productId is present
             if (selectedProduct.productId) {
                 await updateProduct(selectedProduct.productId, payload);
             } else {
@@ -187,12 +186,28 @@ export default function AdminProducts() {
         }
     };
 
+    // NEW: Filtered and sorted products
+    const filteredProducts = useMemo(() => {
+        let filtered = [...products];
+
+        // Apply search filter
+        if (searchText.trim()) {
+            filtered = filtered.filter(p =>
+                p.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                p.categoryName.toLowerCase().includes(searchText.toLowerCase())
+            );
+        }
+
+        return filtered;
+    }, [products, searchText]);
+
     const columns = [
         {
             title: 'ID',
             dataIndex: 'productId',
             key: 'productId',
             width: 80,
+            sorter: (a: ProductListDto, b: ProductListDto) => a.productId - b.productId,
         },
         {
             title: 'Hình ảnh',
@@ -215,6 +230,7 @@ export default function AdminProducts() {
             dataIndex: 'name',
             key: 'name',
             ellipsis: true,
+            sorter: (a: ProductListDto, b: ProductListDto) => a.name.localeCompare(b.name),
         },
         {
             title: 'Giá',
@@ -222,12 +238,14 @@ export default function AdminProducts() {
             key: 'basePrice',
             width: 120,
             render: (v: number) => `${v?.toLocaleString('vi-VN')} ₫`,
+            sorter: (a: ProductListDto, b: ProductListDto) => a.basePrice - b.basePrice,
         },
         {
             title: 'Danh mục',
             dataIndex: 'categoryName',
             key: 'categoryName',
             width: 150,
+            sorter: (a: ProductListDto, b: ProductListDto) => a.categoryName.localeCompare(b.categoryName),
         },
         {
             title: 'Hiển thị',
@@ -279,22 +297,37 @@ export default function AdminProducts() {
     return (
         <div style={{ padding: 24 }}>
             <Title level={3}>Quản lý sản phẩm</Title>
-            <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                style={{ marginBottom: 16 }}
-                onClick={() => {
-                    setEditing(null);
-                    setModalVisible(true);
-                }}
-            >
-                Thêm sản phẩm
-            </Button>
+
+            {/* NEW: Search bar */}
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+                <Col span={8}>
+                    <Search
+                        placeholder="Tìm kiếm theo tên hoặc danh mục..."
+                        allowClear
+                        enterButton={<SearchOutlined />}
+                        onSearch={(value) => setSearchText(value)}
+                        onChange={(e) => setSearchText(e.target.value)}
+                    />
+                </Col>
+                <Col span={16}>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        style={{ float: 'right' }}
+                        onClick={() => {
+                            setEditing(null);
+                            setModalVisible(true);
+                        }}
+                    >
+                        Thêm sản phẩm
+                    </Button>
+                </Col>
+            </Row>
 
             <Table
                 rowKey="productId"
                 columns={columns}
-                dataSource={products}
+                dataSource={filteredProducts}
                 pagination={{ pageSize: 10, showTotal: (total) => `Tổng ${total} sản phẩm` }}
                 scroll={{ x: 1100 }}
             />
@@ -343,7 +376,6 @@ export default function AdminProducts() {
                                 </Upload>
                             </Col>
 
-                            {/* NEW: input + button để thêm ảnh bằng URL (giữ layout cũ) */}
                             <Col flex="auto">
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                     <Input

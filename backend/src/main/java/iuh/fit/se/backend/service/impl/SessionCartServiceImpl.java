@@ -12,6 +12,7 @@ import iuh.fit.se.backend.repository.UserRepository;
 import iuh.fit.se.backend.service.SessionCartService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SessionCartServiceImpl implements SessionCartService {
     private static final String CART_ATTR = "GUEST_CART";
     private final CartItemRepository cartItemRepository;
@@ -76,16 +78,27 @@ public class SessionCartServiceImpl implements SessionCartService {
         session.removeAttribute(CART_ATTR);
     }
 
-    // SỬA: Thêm logic để tránh duplicate khi merge
+    // FIX CHÍNH: Tạo cart nếu chưa tồn tại, fetch user/cart ngoài vòng lặp
     @Override
     @Transactional
     public void mergeSessionCart(String email, List<CartLineDto> sessionCart) {
-        for (CartLineDto line : sessionCart) {
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            Cart cart = cartRepository.findByUserUserId(user.getUserId())
-                    .orElseThrow(() -> new RuntimeException("Cart not found"));
+        if (sessionCart.isEmpty()) {
+            log.info("No session cart to merge for user: {}", email);
+            return;
+        }
 
+        log.info("Merging {} session cart items for user: {}", sessionCart.size(), email);
+
+        // Fetch user và cart MỘT LẦN ngoài vòng lặp
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+
+        // FIX QUAN TRỌNG: Tạo cart mới nếu chưa tồn tại
+        Cart cart = cartRepository.findByUserUserId(user.getUserId())
+                .orElseGet(() -> createCart(user));
+
+        // Merge từng item
+        for (CartLineDto line : sessionCart) {
             CartItem existingItem = cartItemRepository
                     .findByCartCartIdAndProductItemItemId(cart.getCartId(), line.getItemId())
                     .orElse(null);
@@ -93,16 +106,28 @@ public class SessionCartServiceImpl implements SessionCartService {
             if (existingItem != null) {
                 existingItem.setQuantity(existingItem.getQuantity() + line.getQty());
                 cartItemRepository.save(existingItem);
+                log.debug("Updated existing cart item: {} with quantity: {}", line.getItemId(), existingItem.getQuantity());
             } else {
                 ProductItem productItem = productItemRepository.findById(line.getItemId())
-                        .orElseThrow(() -> new RuntimeException("Product item not found"));
+                        .orElseThrow(() -> new RuntimeException("Product item not found: " + line.getItemId()));
                 CartItem newItem = CartItem.builder()
                         .cart(cart)
                         .productItem(productItem)
                         .quantity(line.getQty())
                         .build();
                 cartItemRepository.save(newItem);
+                log.debug("Added new cart item: {} with quantity: {}", line.getItemId(), line.getQty());
             }
         }
+
+        log.info("Successfully merged session cart for user: {}", email);
+    }
+
+    private Cart createCart(User user) {
+        log.info("Creating new cart for user: {}", user.getEmail());
+        Cart cart = Cart.builder()
+                .user(user)
+                .build();
+        return cartRepository.save(cart);
     }
 }

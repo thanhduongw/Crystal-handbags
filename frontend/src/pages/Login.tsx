@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { login } from '../api/authAPI';
+import * as sessionCartAPI from '../api/sessionCartAPI';
 import type { AxiosError } from 'axios';
 
 const { Title } = Typography;
@@ -17,17 +18,37 @@ export default function Login() {
         try {
             setLoading(true);
             const response = await login(values);
-            const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
 
-            loginContext(
-                response.accessToken,
-                response.refreshToken,
-                {
-                    email: payload.sub,
-                    role: payload.scope,
-                    userId: payload.userId,
+            // Parse payload
+            const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
+            const userData = {
+                email: payload.sub,
+                role: payload.scope,
+                userId: payload.userId,
+            };
+
+            // Lưu token trước (cần cho API merge)
+            localStorage.setItem('accessToken', response.accessToken);
+            localStorage.setItem('refreshToken', response.refreshToken);
+
+            // === FIX QUAN TRỌNG: Merge session cart TRƯỚC khi set user context ===
+            try {
+                const sessionCart = await sessionCartAPI.fetchCart();
+                if (sessionCart && sessionCart.length > 0) {
+                    await sessionCartAPI.mergeCart();
+                    console.log('✅ Đã merge giỏ hàng session vào database:', sessionCart.length, 'items');
+                    // Xóa session cart sau khi merge thành công
+                    await sessionCartAPI.clearCart();
+                } else {
+                    console.log('Không có session cart để merge');
                 }
-            );
+            } catch (error) {
+                console.error('❌ Lỗi khi merge giỏ hàng:', error);
+                message.warning('Không thể đồng bộ giỏ hàng, vui lòng kiểm tra lại');
+            }
+
+            // Set user context (trigger reload cart ở components)
+            loginContext(response.accessToken, response.refreshToken, userData);
 
             message.success('Đăng nhập thành công!');
             navigate('/');

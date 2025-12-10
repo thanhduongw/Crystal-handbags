@@ -1,6 +1,5 @@
 package iuh.fit.se.backend.service.impl;
 
-import iuh.fit.se.backend.dto.CartItemDto;
 import iuh.fit.se.backend.dto.CartLineDto;
 import iuh.fit.se.backend.model.Cart;
 import iuh.fit.se.backend.model.CartItem;
@@ -19,12 +18,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public
-class DatabaseCartServiceImpl implements DatabaseCartService {
+public class DatabaseCartServiceImpl implements DatabaseCartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductItemRepository productItemRepository;
     private final UserRepository userRepository;
+
     @Override
     public List<CartLineDto> getAllCart(String email) {
         User user = userRepository.findByEmail(email)
@@ -34,7 +33,7 @@ class DatabaseCartServiceImpl implements DatabaseCartService {
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
         return cartItemRepository.findByCartCartId(cart.getCartId()).stream()
-                .map(this::convertToCartLineDto) // Đổi tên method
+                .map(this::convertToCartLineDto)
                 .collect(Collectors.toList());
     }
 
@@ -127,16 +126,6 @@ class DatabaseCartServiceImpl implements DatabaseCartService {
         return cartRepository.save(cart);
     }
 
-    private CartItemDto convertToDto(CartItem cartItem) {
-        return CartItemDto.builder()
-                .itemId(cartItem.getProductItem().getItemId())
-                .productName(cartItem.getProductItem().getProduct().getName())
-                .avatar(cartItem.getProductItem().getProduct().getAvatar())
-                .color(cartItem.getProductItem().getColor())
-                .price(cartItem.getProductItem().getPrice())
-                .quantity(cartItem.getQuantity())
-                .build();
-    }
     private CartLineDto convertToCartLineDto(CartItem cartItem) {
         return CartLineDto.builder()
                 .itemId(cartItem.getProductItem().getItemId())

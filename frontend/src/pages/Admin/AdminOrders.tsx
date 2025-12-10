@@ -30,7 +30,6 @@ export default function AdminOrders() {
     const navigate = useNavigate();
     const [orders, setOrders] = useState<OrderListDto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>();
 
     useEffect(() => {
         load();
@@ -135,33 +134,13 @@ export default function AdminOrders() {
         return <Spin style={{ display: 'block', margin: '100px auto' }} />;
     }
 
-    const filteredOrders = statusFilter
-        ? orders.filter(o => o.status === statusFilter)
-        : orders;
-
     return (
         <div style={{ padding: 24 }}>
             <Title level={3}>Quản lý đơn hàng</Title>
-
-            <div style={{ marginBottom: 16 }}>
-                <Select
-                    placeholder="Lọc theo trạng thái"
-                    style={{ width: 200 }}
-                    allowClear
-                    onChange={(value) => setStatusFilter(value as OrderStatus)}
-                >
-                    {statusOptions.map(option => (
-                        <Select.Option key={option.value} value={option.value}>
-                            {option.label}
-                        </Select.Option>
-                    ))}
-                </Select>
-            </div>
-
             <Table
                 rowKey="orderId"
                 columns={columns}
-                dataSource={filteredOrders}
+                dataSource={orders}
                 pagination={{
                     pageSize: 10,
                     showTotal: (total) => `Tổng ${total} đơn hàng`,

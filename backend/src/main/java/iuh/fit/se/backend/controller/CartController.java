@@ -3,11 +3,8 @@ package iuh.fit.se.backend.controller;
 import iuh.fit.se.backend.dto.CartLineDto;
 import iuh.fit.se.backend.dto.CheckoutRequest;
 import iuh.fit.se.backend.dto.OrderDetailDto;
-import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.service.DatabaseCartService;
 import iuh.fit.se.backend.service.OrderService;
-import iuh.fit.se.backend.service.SessionCartService;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -84,6 +81,7 @@ public class CartController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody CheckoutRequest request) {
 
+        // TODO: Sử dụng request.getPaymentMethod() để xử lý thanh toán
         OrderDetailDto order = orderService.createOrder(
                 jwt.getSubject(),
                 request.getAddressId()
@@ -92,4 +90,3 @@ public class CartController {
         return ResponseEntity.status(HttpStatus.CREATED).body(order);
     }
 }
-

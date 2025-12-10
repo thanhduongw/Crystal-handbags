@@ -1,6 +1,7 @@
 // ==================== ENUMS ====================
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+// Role từ JWT token
 export type Role = 'ROLE_CUSTOMER' | 'ROLE_ADMIN';
 export type PaymentMethod = 'CASH' | 'CARD' | 'UPI' | 'BANK_TRANSFER';
 
@@ -98,6 +99,7 @@ export interface UserProfileDto {
     gender: Gender;
     dob?: string;
     photoUrl?: string;
+    // Role từ profile API, có thể khác với role từ JWT
     role?: 'CUSTOMER' | 'ADMIN';
 }
 

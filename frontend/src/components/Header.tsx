@@ -3,7 +3,8 @@ import {
     Menu,
     Dropdown,
     Avatar,
-    Badge
+    Badge,
+    Space,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -13,9 +14,8 @@ import {
     DashboardOutlined,
     HistoryOutlined,
     EnvironmentOutlined,
-    SearchOutlined
 } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import useCart from '../hooks/useCart';
 
@@ -23,6 +23,7 @@ const { Header } = Layout;
 
 export default function AppHeader() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { lines } = useCart();
     const { user, logout, isAdmin } = useAuth();
 
@@ -48,6 +49,9 @@ export default function AppHeader() {
         ...(isAdmin
             ? [
                 {
+                    type: 'divider' as const,
+                },
+                {
                     key: 'admin',
                     label: 'Quản trị',
                     icon: <DashboardOutlined />,
@@ -56,45 +60,69 @@ export default function AppHeader() {
             ]
             : []),
         {
-            type: 'divider',
+            type: 'divider' as const,
         },
         {
             key: 'logout',
             label: 'Đăng xuất',
             icon: <LogoutOutlined />,
             onClick: logout,
+            danger: true,
         },
     ];
 
     const mainMenuItems: MenuProps['items'] = [
-        { key: 'home', label: <Link to="/">Trang chủ</Link> },
-        { key: 'products', label: <Link to="/products">Sản phẩm</Link> },
-        { key: 'about', label: <Link to="/about">Về chúng tôi</Link> },
-        { key: 'contact', label: <Link to="/contact">Liên hệ</Link> },
+        {
+            key: '/',
+            label: <Link to="/">Trang chủ</Link>
+        },
+        {
+            key: '/products',
+            label: <Link to="/products">Sản phẩm</Link>
+        },
+        {
+            key: '/about',
+            label: <Link to="/about">Về chúng tôi</Link>
+        },
+        {
+            key: '/contact',
+            label: <Link to="/contact">Liên hệ</Link>
+        },
     ];
+
+    const getCurrentMenuKey = () => {
+        if (location.pathname === '/') return '/';
+        if (location.pathname.startsWith('/products')) return '/products';
+        if (location.pathname.startsWith('/about')) return '/about';
+        if (location.pathname.startsWith('/contact')) return '/contact';
+        return location.pathname;
+    };
 
     return (
         <Header
             style={{
                 background: '#fff',
-                padding: '0 64px',
-                height: 60,
+                padding: '0 48px',
+                height: 64,
                 display: 'flex',
                 alignItems: 'center',
                 borderBottom: '1px solid #f0f0f0',
                 position: 'sticky',
                 top: 0,
                 zIndex: 1000,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             }}
         >
-
             <Link
                 to="/"
                 style={{
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: 700,
-                    color: '#000',
+                    color: '#1890ff',
                     letterSpacing: 1,
+                    textDecoration: 'none',
+                    marginRight: 48,
+                    whiteSpace: 'nowrap',
                 }}
             >
                 Crystal
@@ -102,30 +130,23 @@ export default function AppHeader() {
 
             <Menu
                 mode="horizontal"
-                selectable={false}
+                selectedKeys={[getCurrentMenuKey()]}
                 items={mainMenuItems}
                 style={{
                     flex: 1,
-                    justifyContent: 'center',
-                    borderBottom: 'none',
+                    border: 'none',
                     fontWeight: 500,
                 }}
             />
 
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 20,
-                }}
-            >
-                <SearchOutlined
-                    style={{ fontSize: 18, cursor: 'pointer' }}
-                />
-
-                <Badge count={lines.length} size="small">
+            <Space size="large">
+                <Badge count={lines.length} size="small" offset={[-2, 2]}>
                     <ShoppingCartOutlined
-                        style={{ fontSize: 20, cursor: 'pointer' }}
+                        style={{
+                            fontSize: 22,
+                            cursor: 'pointer',
+                            color: '#595959',
+                        }}
                         onClick={() => navigate('/cart')}
                     />
                 </Badge>
@@ -134,20 +155,39 @@ export default function AppHeader() {
                     <Dropdown
                         menu={{ items: userMenuItems }}
                         placement="bottomRight"
-                        trigger={['hover']}
+                        trigger={['click']}
                     >
-                        <Avatar
-                            size="small"
-                            icon={<UserOutlined />}
-                            style={{ cursor: 'pointer' }}
-                        />
+                        <Space style={{ cursor: 'pointer' }}>
+                            <Avatar
+                                size="default"
+                                icon={<UserOutlined />}
+                                style={{
+                                    backgroundColor: '#1890ff',
+                                }}
+                            />
+                            <span style={{
+                                maxWidth: 150,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}>
+                                {user.email}
+                            </span>
+                        </Space>
                     </Dropdown>
                 ) : (
                     <Link to="/login">
-                        <UserOutlined style={{ fontSize: 20 }} />
+                        <Avatar
+                            size="default"
+                            icon={<UserOutlined />}
+                            style={{
+                                backgroundColor: '#d9d9d9',
+                                cursor: 'pointer',
+                            }}
+                        />
                     </Link>
                 )}
-            </div>
+            </Space>
         </Header>
     );
 }
