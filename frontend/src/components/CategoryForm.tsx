@@ -22,9 +22,7 @@ export default function CategoryForm({ visible, onCancel, onSubmit, initialValue
         }
     }, [visible, initialValues]);
 
-    const handleSubmit = () => {
-        form.submit();
-    };
+    const handleSubmit = () => form.submit();
 
     return (
         <Modal

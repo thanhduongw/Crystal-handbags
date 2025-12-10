@@ -37,7 +37,6 @@ export default function Cart() {
                 <InputNumber
                     min={1}
                     value={r.qty}
-                    // Trong Cart.tsx, sửa dòng updateQty:
                     onChange={(val) => updateQty(r.itemId, val || 1)}
                 />
             ),

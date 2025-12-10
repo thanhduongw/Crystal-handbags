@@ -42,7 +42,6 @@ export interface ProductDetailDto {
     showHomePage: boolean;
 }
 
-// ==================== CART ====================
 export interface CartLineDto {
     itemId: number;
     name: string;

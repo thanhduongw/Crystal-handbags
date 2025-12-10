@@ -26,8 +26,3 @@ export const refreshToken = async (refreshToken: string) => {
     const response = await instance.post('/auth/refresh-token', { refreshToken });
     return response.data;
 };
-
-
-export const mergeSessionCart = async () => {
-    return instance.post('/session-cart/merge');
-};

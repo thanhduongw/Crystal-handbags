@@ -15,13 +15,8 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
         return <Spin style={{ display: 'block', margin: '100px auto' }} />;
     }
 
-    if (!user) {
-        return <Navigate to="/login" replace />;
-    }
-
-    if (requireAdmin && !isAdmin) {
-        return <Navigate to="/" replace />;
-    }
+    if (!user) return <Navigate to="/login" replace />;
+    if (requireAdmin && !isAdmin) return <Navigate to="/" replace />;
 
     return children;
 }

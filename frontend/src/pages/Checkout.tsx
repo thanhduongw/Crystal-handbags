@@ -1,20 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    Row,
-    Col,
-    Typography,
-    Radio,
-    Table,
-    Card,
-    Button,
-    Spin,
-    Alert,
-    Divider,
-    Space,
-    message,
-    Tag,
-} from 'antd';
+import { Row, Col, Typography, Card, Button, Spin, message, Divider, Radio, Space, Table, Tag } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import useCart from '../hooks/useCart';
@@ -24,17 +10,64 @@ import type { Address, CartLineDto, PaymentMethod } from '../types';
 
 const { Title, Text } = Typography;
 
+function AddressSelector({ addresses, selectedId, onSelect }: { addresses: Address[], selectedId: number | null, onSelect: (id: number) => void }) {
+    if (addresses.length === 0) {
+        return (
+            <Button type="dashed" block icon={<PlusOutlined />} onClick={() => window.location.href = '/addresses'}>
+                Thêm địa chỉ mới
+            </Button>
+        );
+    }
+    return (
+        <Radio.Group value={selectedId} style={{ width: '100%' }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+                {addresses.map(addr => (
+                    <Card
+                        key={addr.addressId}
+                        size="small"
+                        hoverable
+                        style={{
+                            borderColor: selectedId === addr.addressId ? '#1890ff' : '#d9d9d9',
+                            backgroundColor: selectedId === addr.addressId ? '#e6f7ff' : '#fff',
+                            cursor: 'pointer',
+                        }}
+                        onClick={() => onSelect(addr.addressId)}
+                    >
+                        <Radio value={addr.addressId} style={{ width: '100%' }}>
+                            <Space direction="vertical">
+                                <Text strong>{addr.fullName} - {addr.phoneNumber}</Text>
+                                <Text type="secondary">{addr.street}, {addr.ward}, {addr.district}, {addr.province}</Text>
+                                {addr.isDefault && <Tag color="blue">Mặc định</Tag>}
+                            </Space>
+                        </Radio>
+                    </Card>
+                ))}
+            </Space>
+        </Radio.Group>
+    );
+}
+
+function PaymentSelector({ value, onChange }: { value: PaymentMethod, onChange: (val: PaymentMethod) => void }) {
+    return (
+        <Radio.Group onChange={e => onChange(e.target.value)} value={value}>
+            <Space direction="vertical">
+                <Radio value="CASH">Tiền mặt</Radio>
+                <Radio value="CARD">Thẻ</Radio>
+            </Space>
+        </Radio.Group>
+    );
+}
+
 export default function Checkout() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { lines, total: cartTotal, loading: cartLoading, clearCart } = useCart();
     const [addresses, setAddresses] = useState<Address[]>([]);
     const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+    const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('CASH');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
-    const shippingFee = 30000; // Có thể thay đổi theo logic tính phí ship
+    const shippingFee = 30000;
     const totalAmount = cartTotal + shippingFee;
 
     useEffect(() => {
@@ -42,134 +75,99 @@ export default function Checkout() {
             navigate('/login', { replace: true });
             return;
         }
-        loadAddresses();
-    }, [user, navigate]);
-
-    const loadAddresses = async () => {
-        try {
-            const data = await fetchAddresses();
-            setAddresses(data);
-            const defaultAddr = data.find((a) => a.isDefault);
-            if (defaultAddr) setSelectedAddressId(defaultAddr.addressId);
-            else if (data.length > 0) setSelectedAddressId(data[0].addressId);
-        } catch (error) {
-            message.error('Không thể tải danh sách địa chỉ!');
-        }
-    };
+        (async () => {
+            try {
+                const data = await fetchAddresses();
+                setAddresses(data);
+                const defaultAddr = data.find(a => a.isDefault);
+                setSelectedAddressId(defaultAddr?.addressId || data[0]?.addressId || null);
+            } catch {
+                message.error('Không thể tải địa chỉ!');
+            }
+        })();
+    }, [user]);
 
     const handleCheckout = async () => {
-        if (!selectedAddressId) {
-            setError('Vui lòng chọn địa chỉ giao hàng!');
-            return;
-        }
-        if (lines.length === 0) {
-            setError('Giỏ hàng trống!');
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
+        if (!selectedAddressId) return;
         try {
-            await checkoutAPI(selectedAddressId);
-            await clearCart();
-            message.success('Đặt hàng thành công! Chuyển hướng đến lịch sử đơn hàng...');
-            setTimeout(() => navigate('/orders'), 1500);
-        } catch (error: any) {
-            setError(error?.response?.data?.message || 'Đặt hàng thất bại. Vui lòng thử lại!');
+            setLoading(true);
+            const order = await checkoutAPI(selectedAddressId, selectedPayment, lines.map(l => l.itemId));
+            clearCart();
+            message.success('Đặt hàng thành công!');
+            navigate(`/orders/${order.orderId}`);
+        } catch {
+            message.error('Đặt hàng thất bại!');
         } finally {
             setLoading(false);
         }
     };
 
-    if (cartLoading) return <Spin style={{ display: 'block', margin: '100px auto' }} size="large" />;
-    if (!user) return null;
-
     const columns = [
         {
             title: 'Sản phẩm',
             render: (record: CartLineDto) => (
-                <Space size="middle">
-                    <img
-                        src={record.avatar || 'https://placehold.co/600x400'}
-                        alt={record.name}
-                        width={50}
-                        height={50}
-                        style={{ objectFit: 'cover', borderRadius: 6 }}
-                    />
+                <Space>
+                    <img src={record.avatar || 'https://placehold.co/80x80'} alt={record.name} width={60} height={60} style={{ objectFit: 'cover', borderRadius: 6 }} />
                     <Text strong>{record.name}</Text>
                 </Space>
             ),
         },
         { title: 'Số lượng', dataIndex: 'qty', align: 'center' as const },
-        { title: 'Đơn giá', render: (record: CartLineDto) => `${record.price.toLocaleString()} đ` },
-        { title: 'Thành tiền', render: (record: CartLineDto) => `${(record.price * record.qty).toLocaleString()} đ` },
+        { title: 'Đơn giá', render: (r: CartLineDto) => `${r.price.toLocaleString()} đ` },
+        { title: 'Thành tiền', render: (r: CartLineDto) => `${(r.price * r.qty).toLocaleString()} đ` },
     ];
 
-    return (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
-            <Title level={2} style={{ marginBottom: 24 }}>Thanh toán</Title>
-            {error && <Alert message={error} type="error" showIcon closable style={{ marginBottom: 24 }} />}
+    if (cartLoading) return <Spin style={{ display: 'block', margin: '100px auto' }} size="large" />;
+    if (!user) return null;
 
+    return (
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+            <Title level={2}>Thanh toán</Title>
             <Row gutter={[24, 24]}>
-                <Col xs={24} md={16}>
-                    <Card title={<Title level={4}>Địa chỉ giao hàng</Title>} style={{ marginBottom: 24 }}>
-                        {addresses.length === 0 ? (
-                            <Alert
-                                message="Bạn chưa có địa chỉ nào"
-                                type="warning"
-                                action={<Button type="primary" size="small" onClick={() => navigate('/addresses')}>Thêm địa chỉ</Button>}
-                            />
-                        ) : (
-                            <Radio.Group value={selectedAddressId} onChange={(e) => setSelectedAddressId(e.target.value)} style={{ width: '100%' }}>
-                                <Space direction="vertical" style={{ width: '100%' }}>
-                                    {addresses.map((addr) => (
-                                        <Card key={addr.addressId} size="small" hoverable
-                                            style={{ width: '100%', cursor: 'pointer', borderColor: selectedAddressId === addr.addressId ? '#1890ff' : '#d9d9d9', backgroundColor: selectedAddressId === addr.addressId ? '#e6f7ff' : '#fff' }}
-                                            onClick={() => setSelectedAddressId(addr.addressId)}>
-                                            <Radio value={addr.addressId} style={{ width: '100%' }}>
-                                                <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                                                    <div>
-                                                        <Text strong>{addr.fullName} - {addr.phoneNumber}</Text>
-                                                        {addr.isDefault && <Tag color="blue" style={{ marginLeft: 8 }}>Mặc định</Tag>}
-                                                    </div>
-                                                    <Text type="secondary">{addr.street}, {addr.ward}, {addr.district}, {addr.province}</Text>
-                                                </Space>
-                                            </Radio>
-                                        </Card>
-                                    ))}
-                                </Space>
-                            </Radio.Group>
-                        )}
-                        <Button type="dashed" block icon={<PlusOutlined />} style={{ marginTop: 16 }} onClick={() => navigate('/addresses')}>
+                <Col xs={24} md={12}>
+                    <Card title="Địa chỉ giao hàng" style={{ marginBottom: 24 }}>
+                        <AddressSelector addresses={addresses} selectedId={selectedAddressId} onSelect={setSelectedAddressId} />
+                        <Button
+                            type="dashed"
+                            block
+                            icon={<PlusOutlined />}
+                            style={{ marginTop: 16 }}
+                            onClick={() => navigate('/addresses', { state: { fromCheckout: true } })}
+                        >
                             Quản lý địa chỉ
                         </Button>
                     </Card>
 
-                    <Card title={<Title level={4}>Phương thức thanh toán</Title>}>
-                        <Radio.Group value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: '100%' }}>
-                            <Space direction="vertical" style={{ width: '100%' }}>
-                                <Radio value="CASH">Thanh toán khi nhận hàng (COD)</Radio>
-                                <Radio value="CARD">Thẻ tín dụng/ghi nợ</Radio>
-                                <Radio value="UPI">UPI</Radio>
-                                <Radio value="BANK_TRANSFER">Chuyển khoản ngân hàng</Radio>
-                            </Space>
-                        </Radio.Group>
+                    <Card title="Phương thức thanh toán">
+                        <PaymentSelector value={selectedPayment} onChange={setSelectedPayment} />
                     </Card>
                 </Col>
 
-                <Col xs={24} md={8}>
-                    <Card title={<Title level={4}>Tóm tắt đơn hàng</Title>}>
+                <Col xs={24} md={12}>
+                    <Card title="Tóm tắt đơn hàng">
                         <Table dataSource={lines} columns={columns} pagination={false} rowKey="itemId" size="small" />
                         <Divider />
                         <Space direction="vertical" style={{ width: '100%' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text>Tạm tính:</Text><Text>{cartTotal.toLocaleString()} đ</Text></div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text>Phí vận chuyển:</Text><Text>{shippingFee.toLocaleString()} đ</Text></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Text>Tạm tính:</Text><Text>{cartTotal.toLocaleString()} đ</Text>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Text>Phí vận chuyển:</Text><Text>{shippingFee.toLocaleString()} đ</Text>
+                            </div>
                             <Divider style={{ margin: '8px 0' }} />
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 600 }}>
                                 <Text strong>Tổng cộng:</Text>
                                 <Text type="danger" strong>{totalAmount.toLocaleString()} đ</Text>
                             </div>
-                            <Button type="primary" size="large" block onClick={handleCheckout} disabled={lines.length === 0 || !selectedAddressId} loading={loading} style={{ marginTop: 16 }}>
+                            <Button
+                                type="primary"
+                                size="large"
+                                block
+                                disabled={lines.length === 0 || !selectedAddressId}
+                                loading={loading}
+                                style={{ marginTop: 16 }}
+                                onClick={handleCheckout}
+                            >
                                 Đặt hàng
                             </Button>
                         </Space>

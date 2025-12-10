@@ -1,5 +1,6 @@
 package iuh.fit.se.backend.service.impl;
 
+import iuh.fit.se.backend.dto.AddressDto;
 import iuh.fit.se.backend.model.Address;
 import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.repository.AddressRepository;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,12 +20,15 @@ public class AddressServiceImpl implements AddressService {
     private final AddressRepository addressRepository;
 
     @Override
-    public List<Address> getUserAddresses(User user) {
-        return addressRepository.findByUser(user);
+    public List<AddressDto> getUserAddresses(User user) {
+        return addressRepository.findByUser(user)
+                .stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public Address createAddress(User user, Address address) {
+    public AddressDto createAddress(User user, Address address) {
         address.setAddressId(null);
         address.setUser(user);
 
@@ -31,11 +36,12 @@ public class AddressServiceImpl implements AddressService {
             addressRepository.clearDefaultAddress(user.getUserId());
         }
 
-        return addressRepository.save(address);
+        Address saved = addressRepository.save(address);
+        return toDto(saved);
     }
 
     @Override
-    public Address updateAddress(Long id, User user, Address address) {
+    public AddressDto updateAddress(Long id, User user, Address address) {
         Address existing = addressRepository.findById(id)
                 .filter(a -> a.getUser().getUserId().equals(user.getUserId()))
                 .orElseThrow(() -> new RuntimeException("Address not found"));
@@ -52,7 +58,8 @@ public class AddressServiceImpl implements AddressService {
             existing.setIsDefault(true);
         }
 
-        return addressRepository.save(existing);
+        Address updated = addressRepository.save(existing);
+        return toDto(updated);
     }
 
     @Override
@@ -62,5 +69,36 @@ public class AddressServiceImpl implements AddressService {
                 .orElseThrow(() -> new RuntimeException("Address not found"));
 
         addressRepository.delete(address);
+    }
+
+    @Override
+    @Transactional
+    public AddressDto setDefaultAddress(Long addressId, User user) {
+        Address address = addressRepository.findById(addressId)
+                .filter(a -> a.getUser().getUserId().equals(user.getUserId()))
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        // 1. Bỏ mặc định tất cả địa chỉ khác
+        addressRepository.clearDefaultAddress(user.getUserId());
+
+        // 2. Set địa chỉ này thành default
+        address.setIsDefault(true);
+        Address saved = addressRepository.save(address);
+
+        return toDto(saved);
+    }
+
+
+    private AddressDto toDto(Address address) {
+        return AddressDto.builder()
+                .addressId(address.getAddressId())
+                .fullName(address.getFullName())
+                .phoneNumber(address.getPhoneNumber())
+                .street(address.getStreet())
+                .ward(address.getWard())
+                .district(address.getDistrict())
+                .province(address.getProvince())
+                .isDefault(address.getIsDefault())
+                .build();
     }
 }

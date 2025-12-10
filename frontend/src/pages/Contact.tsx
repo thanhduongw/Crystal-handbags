@@ -51,17 +51,17 @@ export default function Contact() {
                         <div style={{ marginBottom: 24 }}>
                             <PhoneOutlined style={{ fontSize: 20, marginRight: 12, color: '#1890ff' }} />
                             <Text strong>Hotline: </Text>
-                            <Text>1900-xxxx (8:00 - 22:00)</Text>
+                            <Text>0369384679 (8:00 - 22:00)</Text>
                         </div>
                         <div style={{ marginBottom: 24 }}>
                             <MailOutlined style={{ fontSize: 20, marginRight: 12, color: '#1890ff' }} />
                             <Text strong>Email: </Text>
-                            <Text>support@shop.com</Text>
+                            <Text>levuthanhduong2004@gmail.com</Text>
                         </div>
                         <div style={{ marginBottom: 24 }}>
                             <EnvironmentOutlined style={{ fontSize: 20, marginRight: 12, color: '#1890ff' }} />
                             <Text strong>Địa chỉ: </Text>
-                            <Text>123 Đường ABC, Quận 1, TP. Hồ Chí Minh</Text>
+                            <Text>313 Nguyễn Văn Công, phường Hạnh Thông, TP. Hồ Chí Minh</Text>
                         </div>
 
                         <Title level={5} style={{ marginTop: 32 }}>Giờ làm việc</Title>

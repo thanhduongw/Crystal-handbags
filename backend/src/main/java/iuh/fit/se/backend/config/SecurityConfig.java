@@ -79,7 +79,7 @@ public class SecurityConfig {
                                 .jwtAuthenticationConverter(jwtAuthConverter)
                         )
                 )
-
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
 

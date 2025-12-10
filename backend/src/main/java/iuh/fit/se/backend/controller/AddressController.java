@@ -1,5 +1,6 @@
 package iuh.fit.se.backend.controller;
 
+import iuh.fit.se.backend.dto.AddressDto;
 import iuh.fit.se.backend.model.Address;
 import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.repository.UserRepository;
@@ -23,7 +24,7 @@ public class AddressController {
     private final UserRepository userRepository;
 
     @GetMapping
-    public List<Address> getAddresses(@AuthenticationPrincipal Jwt jwt) {
+    public List<AddressDto> getAddresses(@AuthenticationPrincipal Jwt jwt) {
 
         if (jwt == null) {
             throw new ResponseStatusException(
@@ -43,14 +44,14 @@ public class AddressController {
 
 
     @PostMapping
-    public Address createAddress(@AuthenticationPrincipal Jwt jwt,
+    public AddressDto createAddress(@AuthenticationPrincipal Jwt jwt,
                                  @RequestBody Address address) {
         User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
         return addressService.createAddress(user, address);
     }
 
     @PutMapping("/{id}")
-    public Address updateAddress(@PathVariable Long id,
+    public AddressDto updateAddress(@PathVariable Long id,
                                  @AuthenticationPrincipal  Jwt jwt,
                                  @RequestBody Address address) {
         User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
@@ -63,4 +64,13 @@ public class AddressController {
         User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
         addressService.deleteAddress(id, user);
     }
+
+    @PutMapping("/{id}/default")
+    public AddressDto setDefaultAddress(@PathVariable Long id,
+                                        @AuthenticationPrincipal Jwt jwt) {
+        User user = userRepository.findByEmail(jwt.getSubject())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        return addressService.setDefaultAddress(id, user);
+    }
+
 }

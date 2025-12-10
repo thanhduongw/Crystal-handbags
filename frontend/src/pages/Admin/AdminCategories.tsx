@@ -18,20 +18,15 @@ export default function AdminCategories() {
 
     if (!isAdmin) return <Navigate to="/" replace />;
 
-    useEffect(() => {
-        loadCategories();
-    }, []);
+    useEffect(() => { loadCategories(); }, []);
 
     const loadCategories = async () => {
         try {
             setLoading(true);
             const data = await fetchCategories();
             setCategories(data);
-        } catch (error) {
-            console.error('Failed to load categories:', error);
-        } finally {
-            setLoading(false);
-        }
+        } catch { message.error('Không thể tải danh mục!'); }
+        finally { setLoading(false); }
     };
 
     const handleDelete = (id: number) => {
@@ -39,50 +34,30 @@ export default function AdminCategories() {
             title: 'Xác nhận xoá?',
             content: 'Bạn sẽ không thể khôi phục danh mục này!',
             async onOk() {
-                try {
-                    await deleteCategory(id);
-                    message.success('Xoá thành công!');
-                    loadCategories();
-                } catch (error) {
-                    message.error('Xoá thất bại! Có thể danh mục đang chứa sản phẩm.');
-                }
+                try { await deleteCategory(id); message.success('Xoá thành công!'); loadCategories(); }
+                catch { message.error('Xoá thất bại!'); }
             },
         });
     };
 
     const handleSubmit = async (values: any) => {
         try {
-            if (editingCategory) {
-                await updateCategory(editingCategory.categoryId, values);
-                message.success('Cập nhật thành công!');
-            } else {
-                await createCategory(values);
-                message.success('Thêm thành công!');
-            }
-            setModalVisible(false);
-            loadCategories();
-        } catch (error) {
-            message.error(editingCategory ? 'Cập nhật thất bại!' : 'Thêm thất bại!');
-        }
+            if (editingCategory) await updateCategory(editingCategory.categoryId, values);
+            else await createCategory(values);
+            message.success(editingCategory ? 'Cập nhật thành công!' : 'Thêm thành công!');
+            setModalVisible(false); loadCategories();
+        } catch { message.error(editingCategory ? 'Cập nhật thất bại!' : 'Thêm thất bại!'); }
     };
 
     const columns = [
-        { title: 'ID', dataIndex: 'id', key: 'id' },
+        { title: 'ID', dataIndex: 'categoryId', key: 'categoryId' },
         { title: 'Tên', dataIndex: 'name', key: 'name' },
         { title: 'Mô tả', dataIndex: 'description', key: 'description' },
         {
-            title: 'Thao tác',
-            key: 'action',
+            title: 'Thao tác', key: 'action',
             render: (_: any, r: CategoryDto) => (
                 <>
-                    <Button
-                        icon={<EditOutlined />}
-                        onClick={() => {
-                            setEditingCategory(r);
-                            setModalVisible(true);
-                        }}
-                        style={{ marginRight: 8 }}
-                    />
+                    <Button icon={<EditOutlined />} onClick={() => { setEditingCategory(r); setModalVisible(true); }} style={{ marginRight: 8 }} />
                     <Button icon={<DeleteOutlined />} danger onClick={() => handleDelete(r.categoryId)} />
                 </>
             ),
@@ -94,25 +69,11 @@ export default function AdminCategories() {
     return (
         <div style={{ padding: 24 }}>
             <Title level={3}>Quản lý danh mục</Title>
-            <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                    setEditingCategory(null);
-                    setModalVisible(true);
-                }}
-                style={{ marginBottom: 16 }}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingCategory(null); setModalVisible(true); }} style={{ marginBottom: 16 }}>
                 Thêm danh mục
             </Button>
-            <Table rowKey="id" columns={columns} dataSource={categories} pagination={{ pageSize: 10 }} />
-
-            <CategoryForm
-                visible={modalVisible}
-                onCancel={() => setModalVisible(false)}
-                onSubmit={handleSubmit}
-                initialValues={editingCategory || undefined}
-            />
+            <Table rowKey="categoryId" columns={columns} dataSource={categories} pagination={{ pageSize: 10 }} />
+            <CategoryForm visible={modalVisible} onCancel={() => setModalVisible(false)} onSubmit={handleSubmit} initialValues={editingCategory || undefined} />
         </div>
     );
 }

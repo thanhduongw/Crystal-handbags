@@ -55,13 +55,10 @@ public class SessionCartController {
             @AuthenticationPrincipal Jwt jwt,
             HttpSession session) {
 
-        // Lấy session cart
         List<CartLineDto> sessionCart = sessionCartService.getAllCart(session);
 
-        // Merge vào database
         if (!sessionCart.isEmpty()) {
             databaseCartService.mergeSessionCart(jwt.getSubject(), sessionCart);
-            // Xóa session cart sau merge
             sessionCartService.clearCart(session);
         }
 

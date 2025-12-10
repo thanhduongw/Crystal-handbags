@@ -91,13 +91,11 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new RuntimeException("Address not found"));
 
-        // ✅ SỬA: Dùng CartLineDto thay vì CartItemDto
         List<CartLineDto> cartItems = cartService.getAllCart(email);
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty");
         }
 
-        // Initialize order with empty list of order items
         Order order = Order.builder()
                 .user(user)
                 .address(address)

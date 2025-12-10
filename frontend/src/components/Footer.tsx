@@ -32,13 +32,13 @@ export default function Footer() {
                         <Title level={4} style={{ color: '#fff' }}>Hỗ trợ khách hàng</Title>
                         <Space orientation="vertical" size="small">
                             <Text style={{ color: '#aaa' }}>
-                                <PhoneOutlined /> 1900-xxxx
+                                <PhoneOutlined /> 0369384679
                             </Text>
                             <Text style={{ color: '#aaa' }}>
-                                <MailOutlined /> support@shop.com
+                                <MailOutlined /> levuthanhduong2004@gmail.com
                             </Text>
                             <Text style={{ color: '#aaa' }}>
-                                <EnvironmentOutlined /> 123 Đường ABC, TP.HCM
+                                <EnvironmentOutlined /> 313 Nguyễn Văn Công, Phường Hạnh Thông, TP.HCM
                             </Text>
                         </Space>
                     </Col>

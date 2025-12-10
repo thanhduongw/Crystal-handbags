@@ -37,18 +37,14 @@ public class OrderController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<OrderDetailDto> getDetail(
+    public ResponseEntity<OrderDetailDto> getOrderDetail(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id) {
-
-        OrderDetailDto order = orderService.getOrderDetail(id);
-
         Long userId = jwt.getClaim("userId");
-
+        OrderDetailDto order = orderService.getOrderDetail(id);
         if (!order.getUserId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-
         return ResponseEntity.ok(order);
     }
 
