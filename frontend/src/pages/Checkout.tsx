@@ -20,7 +20,7 @@ function AddressSelector({ addresses, selectedId, onSelect }: { addresses: Addre
     }
     return (
         <Radio.Group value={selectedId} style={{ width: '100%' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
                 {addresses.map(addr => (
                     <Card
                         key={addr.addressId}
@@ -34,7 +34,7 @@ function AddressSelector({ addresses, selectedId, onSelect }: { addresses: Addre
                         onClick={() => onSelect(addr.addressId)}
                     >
                         <Radio value={addr.addressId} style={{ width: '100%' }}>
-                            <Space direction="vertical">
+                            <Space orientation="vertical">
                                 <Text strong>{addr.fullName} - {addr.phoneNumber}</Text>
                                 <Text type="secondary">{addr.street}, {addr.ward}, {addr.district}, {addr.province}</Text>
                                 {addr.isDefault && <Tag color="blue">Mặc định</Tag>}
@@ -50,7 +50,7 @@ function AddressSelector({ addresses, selectedId, onSelect }: { addresses: Addre
 function PaymentSelector({ value, onChange }: { value: PaymentMethod, onChange: (val: PaymentMethod) => void }) {
     return (
         <Radio.Group onChange={e => onChange(e.target.value)} value={value}>
-            <Space direction="vertical">
+            <Space orientation="vertical">
                 <Radio value="CASH">Tiền mặt</Radio>
                 <Radio value="CARD">Thẻ</Radio>
             </Space>
@@ -147,7 +147,7 @@ export default function Checkout() {
                     <Card title="Tóm tắt đơn hàng">
                         <Table dataSource={lines} columns={columns} pagination={false} rowKey="itemId" size="small" />
                         <Divider />
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space orientation="vertical" style={{ width: '100%' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <Text>Tạm tính:</Text><Text>{cartTotal.toLocaleString()} đ</Text>
                             </div>

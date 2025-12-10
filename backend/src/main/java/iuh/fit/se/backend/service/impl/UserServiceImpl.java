@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -54,12 +55,58 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
         user.setFirstName(userProfileDto.getFirstName());
         user.setLastName(userProfileDto.getLastName());
         user.setPhoneNumber(userProfileDto.getPhoneNumber());
-        user.setGender(Gender.valueOf(userProfileDto.getGender()));
+
+        if (userProfileDto.getGender() != null) {
+            user.setGender(Gender.valueOf(userProfileDto.getGender()));
+        }
+
         user.setDob(userProfileDto.getDob());
         user.setPhotoUrl(userProfileDto.getPhotoUrl());
 
         userRepository.save(user);
         return convertToProfileDto(user);
+    }
+
+    @Override
+    public List<UserProfileDto> getAllUsersDto() {
+        return userRepository.findAll().stream()
+                .map(this::convertToProfileDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserProfileDto getUserByIdDto(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found: " + id));
+        return convertToProfileDto(user);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileDto updateUserById(Long id, UserProfileDto userDto) {
+        User existing = getUserById(id);
+
+        existing.setFirstName(userDto.getFirstName());
+        existing.setLastName(userDto.getLastName());
+        existing.setPhoneNumber(userDto.getPhoneNumber());
+
+        if (userDto.getGender() != null) {
+            existing.setGender(Gender.valueOf(userDto.getGender()));
+        }
+
+        existing.setDob(userDto.getDob());
+        existing.setPhotoUrl(userDto.getPhotoUrl());
+
+        userRepository.save(existing);
+        return convertToProfileDto(existing);
+    }
+
+    @Override
+    public void deleteUser(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new RuntimeException("User not found: " + id);
+        }
+        userRepository.deleteById(id);
     }
 
     @Override
@@ -84,13 +131,9 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
         return userRepository.save(existing);
     }
 
-    @Override
-    public void deleteUser(Long id) {
-        userRepository.deleteById(id);
-    }
-
     private UserProfileDto convertToProfileDto(User user) {
         return UserProfileDto.builder()
+                .userId(user.getUserId())
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
@@ -98,6 +141,7 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
                 .gender(user.getGender() != null ? user.getGender().name() : null)
                 .dob(user.getDob())
                 .photoUrl(user.getPhotoUrl())
+                .role(user.getRole() != null ? user.getRole().name() : null)
                 .build();
     }
 }

@@ -8,12 +8,14 @@ import java.util.List;
 
 public interface ProductService {
     List<ProductListDto> getAllProducts();
-    List<ProductListDto> getProductsByCategory(Long categoryId);
     ProductDetailDto getProductDetail(Long id);
+    List<ProductListDto> getProductsByCategory(Long categoryId);
     List<ProductListDto> searchProducts(String keyword);
+
     ProductDetailDto createProduct(ProductDetailDto productDto);
     ProductDetailDto updateProduct(Long id, ProductDetailDto productDto);
     void deleteProduct(Long id);
-    void uploadProductImage(Long id, MultipartFile image);
+
+    String uploadProductImage(Long id, MultipartFile image);
     void deleteProductImage(Long id, String imageUrl);
 }

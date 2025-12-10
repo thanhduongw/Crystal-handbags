@@ -12,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = "http://localhost:5173",allowCredentials = "true")
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -26,8 +26,10 @@ public class ProductController {
     }
 
     @GetMapping("/products/{id}")
-    public ProductDetailDto getProductById(@PathVariable Long id) {
-        return productService.getProductDetail(id);
+    public ResponseEntity<ProductDetailDto> getProductById(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(productService.getProductDetail(id));
     }
 
     @GetMapping("/categories/{id}/products")
@@ -37,46 +39,62 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductsByCategory(id));
     }
 
-
     @GetMapping("/products/search")
-    public List<ProductListDto> searchProducts(@RequestParam String keyword) {
-        return productService.searchProducts(keyword);
+    public ResponseEntity<List<ProductListDto>> searchProducts(
+            @RequestParam String keyword
+    ) {
+        return ResponseEntity.ok(productService.searchProducts(keyword));
     }
-
 
     @PostMapping("/products")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ProductDetailDto> createProduct(@RequestBody ProductDetailDto productDto) {
-        return new ResponseEntity<>(productService.createProduct(productDto), HttpStatus.CREATED);
+    public ResponseEntity<ProductDetailDto> createProduct(
+            @RequestBody ProductDetailDto productDto
+    ) {
+        ProductDetailDto created = productService.createProduct(productDto);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(created);
     }
 
     @PutMapping("/products/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ProductDetailDto> updateProduct(@PathVariable Long id,
-                                                          @RequestBody ProductDetailDto productDto) {
-        return ResponseEntity.ok(productService.updateProduct(id, productDto));
+    public ResponseEntity<ProductDetailDto> updateProduct(
+            @PathVariable Long id,
+            @RequestBody ProductDetailDto productDto
+    ) {
+        return ResponseEntity.ok(
+                productService.updateProduct(id, productDto)
+        );
     }
 
     @DeleteMapping("/products/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProduct(
+            @PathVariable Long id
+    ) {
         productService.deleteProduct(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build(); // ✅ 204
     }
 
     @PostMapping("/products/{id}/images")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> uploadProductImage(@PathVariable Long id,
-                                                   @RequestParam("image") MultipartFile image) {
-        productService.uploadProductImage(id, image);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<String> uploadProductImage(
+            @PathVariable Long id,
+            @RequestParam("image") MultipartFile image
+    ) {
+        return ResponseEntity.ok(
+                productService.uploadProductImage(id, image)
+        );
     }
 
-    @DeleteMapping("/products/{id}/images/{imageId}")
+    @DeleteMapping("/products/{id}/images")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteProductImage(@PathVariable Long id,
-                                                   @PathVariable String imageId) {
-        productService.deleteProductImage(id, imageId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Void> deleteProductImage(
+            @PathVariable Long id,
+            @RequestParam String imageUrl
+    ) {
+        productService.deleteProductImage(id, imageUrl);
+        return ResponseEntity.noContent().build();
     }
 }

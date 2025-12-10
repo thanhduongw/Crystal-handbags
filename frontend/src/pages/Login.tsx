@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { login } from '../api/authAPI';
+import type { AxiosError } from 'axios';
 
 const { Title } = Typography;
 
@@ -30,8 +31,26 @@ export default function Login() {
 
             message.success('Đăng nhập thành công!');
             navigate('/');
-        } catch (error) {
-            message.error('Email hoặc mật khẩu không đúng!');
+        } catch (err) {
+            const error = err as AxiosError<any>;
+            if (error.response) {
+                const { status, data } = error.response;
+                if (data?.code === 'GMAIL_WRONG_PASSWORD') {
+                    message.error('Sai mật khẩu Gmail. Vui lòng kiểm tra lại mật khẩu Gmail của bạn.');
+                } else if (data?.code === 'ACCOUNT_NOT_FOUND') {
+                    message.error('Không tìm thấy tài khoản với email này.');
+                } else if (data?.message) {
+                    message.error(data.message);
+                } else if (status === 401) {
+                    message.error('Email hoặc mật khẩu không đúng!');
+                } else {
+                    message.error('Đăng nhập thất bại. Vui lòng thử lại.');
+                }
+            } else if (error.request) {
+                message.error('Không thể kết nối tới server. Vui lòng kiểm tra mạng hoặc thử lại sau.');
+            } else {
+                message.error('Đã xảy ra lỗi. Vui lòng thử lại.');
+            }
         } finally {
             setLoading(false);
         }

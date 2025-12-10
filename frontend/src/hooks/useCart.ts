@@ -44,9 +44,9 @@ export default function useCart(): UseCartReturn {
     const addItem = useCallback(async (product: ProductDetailDto, item: ProductItemDto, quantity: number) => {
         try {
             const dto: CartLineDto = {
-                itemId: item.itemId,
+                itemId: typeof item.itemId === 'number' ? item.itemId : 0,
                 name: product.name,
-                avatar: product.avatar,
+                avatar: product.avatar || '',
                 price: item.price,
                 qty: quantity,
             };

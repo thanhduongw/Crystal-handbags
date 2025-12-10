@@ -8,6 +8,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class UserProfileDto {
+    private Long userId;
     private String email;
     private String firstName;
     private String lastName;
@@ -15,4 +16,5 @@ public class UserProfileDto {
     private String gender;
     private LocalDate dob;
     private String photoUrl;
+    private String role;
 }

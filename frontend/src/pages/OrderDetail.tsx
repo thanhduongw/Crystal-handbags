@@ -83,7 +83,6 @@ export default function OrderDetail() {
     const columns = [
         { title: 'Sản phẩm', dataIndex: 'productName', key: 'productName' },
         { title: 'Màu', dataIndex: 'color', key: 'color' },
-        { title: 'Size', dataIndex: 'size', key: 'size' },
         { title: 'SL', dataIndex: 'quantity', key: 'quantity' },
         {
             title: 'Đơn giá',

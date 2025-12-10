@@ -13,7 +13,6 @@ public class OrderItemDto {
     private Long itemId;
     private String productName;
     private String color;
-    private String size;
     private int quantity;
     private BigDecimal price;
 }

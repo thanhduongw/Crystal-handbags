@@ -30,7 +30,6 @@ export default function ProductDetail() {
     const { addItem } = useCart();
     const [activeImage, setActiveImage] = useState<string>('');
 
-
     const [product, setProduct] = useState<ProductDetailDto | null>(null);
     const [relatedProducts, setRelatedProducts] = useState<ProductListDto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -42,13 +41,17 @@ export default function ProductDetail() {
 
     useEffect(() => {
         loadProduct();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [productId]);
+
     useEffect(() => {
-        if (product?.images?.length) {
+        // nếu có images thì set ảnh đầu tiên, ngược lại clear
+        if (product?.images && product.images.length > 0) {
             setActiveImage(product.images[0]);
+        } else {
+            setActiveImage('');
         }
     }, [product]);
-
 
     useEffect(() => {
         if (!alert) return;
@@ -61,12 +64,15 @@ export default function ProductDetail() {
             setLoading(true);
             const currentProduct = await fetchProductDetail(productId);
             setProduct(currentProduct);
-            setSelectedItem(currentProduct.items[0] || null);
+            // dùng optional chaining để tránh lỗi khi items = undefined
+            setSelectedItem(currentProduct.items?.[0] ?? null);
 
             const allProducts = await fetchProducts();
             setRelatedProducts(
                 allProducts.filter(
-                    (pr) => pr.categoryName === currentProduct.categoryName && pr.productId !== currentProduct.productId
+                    (pr) =>
+                        pr.categoryName === currentProduct.categoryName &&
+                        pr.productId !== currentProduct.productId
                 )
             );
         } catch (error) {
@@ -87,7 +93,8 @@ export default function ProductDetail() {
 
     if (!product) return <Navigate to="/" replace />;
 
-    const colors = [...new Set(product.items.map((i) => i.color))];
+    // luôn lấy mảng an toàn (nếu items undefined -> []), tránh lỗi map trên undefined
+    const colors = [...new Set((product.items ?? []).map((i) => i.color))];
 
     return (
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px' }}>
@@ -107,9 +114,9 @@ export default function ProductDetail() {
                     <Col xs={24} md={12}>
                         <div
                             style={{
-                                display: 'flex',               // căn giữa
+                                display: 'flex',
                                 justifyContent: 'center',
-                                alignItems: 'center',            // chiều cao khung
+                                alignItems: 'center',
                                 borderRadius: 12,
                                 overflow: 'hidden',
                                 border: '1px solid #f0f0f0',
@@ -117,7 +124,7 @@ export default function ProductDetail() {
                             }}
                         >
                             <Image
-                                src={activeImage}
+                                src={activeImage || product.avatar || undefined}
                                 alt={product.name}
                                 width={'90%'}
                                 style={{ objectFit: 'contain' }}
@@ -137,14 +144,12 @@ export default function ProductDetail() {
                                 { breakpoint: 480, settings: { slidesToShow: 2 } },
                             ]}
                         >
-                            {product.images.map((img, idx) => (
+                            {(product.images ?? []).map((img, idx) => (
                                 <div key={idx} style={{ padding: '0 6px' }}>
                                     <div
                                         onClick={() => setActiveImage(img)}
                                         style={{
-                                            border: activeImage === img
-                                                ? '2px solid #1677ff'
-                                                : '1px solid #eee',
+                                            border: activeImage === img ? '2px solid #1677ff' : '1px solid #eee',
                                             borderRadius: 6,
                                             padding: 4,
                                             cursor: 'pointer',
@@ -165,8 +170,6 @@ export default function ProductDetail() {
                         </Carousel>
                     </Col>
 
-
-
                     <Col xs={24} md={12}>
                         <Title level={2}>{product.name}</Title>
                         <Tag color="blue">{product.categoryName}</Tag>
@@ -175,7 +178,8 @@ export default function ProductDetail() {
                         <Paragraph>
                             <Text strong>Giá: </Text>
                             <Text type="danger" style={{ fontSize: 24 }}>
-                                {selectedItem?.price?.toLocaleString()} ₫
+                                {/* Nếu selectedItem không có price thì fallback về product.basePrice */}
+                                {(selectedItem?.price ?? product.basePrice)?.toLocaleString()} ₫
                             </Text>
                         </Paragraph>
 
@@ -186,10 +190,10 @@ export default function ProductDetail() {
                         <Space orientation="vertical" style={{ width: '100%' }}>
                             <Text strong>Màu sắc:</Text>
                             <Select
-                                value={selectedItem?.color}
+                                value={selectedItem?.color ?? undefined}
                                 onChange={(color) => {
-                                    const item = product.items.find((i) => i.color === color);
-                                    setSelectedItem(item || null);
+                                    const item = (product.items ?? []).find((i) => i.color === color) ?? null;
+                                    setSelectedItem(item);
                                     setQty(1);
                                 }}
                                 style={{ width: '100%' }}
@@ -204,7 +208,8 @@ export default function ProductDetail() {
                             <Text strong>Số lượng:</Text>
                             <InputNumber
                                 min={1}
-                                max={selectedItem?.stockQuantity || 1}
+                                // fallback safe value nếu undefined
+                                max={selectedItem?.stockQuantity ?? 1}
                                 value={qty}
                                 onChange={(v) => setQty(v || 1)}
                                 style={{ width: '100%' }}

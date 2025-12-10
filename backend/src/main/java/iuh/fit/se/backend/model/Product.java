@@ -5,8 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-
 @Entity
 @Table(name = "product")
 @Data
@@ -24,20 +24,31 @@ public class Product {
     private String avatar;
 
     @ElementCollection
-    private List<String> images;
+    @Builder.Default
+    private List<String> images = new ArrayList<>();
 
     @ManyToOne
     @JoinColumn(name = "category_id")
     private Category category;
 
     private LocalDateTime createdAt;
+
+    private Boolean showHomepage;
+
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
+        if (images == null) images = new ArrayList<>();
+        if (items == null) items = new ArrayList<>();
     }
-    private Boolean showHomepage;
 
     @JsonManagedReference
-    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<ProductItem> items;
+    @OneToMany(
+            mappedBy = "product",
+            fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL,
+            orphanRemoval = false // ✅ FK SAFE
+    )
+    @Builder.Default
+    private List<ProductItem> items = new ArrayList<>();
 }

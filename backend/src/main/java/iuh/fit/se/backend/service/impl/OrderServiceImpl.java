@@ -208,7 +208,6 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 oi.getProductItem().getItemId(),
                 oi.getProductItem().getProduct().getName(),
                 oi.getProductItem().getColor(),
-                oi.getProductItem().getSize(),
                 oi.getQuantity(),
                 oi.getPrice()
         );

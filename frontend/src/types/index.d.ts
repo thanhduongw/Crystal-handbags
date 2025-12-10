@@ -14,9 +14,8 @@ export interface CategoryDto {
 
 // ==================== PRODUCT ====================
 export interface ProductItemDto {
-    itemId: number;
+    itemId?: number;
     color: string;
-    size: string;
     price: number;
     stockQuantity: number;
 }
@@ -31,17 +30,19 @@ export interface ProductListDto {
 }
 
 export interface ProductDetailDto {
-    productId: number;
+    productId?: number;
     name: string;
     description: string;
     basePrice: number;
-    avatar: string;
-    images: string[];
-    categoryName: string;
-    items: ProductItemDto[];
-    showHomePage: boolean;
+    avatar?: string;
+    images?: string[];
+    categoryId: number;
+    categoryName?: string;
+    items?: ProductItemDto[];
+    showHomePage?: boolean;
 }
 
+// ==================== CART ====================
 export interface CartLineDto {
     itemId: number;
     name: string;
@@ -55,7 +56,6 @@ export interface CartItemDto {
     productName: string;
     avatar: string;
     color: string;
-    size: string;
     price: number;
     quantity: number;
 }
@@ -65,21 +65,20 @@ export interface OrderItemDto {
     itemId: number;
     productName: string;
     color: string;
-    size: string;
     quantity: number;
     price: number;
 }
 
 export interface OrderListDto {
     orderId: number;
-    orderDate: string; // ISO string
+    orderDate: string;
     status: OrderStatus;
     totalAmount: number;
 }
 
 export interface OrderDetailDto {
     orderId: number;
-    orderDate: string; // ISO string
+    orderDate: string;
     status: OrderStatus;
     totalAmount: number;
     shippingFee: number;
@@ -91,13 +90,15 @@ export interface OrderDetailDto {
 
 // ==================== USER ====================
 export interface UserProfileDto {
+    userId?: number;
     email: string;
     firstName: string;
     lastName: string;
     phoneNumber: string;
     gender: Gender;
-    dob?: string; // ISO date string
+    dob?: string;
     photoUrl?: string;
+    role?: 'CUSTOMER' | 'ADMIN';
 }
 
 export interface AuthUser {
@@ -162,14 +163,14 @@ export interface UserCreateResponse {
 export interface CheckoutRequest {
     addressId: number;
     paymentMethod: PaymentMethod;
-    cartItemIds?: number[]; // optional nếu backend không yêu cầu
+    cartItemIds?: number[];
 }
 
 // ==================== TOKEN ====================
 export interface TokenPayload {
     token: string;
     jwtId: string;
-    expiredTime: string; // ISO date string
+    expiredTime: string;
 }
 
 export interface JwtInfo {

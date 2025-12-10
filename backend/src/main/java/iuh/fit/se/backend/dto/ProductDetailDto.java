@@ -17,6 +17,7 @@ public class ProductDetailDto {
     private BigDecimal basePrice;
     private String avatar;
     private List<String> images;
+    private Long categoryId;
     private String categoryName;
     private List<ProductItemDto> items;
     private Boolean showHomePage;

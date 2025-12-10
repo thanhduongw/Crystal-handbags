@@ -38,25 +38,26 @@ public class UserController {
         return userService.updateUserProfile(jwt.getSubject(), profileDto);
     }
 
-    @GetMapping("/users")
+    // Admin endpoints - thêm prefix /admin
+    @GetMapping("/admin/users")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<User> getAllUsers() {
-        return userService.getAllUsers();
+    public List<UserProfileDto> getAllUsers() {
+        return userService.getAllUsersDto();
     }
 
-    @GetMapping("/users/{id}")
+    @GetMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public User getUserById(@PathVariable Long id) {
-        return userService.getUserById(id);
+    public UserProfileDto getUserById(@PathVariable Long id) {
+        return userService.getUserByIdDto(id);
     }
 
-    @PutMapping("/users/{id}")
+    @PutMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public User updateUser(@PathVariable Long id, @RequestBody User user) {
-        return userService.updateUser(id, user);
+    public UserProfileDto updateUser(@PathVariable Long id, @RequestBody UserProfileDto userDto) {
+        return userService.updateUserById(id, userDto);
     }
 
-    @DeleteMapping("/users/{id}")
+    @DeleteMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);

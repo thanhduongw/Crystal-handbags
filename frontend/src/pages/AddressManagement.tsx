@@ -1,8 +1,7 @@
-// AddressManagement.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-    Card, Button, List, Modal, Form, Input, Select, message, Tag, Space, Spin
+    Card, Button, Modal, Form, Input, Select, message, Tag, Space, Spin, Empty
 } from 'antd';
 import {
     PlusOutlined, EditOutlined, DeleteOutlined, HomeOutlined
@@ -14,9 +13,9 @@ interface Address {
     addressId: number;
     fullName: string;
     phoneNumber: string;
-    province: string; // tên province (string) từ backend
-    district: string; // tên district
-    ward: string;     // tên ward
+    province: string;
+    district: string;
+    ward: string;
     street: string;
     isDefault: boolean;
 }
@@ -45,7 +44,6 @@ export default function AddressManagement() {
     const [loadingDistricts, setLoadingDistricts] = useState(false);
     const [loadingWards, setLoadingWards] = useState(false);
 
-    // Load addresses from your backend
     const loadAddresses = useCallback(async () => {
         try {
             setLoading(true);
@@ -59,7 +57,6 @@ export default function AddressManagement() {
         }
     }, []);
 
-    // Load provinces (cache in localStorage to reduce calls)
     const loadProvinces = useCallback(async () => {
         try {
             setLoadingProvinces(true);
@@ -71,7 +68,6 @@ export default function AddressManagement() {
             }
 
             const resp = await axios.get(`${BASE_PROVINCE_API}/`);
-            // Sometimes API returns an array, sometimes an object — handle both
             const list = Array.isArray(resp.data) ? resp.data : resp.data?.results || [];
             const opts = list.map((p: any) => ({ value: String(p.code ?? p.province_id ?? p.id ?? p.code), label: p.name ?? p.province_name ?? p.province }));
             setProvinces(opts);
@@ -84,16 +80,13 @@ export default function AddressManagement() {
         }
     }, []);
 
-    // Load districts for province code
     const loadDistricts = useCallback(async (provinceCode: string | number) => {
         if (!provinceCode) return setDistricts([]);
         try {
             setLoadingDistricts(true);
             setDistricts([]);
             setWards([]);
-            // Prefer single-province endpoint (faster) if supported
             const resp = await axios.get(`${BASE_PROVINCE_API}/p/${provinceCode}?depth=2`);
-            // resp.data may be object with districts or array
             const districtsData = resp?.data?.districts ?? resp?.data ?? [];
             const opts = (Array.isArray(districtsData) ? districtsData : []).map((d: any) => ({
                 value: String(d.code ?? d.district_id ?? d.id),
@@ -102,7 +95,6 @@ export default function AddressManagement() {
             setDistricts(opts);
         } catch (err) {
             console.error('Load districts error', err);
-            // fallback: try top-level ?depth=2 and filter by province
             try {
                 const resp2 = await axios.get(`${BASE_PROVINCE_API}/?depth=2`);
                 const provList = Array.isArray(resp2.data) ? resp2.data : resp2.data?.results ?? [];
@@ -118,7 +110,6 @@ export default function AddressManagement() {
         }
     }, []);
 
-    // Load wards for district code
     const loadWards = useCallback(async (districtCode: string | number) => {
         if (!districtCode) return setWards([]);
         try {
@@ -133,7 +124,6 @@ export default function AddressManagement() {
             setWards(opts);
         } catch (err) {
             console.error('Load wards error', err);
-            // fallback: try full depth list and find
             try {
                 const resp2 = await axios.get(`${BASE_PROVINCE_API}/?depth=3`);
                 const provList = Array.isArray(resp2.data) ? resp2.data : resp2.data?.results ?? [];
@@ -157,7 +147,6 @@ export default function AddressManagement() {
         }
     }, []);
 
-    // When opening the modal to edit, we need to prefill selects by mapping names -> codes
     const openEditModal = async (addr: Address | null) => {
         setEditingAddress(addr);
         form.resetFields();
@@ -169,25 +158,20 @@ export default function AddressManagement() {
             return;
         }
 
-        // If backend stores province/district/ward as names, try to find their codes
-        // 1) find province code by name
         const prov = provinces.find(p => p.label === addr.province);
         if (prov) {
             form.setFieldsValue({ province: prov.value });
             await loadDistricts(prov.value);
-            // find district
             const dist = (districts.length ? districts.find(d => d.label === addr.district) : null)
                 || (await (async () => districts.find(d => d.label === addr.district))());
-            // If not found yet (because districts state may not be updated), try to map from loaded data directly:
             if (!dist) {
-                // search in API result quickly:
                 try {
                     const resp = await axios.get(`${BASE_PROVINCE_API}/p/${prov.value}?depth=2`);
                     const ds = resp?.data?.districts ?? resp?.data ?? [];
                     const found = (ds || []).find((d: any) => (d.name ?? d.district_name) === addr.district);
                     if (found) {
                         const distCode = String(found.code ?? found.district_id);
-                        await loadDistricts(prov.value); // ensure districts filled
+                        await loadDistricts(prov.value);
                         form.setFieldsValue({ district: distCode });
                         await loadWards(distCode);
                         const wardFound = (found.wards || []).find((w: any) => (w.name ?? w.ward_name) === addr.ward);
@@ -205,7 +189,6 @@ export default function AddressManagement() {
                 if (w) form.setFieldsValue({ ward: w.value });
             }
         } else {
-            // province name not found => just put names into street fallback (we keep text fields for display)
             form.setFieldsValue({
                 fullName: addr.fullName,
                 phoneNumber: addr.phoneNumber,
@@ -213,7 +196,6 @@ export default function AddressManagement() {
             });
         }
 
-        // set other fields (names may be handled above)
         form.setFieldsValue({
             fullName: addr.fullName,
             phoneNumber: addr.phoneNumber,
@@ -223,10 +205,7 @@ export default function AddressManagement() {
         setModalVisible(true);
     };
 
-    // Submit add/edit
     const handleSubmit = async (values: any) => {
-        // Compose payload to send to your backend.
-        // If you want to store both code & name you can add ids; here we send names (label) for display.
         const provinceLabel = provinces.find(p => p.value === values.province)?.label;
         const districtLabel = districts.find(d => d.value === values.district)?.label;
         const wardLabel = wards.find(w => w.value === values.ward)?.label;
@@ -257,7 +236,6 @@ export default function AddressManagement() {
         }
     };
 
-    // Delete
     const handleDelete = (id: number) => {
         Modal.confirm({
             title: 'Xác nhận xóa địa chỉ?',
@@ -311,25 +289,48 @@ export default function AddressManagement() {
                 title="Địa chỉ của tôi"
                 extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEditModal(null)}>Thêm địa chỉ mới</Button>}
             >
-                <List
-                    loading={loading}
-                    dataSource={addresses}
-                    renderItem={addr => (
-                        <List.Item
-                            actions={[
-                                !addr.isDefault && <Button size="small" onClick={() => handleSetDefault(addr.addressId)}>Đặt làm mặc định</Button>,
-                                <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(addr)} />,
-                                <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(addr.addressId)} />
-                            ]}
-                        >
-                            <List.Item.Meta
-                                avatar={<HomeOutlined style={{ fontSize: 24 }} />}
-                                title={<Space>{addr.fullName} - {addr.phoneNumber} {addr.isDefault && <Tag color="blue">Mặc định</Tag>}</Space>}
-                                description={`${addr.street}, ${addr.ward}, ${addr.district}, ${addr.province}`}
-                            />
-                        </List.Item>
-                    )}
-                />
+                {loading ? (
+                    <Spin />
+                ) : addresses.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {addresses.map(addr => (
+                            <Card
+                                key={addr.addressId}
+                                size="small"
+                                hoverable
+                                style={{
+                                    borderLeft: addr.isDefault ? '4px solid #1890ff' : '4px solid transparent',
+                                    transition: 'all 0.3s',
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ marginBottom: 8 }}>
+                                            <HomeOutlined style={{ marginRight: 8, fontSize: 18, color: '#1890ff' }} />
+                                            <span style={{ fontWeight: 600, fontSize: 16 }}>{addr.fullName}</span>
+                                            <span style={{ marginLeft: 12, color: '#666' }}>({addr.phoneNumber})</span>
+                                            {addr.isDefault && <Tag color="blue" style={{ marginLeft: 12 }}>Mặc định</Tag>}
+                                        </div>
+                                        <div style={{ color: '#666', fontSize: 14 }}>
+                                            {addr.street}, {addr.ward}, {addr.district}, {addr.province}
+                                        </div>
+                                    </div>
+                                    <Space>
+                                        {!addr.isDefault && (
+                                            <Button size="small" onClick={() => handleSetDefault(addr.addressId)}>
+                                                Đặt làm mặc định
+                                            </Button>
+                                        )}
+                                        <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(addr)} />
+                                        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(addr.addressId)} />
+                                    </Space>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                ) : (
+                    <Empty description="Chưa có địa chỉ nào" />
+                )}
             </Card>
 
             <Modal

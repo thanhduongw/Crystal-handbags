@@ -22,7 +22,6 @@ public class OrderItem {
     @ManyToOne
     @JoinColumn(name = "item_id")
     private ProductItem productItem;
-
     private Integer quantity;
     private BigDecimal price;
 }

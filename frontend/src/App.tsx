@@ -2,8 +2,6 @@ import { Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
-import Header from './components/Header';
-import Footer from './components/Footer';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
 import Cart from './pages/Cart';
@@ -23,82 +21,102 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import NotFound from './pages/NotFound';
 import ScrollToTop from './components/ScrollToTop';
+import AdminUsers from './pages/Admin/AdminUser';
+import UserLayout from './components/UserLayout';
 
 function AppContent() {
   const { loading } = useAuth();
-
   if (loading) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Header />
-      <main style={{ flex: 1 }}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/categories/:id/products" element={<ProductList />} />
-          <Route path="/products" element={<ProductList />} />
-          <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-          <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
-          <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/addresses" element={<ProtectedRoute><AddressManagement /></ProtectedRoute>} />
+    <Routes>
 
-          {/* Admin Routes */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute requireAdmin>
-                <AdminLayout>
-                  <AdminDashboard />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/orders"
-            element={
-              <ProtectedRoute requireAdmin>
-                <AdminLayout>
-                  <AdminOrders />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/products"
-            element={
-              <ProtectedRoute requireAdmin>
-                <AdminLayout>
-                  <AdminProducts />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/categories"
-            element={
-              <ProtectedRoute requireAdmin>
-                <AdminLayout>
-                  <AdminCategories />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
+      {/* ✅ USER ROUTES (có footer) */}
+      <Route
+        path="/*"
+        element={
+          <UserLayout>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/products" element={<ProductList />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/categories/:id/products" element={<ProductList />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+              <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
+              <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/addresses" element={<ProtectedRoute><AddressManagement /></ProtectedRoute>} />
+            </Routes>
+          </UserLayout>
+        }
+      />
 
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-      <Footer />
-    </div>
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/orders"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminLayout>
+              <AdminOrders />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/products"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminLayout>
+              <AdminProducts />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/categories"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminLayout>
+              <AdminCategories />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminLayout>
+              <AdminUsers />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 404 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
+
 
 export default function App() {
   return (

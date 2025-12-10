@@ -133,7 +133,6 @@ class DatabaseCartServiceImpl implements DatabaseCartService {
                 .productName(cartItem.getProductItem().getProduct().getName())
                 .avatar(cartItem.getProductItem().getProduct().getAvatar())
                 .color(cartItem.getProductItem().getColor())
-                .size(cartItem.getProductItem().getSize())
                 .price(cartItem.getProductItem().getPrice())
                 .quantity(cartItem.getQuantity())
                 .build();

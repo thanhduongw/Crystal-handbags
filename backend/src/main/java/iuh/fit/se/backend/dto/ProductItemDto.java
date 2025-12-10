@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 public class ProductItemDto {
     private Long itemId;
     private String color;
-    private String size;
     private BigDecimal price;
     private Integer stockQuantity;
 }
