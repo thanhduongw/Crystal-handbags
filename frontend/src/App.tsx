@@ -25,6 +25,7 @@ import ScrollToTop from './components/ScrollToTop';
 import AdminUsers from './pages/Admin/AdminUser';
 import UserLayout from './components/UserLayout';
 import ProductDetail from './pages/ProductDetail';
+import PaymentResult from './pages/PaymentResult';
 
 function AppContent() {
   const { loading } = useAuth();
@@ -55,6 +56,7 @@ function AppContent() {
       <Route path="/products/:id" element={<UserLayout><ProductDetail /></UserLayout>} />
       <Route path="/categories/:id/products" element={<UserLayout><ProductList /></UserLayout>} />
       <Route path="/cart" element={<UserLayout><Cart /></UserLayout>} />
+      <Route path="/payment-result" element={<PaymentResult />} />
       <Route path="*" element={<UserLayout><NotFound /></UserLayout>} />
 
       {/* PROTECTED USER ROUTES */}

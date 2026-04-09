@@ -1,9 +1,10 @@
 // ==================== ENUMS ====================
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+export type PaymentMethod = 'CASH' | 'VNPAY';
 // Role từ JWT token
 export type Role = 'ROLE_CUSTOMER' | 'ROLE_ADMIN';
-export type PaymentMethod = 'CASH' | 'CARD' | 'UPI' | 'BANK_TRANSFER';
+
 
 // ==================== CATEGORY ====================
 export interface CategoryDto {
@@ -180,4 +181,14 @@ export interface JwtInfo {
     jwtId: string;
     issueTime: string;
     expiredTime: string;
+}
+
+
+//Payment
+export interface CheckoutResponse {
+  orderId: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  orderStatus: string;
+  paymentUrl?: string | null;
 }

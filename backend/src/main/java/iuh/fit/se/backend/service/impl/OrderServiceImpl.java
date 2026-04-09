@@ -5,6 +5,7 @@ import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.*;
 import iuh.fit.se.backend.service.DatabaseCartService;
 import iuh.fit.se.backend.service.OrderService;
+import iuh.fit.se.backend.service.VNPayService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     private final ProductItemRepository productItemRepository;
     private final DatabaseCartService cartService; // ✅ SỬA: Dùng DatabaseCartService, không phải implement
     private final PaymentRepository paymentRepository;
+    private final VNPayService vnPayService;
 
     @Override
     public List<OrderListDto> getAllOrders() {
@@ -80,7 +82,8 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
-        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.CONFIRMED) {
+        if (order.getStatus() != OrderStatus.PENDING
+                && order.getStatus() != OrderStatus.CONFIRMED) {
             throw new IllegalStateException("Only PENDING or CONFIRMED orders can be cancelled");
         }
 
@@ -90,16 +93,21 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
 
     @Override
     @Transactional
-    public OrderDetailDto createOrder(String email, Long addressId) {
+    public CheckoutResponse createOrder(String email, CheckoutRequest request, String clientIp) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Address address = addressRepository.findById(addressId)
+        Address address = addressRepository.findById(request.getAddressId())
                 .orElseThrow(() -> new RuntimeException("Address not found"));
 
         List<CartLineDto> cartItems = cartService.getAllCart(email);
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty");
+        }
+
+        PaymentMethod paymentMethod = request.getPaymentMethod();
+        if (paymentMethod == null) {
+            throw new RuntimeException("Payment method is required");
         }
 
         Order order = Order.builder()
@@ -147,18 +155,34 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
         Payment payment = Payment.builder()
                 .order(savedOrder)
                 .amount(savedOrder.getTotalAmount())
-                .paymentDate(LocalDateTime.now())
-                .paymentMethod(PaymentMethod.CASH)
-                .status(false)
+                .paymentMethod(paymentMethod)
+                .status(paymentMethod == PaymentMethod.VNPAY
+                        ? PaymentStatus.PENDING_PAYMENT
+                        : PaymentStatus.PENDING)
+                .paymentDate(null)
                 .build();
-        paymentRepository.save(payment);
 
-        // Clear cart
+        if (paymentMethod == PaymentMethod.VNPAY) {
+            payment.setTxnRef(generateTxnRef(savedOrder));
+            payment.setOrderInfo("Thanh toan don hang #" + savedOrder.getOrderId());
+        }
+
+        Payment savedPayment = paymentRepository.save(payment);
+
+        String paymentUrl = null;
+        if (paymentMethod == PaymentMethod.VNPAY) {
+            paymentUrl = vnPayService.createPaymentUrl(savedOrder, savedPayment, clientIp);
+        }
+
         cartService.clearCart(email);
 
-        log.info("Order created successfully: {}", savedOrder.getOrderId());
-
-        return getOrderDetail(savedOrder.getOrderId());
+        return CheckoutResponse.builder()
+                .orderId(savedOrder.getOrderId())
+                .paymentMethod(paymentMethod.name())
+                .paymentStatus(savedPayment.getStatus().name())
+                .orderStatus(savedOrder.getStatus().name())
+                .paymentUrl(paymentUrl)
+                .build();
     }
 
     @Override
@@ -177,14 +201,23 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
         // Validate status transition
         validateStatusTransition(order.getStatus(), status);
 
-        order.setStatus(status);
+
 
         // If order is delivered, mark payment as completed
         if (status == OrderStatus.DELIVERED && order.getPayment() != null) {
-            order.getPayment().setStatus(true);
-            paymentRepository.save(order.getPayment());
-        }
 
+            // VNPAY: phải thanh toán thành công mới được hoàn thành
+            if (order.getPayment().getPaymentMethod() == PaymentMethod.VNPAY
+                    && order.getPayment().getStatus() != PaymentStatus.SUCCESS) {
+                throw new IllegalStateException("Đơn VNPAY chưa thanh toán thành công");
+            }
+            if (order.getPayment().getPaymentMethod() == PaymentMethod.CASH) {
+                order.getPayment().setStatus(PaymentStatus.SUCCESS);
+                order.getPayment().setPaymentDate(LocalDateTime.now());
+                paymentRepository.save(order.getPayment());
+            }
+        }
+        order.setStatus(status);
         orderRepository.save(order);
 
         return getOrderDetail(orderId);
@@ -233,5 +266,9 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 order.getAddress().getDistrict(),
                 order.getAddress().getProvince()
         );
+    }
+
+    private String generateTxnRef(Order order) {
+        return "ORD" + order.getOrderId() + System.currentTimeMillis();
     }
 }

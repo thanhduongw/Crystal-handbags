@@ -1,4 +1,4 @@
-import type { CartLineDto, OrderDetailDto, PaymentMethod } from '../types';
+import type { CartLineDto, CheckoutResponse, PaymentMethod } from '../types';
 import instance from './axiosInstance';
 
 export const getCart = (): Promise<CartLineDto[]> =>
@@ -16,5 +16,5 @@ export const removeItem = (itemId: number) =>
 export const clearCart = () =>
     instance.delete('/cart');
 
-export const checkout = (addressId: number, paymentMethod: PaymentMethod, cartItemIds?: number[]): Promise<OrderDetailDto> =>
+export const checkout = (addressId: number, paymentMethod: PaymentMethod, cartItemIds?: number[] ): Promise<CheckoutResponse> =>
     instance.post('/cart/checkout', { addressId, paymentMethod, cartItemIds }).then(r => r.data);

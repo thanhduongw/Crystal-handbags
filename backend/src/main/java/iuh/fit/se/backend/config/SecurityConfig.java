@@ -44,7 +44,8 @@ public class SecurityConfig {
                                 "/api/products/search",
                                 "/api/categories",
                                 "/api/categories/{id}",
-                                "/api/categories/*/products"
+                                "/api/categories/*/products",
+                                "/api/payments/vnpay/**"
                         ).permitAll()
 
                         .requestMatchers(

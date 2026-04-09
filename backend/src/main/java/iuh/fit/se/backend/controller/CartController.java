@@ -2,9 +2,11 @@ package iuh.fit.se.backend.controller;
 
 import iuh.fit.se.backend.dto.CartLineDto;
 import iuh.fit.se.backend.dto.CheckoutRequest;
+import iuh.fit.se.backend.dto.CheckoutResponse;
 import iuh.fit.se.backend.dto.OrderDetailDto;
 import iuh.fit.se.backend.service.DatabaseCartService;
 import iuh.fit.se.backend.service.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -77,16 +79,17 @@ public class CartController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<OrderDetailDto> checkout(
+    public ResponseEntity<?> checkout(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody CheckoutRequest request) {
+            @RequestBody CheckoutRequest request,
+            HttpServletRequest httpRequest) {
 
-        // TODO: Sử dụng request.getPaymentMethod() để xử lý thanh toán
-        OrderDetailDto order = orderService.createOrder(
+        CheckoutResponse response = orderService.createOrder(
                 jwt.getSubject(),
-                request.getAddressId()
+                request,
+                httpRequest.getRemoteAddr()
         );
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(order);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

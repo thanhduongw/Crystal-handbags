@@ -26,5 +26,16 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     private PaymentMethod paymentMethod;
 
-    private Boolean status;
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus status;
+
+    //VNPay
+    @Column(unique = true)
+    private String txnRef; // Mã giao dịch từ VNPay
+
+    private String transactionNo; // Mã giao dịch VNPay trả về
+    private String responseCode; // Mã phản hồi từ VNPay
+    private String transactionStatus; // Trạng thái giao dịch từ VNPay
+    private String bankCode; // Mã ngân hàng từ VNPay
+    private String orderInfo; // Thông tin đơn hàng từ VNPay
 }
