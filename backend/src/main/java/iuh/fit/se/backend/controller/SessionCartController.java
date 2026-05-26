@@ -43,7 +43,14 @@ public class SessionCartController {
         sessionCartService.updateCartQuantity(session, itemId, quantity);
         return ResponseEntity.ok().build();
     }
-
+    // Xóa một sản phẩm khỏi giỏ hàng guest theo itemId
+    @DeleteMapping("/items/{itemId}")
+    public ResponseEntity<Void> removeItem(
+            HttpSession session,
+            @PathVariable Long itemId) {
+        sessionCartService.removeCartItem(session, itemId);
+        return ResponseEntity.noContent().build();
+    }
     @DeleteMapping
     public ResponseEntity<Void> clearCart(HttpSession session) {
         sessionCartService.clearCart(session);

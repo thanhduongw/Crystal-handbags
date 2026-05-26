@@ -1,6 +1,7 @@
 package iuh.fit.se.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -35,10 +36,12 @@ public class ProductItem {
     }
 
     @OneToMany(mappedBy = "productItem")
+    @JsonIgnore
     @Builder.Default
     private List<OrderItem> orderItems = new ArrayList<>();
 
     @OneToMany(mappedBy = "productItem")
+    @JsonIgnore
     @Builder.Default
     private List<CartItem> cartItems = new ArrayList<>();
 }
