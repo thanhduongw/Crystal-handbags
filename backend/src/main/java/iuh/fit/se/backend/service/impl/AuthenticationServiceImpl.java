@@ -66,6 +66,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new RuntimeException("Email already exists");
         }
 
+        boolean otpValid = otpService.verifyOtp(request.getEmail(), request.getOtp(), "REGISTER");
+        if (!otpValid) {
+            throw new RuntimeException("Invalid OTP");
+        }
+
         Role customerRole = roleRepository.findByName("CUSTOMER")
                 .orElseThrow(() -> new RuntimeException("Role CUSTOMER not found"));
 

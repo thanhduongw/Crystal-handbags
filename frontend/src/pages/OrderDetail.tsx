@@ -1,4 +1,3 @@
-// pages/OrderDetail.tsx
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
@@ -7,7 +6,7 @@ import {
 import dayjs from 'dayjs';
 import { fetchOrderDetail, cancelOrder } from '../api/orderAPI';
 import type { OrderDetailDto, OrderItemDto, OrderStatus } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const { Title, Text } = Typography;
 const { confirm } = Modal;
@@ -28,6 +27,12 @@ const statusText: Record<OrderStatus, string> = {
     CANCELLED: 'Đã huỷ',
 };
 
+const formatCurrency = (value: number) =>
+    Number(value || 0).toLocaleString('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+    });
+
 export default function OrderDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -36,28 +41,29 @@ export default function OrderDetail() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (id) load();
-    }, [id]);
+        const load = async () => {
+            if (!id) return;
+            try {
+                setLoading(true);
+                const data = await fetchOrderDetail(Number(id));
 
-    const load = async () => {
-        try {
-            setLoading(true);
-            const data = await fetchOrderDetail(Number(id));
+                if (!user || data.userId !== user.userId) {
+                    message.error('Không có quyền truy cập');
+                    navigate('/orders');
+                    return;
+                }
 
-            if (!user || data.userId !== user.userId) {
-                message.error('Không có quyền truy cập');
+                setOrder(data);
+            } catch {
+                message.error('Không tìm thấy đơn hàng');
                 navigate('/orders');
-                return;
+            } finally {
+                setLoading(false);
             }
+        };
 
-            setOrder(data);
-        } catch {
-            message.error('Không tìm thấy đơn hàng');
-            navigate('/orders');
-        } finally {
-            setLoading(false);
-        }
-    };
+        load();
+    }, [id, navigate, user]);
 
     const handleCancel = () => {
         if (!order) return;
@@ -79,12 +85,25 @@ export default function OrderDetail() {
     const columns = [
         {
             title: 'Sản phẩm',
-            dataIndex: 'productName',
+            render: (_: unknown, item: OrderItemDto) => (
+                <Space>
+                    {item.avatar && (
+                        <img
+                            src={item.avatar}
+                            alt={item.productName}
+                            width={48}
+                            height={48}
+                            style={{ objectFit: 'cover', borderRadius: 6 }}
+                        />
+                    )}
+                    <Text>{item.productName}</Text>
+                </Space>
+            ),
         },
         {
             title: 'Màu',
             dataIndex: 'color',
-            render: (c: string | null) => c || '—',
+            render: (color: string | null) => color || '-',
         },
         {
             title: 'SL',
@@ -94,19 +113,19 @@ export default function OrderDetail() {
         {
             title: 'Đơn giá',
             dataIndex: 'price',
-            render: (v: number) => `${v.toLocaleString()} ₫`,
+            render: (value: number) => formatCurrency(value),
         },
         {
             title: 'Thành tiền',
-            render: (_: any, r: OrderItemDto) =>
-                `${(r.price * r.quantity).toLocaleString()} ₫`,
+            render: (_: unknown, item: OrderItemDto) =>
+                formatCurrency(item.price * item.quantity),
         },
     ];
 
     return (
         <div style={{ maxWidth: 1000, margin: '0 auto', padding: 24 }}>
             <Button onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
-                ← Quay lại
+                Quay lại
             </Button>
 
             <Card
@@ -131,7 +150,7 @@ export default function OrderDetail() {
 
                     <Text><b>Người nhận:</b> {order.receiver}</Text>
                     <Text><b>Địa chỉ:</b> {order.address}</Text>
-                    <Text><b>Phí ship:</b> {order.shippingFee.toLocaleString()} ₫</Text>
+                    <Text><b>Phí ship:</b> {formatCurrency(order.shippingFee)}</Text>
                 </Space>
 
                 <Divider />
@@ -146,8 +165,7 @@ export default function OrderDetail() {
                 <Divider />
 
                 <Title level={5} style={{ textAlign: 'right', color: '#ff4d4f' }}>
-                    Tổng cộng:{' '}
-                    {(order.totalAmount + order.shippingFee).toLocaleString()} ₫
+                    Tổng cộng: {formatCurrency(order.totalAmount)}
                 </Title>
             </Card>
         </div>

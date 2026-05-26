@@ -9,7 +9,7 @@ import {
     TagsOutlined
 } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import type { MenuProps } from 'antd';
 
 const { Sider, Content, Header } = Layout;

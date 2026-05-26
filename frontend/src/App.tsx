@@ -1,6 +1,7 @@
 // App.tsx
 import { Routes, Route } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 import { Spin } from "antd";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./components/AdminLayout";
@@ -12,6 +13,7 @@ import OrderHistory from "./pages/OrderHistory";
 import OrderDetail from "./pages/OrderDetail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import AdminOrders from "./pages/Admin/AdminOrders";
@@ -69,6 +71,14 @@ function AppContent() {
         element={
           <UserLayout>
             <Register />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <UserLayout>
+            <ForgotPassword />
           </UserLayout>
         }
       />

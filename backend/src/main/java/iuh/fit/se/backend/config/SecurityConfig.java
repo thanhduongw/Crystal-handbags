@@ -50,7 +50,8 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/session-cart/**"
+                                "/api/session-cart/**",
+                                "/api/contact"
                         ).permitAll()
 
                         // ===== ADMIN =====

@@ -40,7 +40,7 @@ public class OrderController {
     public ResponseEntity<OrderDetailDto> getOrderDetail(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id) {
-        Long userId = jwt.getClaim("userId");
+        Long userId = getUserId(jwt);
         OrderDetailDto order = orderService.getOrderDetail(id);
         if (!order.getUserId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -57,7 +57,7 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        Long userId = jwt.getClaim("userId");
+        Long userId = getUserId(jwt);
 
         OrderDetailDto order = orderService.getOrderDetail(id);
 
@@ -67,6 +67,17 @@ public class OrderController {
 
         orderService.cancelOrder(id);
         return ResponseEntity.ok().build();
+    }
+
+    private Long getUserId(Jwt jwt) {
+        Object claim = jwt.getClaim("userId");
+        if (claim instanceof Number number) {
+            return number.longValue();
+        }
+        if (claim instanceof String value) {
+            return Long.parseLong(value);
+        }
+        throw new IllegalStateException("Invalid JWT userId claim");
     }
 
 }

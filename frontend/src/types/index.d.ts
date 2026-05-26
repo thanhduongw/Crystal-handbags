@@ -70,10 +70,12 @@ export interface CartItemDto {
 // ==================== ORDER ====================
 export interface OrderItemDto {
   itemId: number;
+  productId: number;
   productName: string;
   color: string;
   quantity: number;
   price: number;
+  avatar?: string;
 }
 
 export interface OrderListDto {
@@ -81,6 +83,14 @@ export interface OrderListDto {
   orderDate: string;
   status: OrderStatus;
   totalAmount: number;
+  shippingFee?: number;
+  userId?: number;
+  customerName?: string;
+  customerEmail?: string;
+  receiver?: string;
+  paymentMethod?: PaymentMethod | string;
+  paymentStatus?: string;
+  itemCount?: number;
 }
 
 export interface OrderDetailDto {
@@ -102,11 +112,10 @@ export interface UserProfileDto {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  gender: Gender;
+  gender?: Gender;
   dob?: string;
   photoUrl?: string;
-  // Role từ profile API, có thể khác với role từ JWT
-  role?: "CUSTOMER" | "ADMIN";
+  roles?: Array<"CUSTOMER" | "ADMIN" | string>;
 }
 
 export interface AuthUser {
@@ -139,6 +148,7 @@ export interface RegisterRequest {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  otp: string;
 }
 
 export interface LoginResponse {
@@ -155,12 +165,42 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
+export type OtpPurpose = "REGISTER" | "RESET_PASSWORD" | "LOGIN_2FA";
+
+export interface SendOtpRequest {
+  email: string;
+  purpose: OtpPurpose;
+}
+
+export interface VerifyOtpRequest {
+  email: string;
+  otp: string;
+  purpose: OtpPurpose;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
 export interface UserCreateRequest {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  roles?: string[];
+}
+
+export type UserUpdateRequest = Omit<UserProfileDto, "userId">;
+
+// ==================== CONTACT ====================
+export interface ContactRequest {
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
 }
 
 export interface UserCreateResponse {

@@ -39,6 +39,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     private final MessagePublisher messagePublisher;
 
     @Override
+    @Transactional(readOnly = true)
     public List<OrderListDto> getAllOrders() {
         return orderRepository.findAll()
                 .stream()
@@ -47,11 +48,13 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     }
 
     @Override
+    @Transactional(readOnly = true)
     public OrderDetailDto adminGetOrderDetail(Long id) {
         return getOrderDetail(id);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<OrderListDto> getUserOrdersByStatus(String email, OrderStatus status) {
         return orderRepository.findByUserEmailAndStatus(email, status)
                 .stream()
@@ -60,6 +63,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     }
 
     @Override
+    @Transactional(readOnly = true)
     public OrderDetailDto getOrderDetail(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
@@ -196,6 +200,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<OrderListDto> getUserOrders(String email) {
         return orderRepository.findByUserEmail(email).stream()
                 .map(this::toListDto)
@@ -253,7 +258,23 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 o.getOrderId(),
                 o.getOrderDate(),
                 o.getStatus(),
-                o.getTotalAmount());
+                o.getTotalAmount(),
+                o.getShippingFee(),
+                o.getUser() != null ? o.getUser().getUserId() : null,
+                o.getUser() != null ? buildCustomerName(o.getUser()) : null,
+                o.getUser() != null ? o.getUser().getEmail() : null,
+                o.getAddress() != null ? o.getAddress().getFullName() : null,
+                o.getPayment() != null && o.getPayment().getPaymentMethod() != null
+                        ? o.getPayment().getPaymentMethod().name()
+                        : null,
+                o.getPayment() != null && o.getPayment().getStatus() != null
+                        ? o.getPayment().getStatus().name()
+                        : null,
+                o.getOrderItems() != null
+                        ? o.getOrderItems().stream()
+                        .mapToInt(item -> item.getQuantity() != null ? item.getQuantity() : 0)
+                        .sum()
+                        : 0);
     }
 
     private OrderItemDto toItemDto(OrderItem oi) {

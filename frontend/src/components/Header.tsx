@@ -18,7 +18,7 @@ import {
     SearchOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import useCart from '../hooks/useCart';
 import { useState } from 'react';
 

@@ -20,7 +20,7 @@ export default function Profile() {
             setLoading(true);
             const profile = await getProfile();
             form.setFieldsValue(profile);
-        } catch (error) {
+        } catch {
             message.error('Không thể tải thông tin hồ sơ!');
         } finally {
             setLoading(false);
@@ -32,7 +32,7 @@ export default function Profile() {
             setSaving(true);
             await updateProfile(values);
             message.success('Cập nhật hồ sơ thành công!');
-        } catch (error) {
+        } catch {
             message.error('Cập nhật thất bại!');
         } finally {
             setSaving(false);

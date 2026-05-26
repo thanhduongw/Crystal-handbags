@@ -32,13 +32,15 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
 
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-        Role customerRole = roleRepository.findByName("CUSTOMER")
-                .orElseThrow(() -> new RuntimeException("Role CUSTOMER not found"));
+        Set<Role> roles = resolveRoles(request.getRoles());
 
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .roles(Set.of(customerRole))
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .phoneNumber(request.getPhoneNumber())
+                .roles(roles)
                 .build();
 
         userRepository.save(user);
@@ -160,5 +162,24 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
                         ? user.getRoles().stream().map(Role::getName).collect(Collectors.toSet())
                         : null)
                 .build();
+    }
+
+    private Set<Role> resolveRoles(Set<String> roleNames) {
+        Set<String> normalized = roleNames == null || roleNames.isEmpty()
+                ? Set.of("CUSTOMER")
+                : roleNames.stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(name -> name.replace("ROLE_", "").toUpperCase())
+                .collect(Collectors.toSet());
+
+        if (normalized.isEmpty()) {
+            normalized = Set.of("CUSTOMER");
+        }
+
+        Set<Role> roles = roleRepository.findByNameIn(normalized);
+        if (roles.size() != normalized.size()) {
+            throw new RuntimeException("Invalid role provided");
+        }
+        return roles;
     }
 }

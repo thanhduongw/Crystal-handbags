@@ -1,4 +1,4 @@
-import type { UserProfileDto } from '../types';
+import type { UserCreateRequest, UserCreateResponse, UserProfileDto, UserUpdateRequest } from '../types';
 import instance from './axiosInstance';
 
 // User profile APIs
@@ -15,10 +15,10 @@ export const getAllUsers = (): Promise<UserProfileDto[]> =>
 export const getUserById = (id: number): Promise<UserProfileDto> =>
   instance.get(`/admin/users/${id}`).then(r => r.data);
 
-export const createUser = (user: any): Promise<any> =>
+export const createUser = (user: UserCreateRequest): Promise<UserCreateResponse> =>
   instance.post('/admin/users', user).then(r => r.data);
 
-export const updateUser = (id: number, user: any): Promise<any> =>
+export const updateUser = (id: number, user: UserUpdateRequest): Promise<UserProfileDto> =>
   instance.put(`/admin/users/${id}`, user).then(r => r.data);
 
 export const deleteUser = (id: number): Promise<void> =>

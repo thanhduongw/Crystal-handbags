@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { login } from '../api/authAPI';
 import * as sessionCartAPI from '../api/sessionCartAPI';
 import type { AxiosError } from 'axios';
@@ -19,7 +19,6 @@ export default function Login() {
             setLoading(true);
             const response = await login(values);
 
-            // Parse payload
             const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
             const userData = {
                 email: payload.sub,
@@ -27,33 +26,26 @@ export default function Login() {
                 userId: payload.userId,
             };
 
-            // Lưu token trước (cần cho API merge)
             localStorage.setItem('accessToken', response.accessToken);
             localStorage.setItem('refreshToken', response.refreshToken);
 
-            // === FIX QUAN TRỌNG: Merge session cart TRƯỚC khi set user context ===
             try {
                 const sessionCart = await sessionCartAPI.fetchCart();
                 if (sessionCart && sessionCart.length > 0) {
                     await sessionCartAPI.mergeCart();
-                    console.log('✅ Đã merge giỏ hàng session vào database:', sessionCart.length, 'items');
-                    // Xóa session cart sau khi merge thành công
                     await sessionCartAPI.clearCart();
-                } else {
-                    console.log('Không có session cart để merge');
                 }
             } catch (error) {
-                console.error('❌ Lỗi khi merge giỏ hàng:', error);
+                console.error('Merge cart error:', error);
                 message.warning('Không thể đồng bộ giỏ hàng, vui lòng kiểm tra lại');
             }
 
-            // Set user context (trigger reload cart ở components)
             loginContext(response.accessToken, response.refreshToken, userData);
 
             message.success('Đăng nhập thành công!');
             navigate('/');
         } catch (err) {
-            const error = err as AxiosError<any>;
+            const error = err as AxiosError<{ code?: string; message?: string }>;
             if (error.response) {
                 const { status, data } = error.response;
                 if (data?.code === 'GMAIL_WRONG_PASSWORD') {
@@ -78,16 +70,12 @@ export default function Login() {
     };
 
     return (
-        <div style={{ maxWidth: 400, margin: '100px auto' }}>
+        <div style={{ maxWidth: 400, margin: '100px auto', padding: '0 16px' }}>
             <Card>
                 <Title level={3} style={{ textAlign: 'center' }}>
                     Đăng nhập
                 </Title>
-                <Form
-                    name="login"
-                    onFinish={onFinish}
-                    layout="vertical"
-                >
+                <Form name="login" onFinish={onFinish} layout="vertical">
                     <Form.Item
                         name="email"
                         rules={[{ required: true, message: 'Vui lòng nhập email!' }, { type: 'email' }]}
@@ -105,8 +93,11 @@ export default function Login() {
                             Đăng nhập
                         </Button>
                     </Form.Item>
-                    <div style={{ textAlign: 'center' }}>
-                        Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <Link to="/forgot-password">Quên mật khẩu?</Link>
+                        <span>
+                            Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
+                        </span>
                     </div>
                 </Form>
             </Card>

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Card, Form, Input, Button, Row, Col, Typography, message } from 'antd';
 import { PhoneOutlined, MailOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { sendContactMessage } from '../api/contactAPI';
+import type { ContactRequest } from '../types';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -9,14 +11,10 @@ export default function Contact() {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
 
-    const onFinish = async (values: any) => {
+    const onFinish = async (values: ContactRequest) => {
         try {
             setLoading(true);
-            // TODO: Integrate with backend API
-            console.log('Contact form values:', values);
-
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await sendContactMessage(values);
 
             message.success('Gửi tin nhắn thành công! Chúng tôi sẽ liên hệ với bạn sớm.');
             form.resetFields();

@@ -5,6 +5,7 @@ import iuh.fit.se.backend.dto.auth.UserCreateRequest;
 import iuh.fit.se.backend.dto.auth.UserCreateResponse;
 import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,7 +24,13 @@ public class UserController {
 
     @PostMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
-    public UserCreateResponse createUser(@RequestBody UserCreateRequest userCreateRequest) {
+    public UserCreateResponse createUser(@Valid @RequestBody UserCreateRequest userCreateRequest) {
+        return userService.createUser(userCreateRequest);
+    }
+
+    @PostMapping("/admin/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserCreateResponse createAdminUser(@Valid @RequestBody UserCreateRequest userCreateRequest) {
         return userService.createUser(userCreateRequest);
     }
 

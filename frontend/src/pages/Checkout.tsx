@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Typography, Card, Button, Spin, message, Divider, Radio, Space, Table, Tag } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import useCart from '../hooks/useCart';
 import { fetchAddresses } from '../api/addressAPI';
 import { checkout as checkoutAPI } from '../api/cartAPI';

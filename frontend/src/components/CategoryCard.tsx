@@ -6,7 +6,6 @@ interface Props {
 }
 
 export default function CategoryCard({ category }: Props) {
-    console.log(category.categoryId)
     return (
         <Link to={`/categories/${category.categoryId}/products`}>
             <Card

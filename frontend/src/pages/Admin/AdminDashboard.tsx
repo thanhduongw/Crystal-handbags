@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Spin, Typography, Table, Tag } from 'antd';
-import { ShoppingCartOutlined, UserOutlined, ProductOutlined, DollarOutlined, ShoppingOutlined } from '@ant-design/icons';
+import {
+    DollarOutlined,
+    ProductOutlined,
+    ShoppingCartOutlined,
+    ShoppingOutlined,
+    UserOutlined,
+} from '@ant-design/icons';
 import type { OrderListDto, OrderStatus } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { fetchAdminStatistics } from '../../api/adminAPI';
 import { fetchAdminOrders } from '../../api/orderAPI';
@@ -17,6 +23,14 @@ interface AdminStats {
     totalProducts: number;
     pendingOrders: number;
 }
+
+const emptyStats: AdminStats = {
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalUsers: 0,
+    totalProducts: 0,
+    pendingOrders: 0,
+};
 
 const statusColorMap: Record<OrderStatus, string> = {
     PENDING: 'orange',
@@ -41,27 +55,36 @@ export default function AdminDashboard() {
     const { isAdmin } = useAuth();
 
     useEffect(() => {
-        loadDashboard();
-    }, []);
-
-    const loadDashboard = async () => {
-        try {
+        const loadDashboard = async () => {
             setLoading(true);
-            const [statsData, ordersData] = await Promise.all([
+
+            const [statsResult, ordersResult] = await Promise.allSettled([
                 fetchAdminStatistics(),
                 fetchAdminOrders(),
             ]);
-            setStats(statsData);
-            const sortedOrders = ordersData.sort((a, b) =>
-                dayjs(b.orderDate).unix() - dayjs(a.orderDate).unix()
-            );
-            setRecentOrders(sortedOrders.slice(0, 5));
-        } catch (error) {
-            console.error('Failed to load dashboard:', error);
-        } finally {
+
+            if (statsResult.status === 'fulfilled') {
+                setStats(statsResult.value);
+            } else {
+                console.error('Failed to load dashboard stats:', statsResult.reason);
+                setStats(emptyStats);
+            }
+
+            if (ordersResult.status === 'fulfilled') {
+                const sortedOrders = [...ordersResult.value].sort((a, b) =>
+                    dayjs(b.orderDate).unix() - dayjs(a.orderDate).unix()
+                );
+                setRecentOrders(sortedOrders.slice(0, 5));
+            } else {
+                console.error('Failed to load dashboard orders:', ordersResult.reason);
+                setRecentOrders([]);
+            }
+
             setLoading(false);
-        }
-    };
+        };
+
+        void loadDashboard();
+    }, []);
 
     const recentOrdersColumns = [
         {
@@ -90,7 +113,7 @@ export default function AdminDashboard() {
             title: 'Tổng tiền',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
-            render: (amount: number) => `${amount?.toLocaleString('vi-VN')} đ`,
+            render: (amount: number) => `${Number(amount ?? 0).toLocaleString('vi-VN')} đ`,
         },
     ];
 
@@ -107,7 +130,6 @@ export default function AdminDashboard() {
             <Title level={3}>Bảng điều khiển</Title>
 
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                {/* Tổng doanh thu */}
                 <Col xs={24} sm={12} md={6}>
                     <Card
                         style={{
@@ -123,12 +145,11 @@ export default function AdminDashboard() {
                             formatter={(value) =>
                                 `${Number(value).toLocaleString('vi-VN')} đ`
                             }
-                            valueStyle={{ color: '#3f8600' }}
+                            styles={{ content: { color: '#3f8600' } }}
                         />
                     </Card>
                 </Col>
 
-                {/* Đơn hàng */}
                 <Col xs={24} sm={12} md={6}>
                     <Card
                         style={{
@@ -142,7 +163,7 @@ export default function AdminDashboard() {
                             title="Đơn hàng"
                             value={stats?.totalOrders || 0}
                             prefix={<ShoppingOutlined />}
-                            valueStyle={{ color: '#1890ff' }}
+                            styles={{ content: { color: '#1890ff' } }}
                         />
 
                         {stats?.pendingOrders && stats.pendingOrders > 0 && (
@@ -159,7 +180,6 @@ export default function AdminDashboard() {
                     </Card>
                 </Col>
 
-                {/* Người dùng */}
                 <Col xs={24} sm={12} md={6}>
                     <Card
                         style={{
@@ -172,12 +192,11 @@ export default function AdminDashboard() {
                             title="Người dùng"
                             value={stats?.totalUsers || 0}
                             prefix={<UserOutlined />}
-                            valueStyle={{ color: '#722ed1' }}
+                            styles={{ content: { color: '#722ed1' } }}
                         />
                     </Card>
                 </Col>
 
-                {/* Sản phẩm */}
                 <Col xs={24} sm={12} md={6}>
                     <Card
                         style={{
@@ -190,7 +209,7 @@ export default function AdminDashboard() {
                             title="Sản phẩm"
                             value={stats?.totalProducts || 0}
                             prefix={<ProductOutlined />}
-                            valueStyle={{ color: '#eb2f96' }}
+                            styles={{ content: { color: '#eb2f96' } }}
                         />
                     </Card>
                 </Col>

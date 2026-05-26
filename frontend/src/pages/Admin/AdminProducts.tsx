@@ -12,12 +12,23 @@ import {
     uploadProductImage, deleteProductImage, fetchProductDetail
 } from '../../api/productAPI';
 import type { ProductListDto, ProductDetailDto } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import ProductForm from '../../components/ProductForm';
 
 const { Title } = Typography;
 const { Search } = Input;
+
+type ApiError = {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+};
+
+const getApiErrorMessage = (error: unknown, fallback: string) =>
+    (error as ApiError).response?.data?.message || fallback;
 
 export default function AdminProducts() {
     const { isAdmin } = useAuth();
@@ -48,7 +59,6 @@ export default function AdminProducts() {
             setLoading(false);
         }
     };
-    console.log(submitting)
     const handleDelete = (id: number, name: string) => {
         Modal.confirm({
             title: 'Xác nhận xóa sản phẩm?',
@@ -61,9 +71,9 @@ export default function AdminProducts() {
                     await deleteProduct(id);
                     message.success('Đã xóa sản phẩm');
                     load();
-                } catch (error: any) {
+                } catch (error: unknown) {
                     console.error('Delete error:', error);
-                    message.error(error.response?.data?.message || 'Xóa thất bại');
+                    message.error(getApiErrorMessage(error, 'Xóa thất bại'));
                 }
             }
         });
@@ -96,9 +106,9 @@ export default function AdminProducts() {
             setModalVisible(false);
             setEditing(null);
             load();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Submit error:', error);
-            message.error(error.response?.data?.message || 'Lưu thất bại');
+            message.error(getApiErrorMessage(error, 'Lưu thất bại'));
         } finally {
             setSubmitting(false);
         }
@@ -139,9 +149,9 @@ export default function AdminProducts() {
             const updated = await fetchProductDetail(selectedProduct.productId!);
             setSelectedProduct(updated);
             load();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Upload error:', error);
-            message.error(error.response?.data?.message || 'Upload thất bại');
+            message.error(getApiErrorMessage(error, 'Upload thất bại'));
         } finally {
             setUploadingImage(false);
         }
@@ -163,9 +173,9 @@ export default function AdminProducts() {
                     const updated = await fetchProductDetail(selectedProduct.productId!);
                     setSelectedProduct(updated);
                     load();
-                } catch (error: any) {
+                } catch (error: unknown) {
                     console.error('Delete image error:', error);
-                    message.error(error.response?.data?.message || 'Xóa ảnh thất bại');
+                    message.error(getApiErrorMessage(error, 'Xóa ảnh thất bại'));
                 }
             }
         });
@@ -207,9 +217,9 @@ export default function AdminProducts() {
             setSelectedProduct(updated);
             setNewImageUrl('');
             load();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Add image by URL error:', error);
-            message.error(error.response?.data?.message || 'Thêm ảnh thất bại');
+            message.error(getApiErrorMessage(error, 'Thêm ảnh thất bại'));
         } finally {
             setUploadingImage(false);
         }
@@ -288,7 +298,7 @@ export default function AdminProducts() {
                 { text: 'Có', value: true },
                 { text: 'Không', value: false },
             ],
-            onFilter: (value: any, record: ProductListDto) =>
+            onFilter: (value: unknown, record: ProductListDto) =>
                 record.showHomepage === value,
         },
         {
@@ -296,7 +306,7 @@ export default function AdminProducts() {
             key: 'action',
             width: 200,
             fixed: 'right' as const,
-            render: (_: any, record: ProductListDto) => (
+            render: (_: unknown, record: ProductListDto) => (
                 <Space size="small">
                     <Button
                         size="small"
@@ -388,6 +398,7 @@ export default function AdminProducts() {
                 onSubmit={handleSubmit}
                 initialValues={editing || undefined}
                 isEdit={!!editing}
+                submitting={submitting}
             />
 
             <Modal

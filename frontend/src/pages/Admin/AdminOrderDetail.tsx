@@ -6,7 +6,6 @@ import {
 import { PrinterOutlined } from '@ant-design/icons';
 import { fetchAdminOrderDetail, updateAdminOrderStatus } from '../../api/orderAPI';
 import { getUserById } from '../../api/userAPI';
-import { fetchProductDetail } from '../../api/productAPI';
 import type {
     OrderDetailDto,
     OrderStatus,
@@ -32,6 +31,12 @@ interface Props {
     onLoaded?: () => void;
 }
 
+type ApiError = {
+    response?: {
+        status?: number;
+    };
+};
+
 export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
     const [order, setOrder] = useState<OrderDetailDto | null>(null);
     const [loading, setLoading] = useState(true);
@@ -54,23 +59,13 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
                 }
             }
 
-            const result = await Promise.all(
-                data.items.map(async (i) => {
-                    try {
-                        const p = await fetchProductDetail(i.itemId);
-                        return { ...i, avatar: p.avatar ?? p.images?.[0] };
-                    } catch {
-                        return i;
-                    }
-                })
-            );
-
-            setItems(result);
-        } catch (err: any) {
+            setItems(data.items);
+        } catch (err: unknown) {
+            const status = (err as ApiError).response?.status;
             // xử lý rõ ràng khi backend trả 403/404
-            if (err?.response?.status === 403) {
+            if (status === 403) {
                 message.error('Bạn không có quyền xem đơn hàng này.');
-            } else if (err?.response?.status === 404) {
+            } else if (status === 404) {
                 message.error('Không tìm thấy đơn hàng.');
             } else {
                 message.error('Không tải được đơn hàng');

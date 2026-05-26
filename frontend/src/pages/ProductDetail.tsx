@@ -79,7 +79,7 @@ export default function ProductDetail() {
             setAddingToCart(true);
             await addItem(product, selectedItem, qty);
             message.success('Đã thêm vào giỏ hàng!');
-        } catch (error) {
+        } catch {
             message.error('Không thể thêm vào giỏ hàng!');
         } finally {
             setAddingToCart(false);

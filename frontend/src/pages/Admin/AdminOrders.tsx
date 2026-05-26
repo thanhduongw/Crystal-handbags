@@ -1,16 +1,16 @@
-// pages/Admin/AdminOrders.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Table, Select, Tag, Typography, Spin, message, Button, Space,
     DatePicker, Input, Card, Row, Col, Statistic, Modal
 } from 'antd';
+import type { TableProps } from 'antd';
 import { EyeOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { OrderListDto, OrderStatus } from '../../types';
 import dayjs from 'dayjs';
 import { fetchAdminOrders, updateAdminOrderStatus } from '../../api/orderAPI';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import AdminOrderDetail from './AdminOrderDetail'; // Import component chi tiết
+import AdminOrderDetail from './AdminOrderDetail';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -31,27 +31,22 @@ const statusColorMap: Record<OrderStatus, string> = {
     CANCELLED: 'red',
 };
 
+const formatCurrency = (value: number) =>
+    Number(value || 0).toLocaleString('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+    });
+
 export default function AdminOrders() {
     const { isAdmin } = useAuth();
     const [orders, setOrders] = useState<OrderListDto[]>([]);
-    const [filteredOrders, setFilteredOrders] = useState<OrderListDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchText, setSearchText] = useState('');
     const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>();
     const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
-
-    // State cho modal chi tiết
     const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
-
-    useEffect(() => {
-        load();
-    }, []);
-
-    useEffect(() => {
-        applyFilters();
-    }, [orders, searchText, statusFilter, dateRange]);
 
     const load = async () => {
         try {
@@ -66,44 +61,50 @@ export default function AdminOrders() {
         }
     };
 
-    const applyFilters = () => {
+    useEffect(() => {
+        load();
+    }, []);
+
+    const filteredOrders = useMemo(() => {
         let filtered = [...orders];
 
         if (searchText.trim()) {
-            const search = searchText.toLowerCase();
-            filtered = filtered.filter(o =>
-                o.orderId.toString().includes(search)
+            const search = searchText.trim().toLowerCase();
+            filtered = filtered.filter(order =>
+                order.orderId.toString().includes(search) ||
+                (order.customerName || '').toLowerCase().includes(search) ||
+                (order.customerEmail || '').toLowerCase().includes(search) ||
+                (order.receiver || '').toLowerCase().includes(search)
             );
         }
 
         if (statusFilter) {
-            filtered = filtered.filter(o => o.status === statusFilter);
+            filtered = filtered.filter(order => order.status === statusFilter);
         }
 
         if (dateRange) {
             const [start, end] = dateRange;
-            filtered = filtered.filter(o => {
-                const orderDate = dayjs(o.orderDate);
+            filtered = filtered.filter(order => {
+                const orderDate = dayjs(order.orderDate);
                 return orderDate.isAfter(start.startOf('day')) &&
                     orderDate.isBefore(end.endOf('day'));
             });
         }
 
-        setFilteredOrders(filtered);
-    };
+        return filtered;
+    }, [orders, searchText, statusFilter, dateRange]);
 
     const handleStatusChange = async (orderId: number, status: OrderStatus) => {
         try {
             await updateAdminOrderStatus(orderId, status);
             message.success('Cập nhật trạng thái thành công');
-            load();
+            await load();
         } catch (error) {
             console.error('Update status error:', error);
             message.error('Cập nhật thất bại');
         }
     };
 
-    // Sửa lại hàm này để mở modal thay vì navigate
     const handleViewDetail = (orderId: number) => {
         setDetailOrderId(orderId);
         setDetailModalVisible(true);
@@ -118,65 +119,97 @@ export default function AdminOrders() {
 
     const stats = {
         total: orders.length,
-        pending: orders.filter(o => o.status === 'PENDING').length,
-        confirmed: orders.filter(o => o.status === 'CONFIRMED').length,
-        shipped: orders.filter(o => o.status === 'SHIPPED').length,
-        delivered: orders.filter(o => o.status === 'DELIVERED').length,
-        cancelled: orders.filter(o => o.status === 'CANCELLED').length,
+        pending: orders.filter(order => order.status === 'PENDING').length,
+        confirmed: orders.filter(order => order.status === 'CONFIRMED').length,
+        shipped: orders.filter(order => order.status === 'SHIPPED').length,
+        delivered: orders.filter(order => order.status === 'DELIVERED').length,
         revenue: orders
-            .filter(o => o.status === 'DELIVERED')
-            .reduce((sum, o) => sum + o.totalAmount, 0),
+            .filter(order => order.status === 'DELIVERED')
+            .reduce((sum, order) => sum + order.totalAmount, 0),
     };
 
-    const columns = [
+    const columns: TableProps<OrderListDto>['columns'] = [
         {
             title: 'Mã đơn',
             dataIndex: 'orderId',
             key: 'orderId',
             width: 100,
-            sorter: (a: OrderListDto, b: OrderListDto) => a.orderId - b.orderId,
+            sorter: (a, b) => a.orderId - b.orderId,
+        },
+        {
+            title: 'Khách hàng',
+            key: 'customer',
+            width: 240,
+            render: (_, record) => (
+                <div>
+                    <div style={{ fontWeight: 600 }}>{record.customerName || record.receiver || '-'}</div>
+                    <div style={{ color: '#8c8c8c', fontSize: 12 }}>{record.customerEmail || '-'}</div>
+                </div>
+            ),
+        },
+        {
+            title: 'Người nhận',
+            dataIndex: 'receiver',
+            key: 'receiver',
+            width: 160,
+            render: (receiver?: string) => receiver || '-',
         },
         {
             title: 'Ngày đặt',
             dataIndex: 'orderDate',
             key: 'orderDate',
-            width: 180,
+            width: 170,
             render: (date: string) => dayjs(date).format('DD/MM/YYYY HH:mm'),
-            sorter: (a: OrderListDto, b: OrderListDto) =>
-                dayjs(a.orderDate).unix() - dayjs(b.orderDate).unix(),
-            defaultSortOrder: 'descend' as const,
+            sorter: (a, b) => dayjs(a.orderDate).unix() - dayjs(b.orderDate).unix(),
+            defaultSortOrder: 'descend',
         },
         {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            width: 150,
+            width: 145,
             render: (status: OrderStatus) => (
                 <Tag color={statusColorMap[status]}>
-                    {statusOptions.find(o => o.value === status)?.label}
+                    {statusOptions.find(option => option.value === status)?.label}
                 </Tag>
             ),
+        },
+        {
+            title: 'Thanh toán',
+            key: 'payment',
+            width: 135,
+            render: (_, record) => (
+                <Space direction="vertical" size={0}>
+                    <span>{record.paymentMethod || '-'}</span>
+                    {record.paymentStatus && <Tag>{record.paymentStatus}</Tag>}
+                </Space>
+            ),
+        },
+        {
+            title: 'SL',
+            dataIndex: 'itemCount',
+            key: 'itemCount',
+            align: 'center',
+            width: 70,
         },
         {
             title: 'Tổng tiền',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             width: 150,
-            render: (amount: number) => (
-                <strong>{amount?.toLocaleString('vi-VN')} ₫</strong>
-            ),
-            sorter: (a: OrderListDto, b: OrderListDto) => a.totalAmount - b.totalAmount,
+            render: (amount: number) => <strong>{formatCurrency(amount)}</strong>,
+            sorter: (a, b) => a.totalAmount - b.totalAmount,
         },
         {
             title: 'Thao tác',
             key: 'action',
             width: 280,
-            fixed: 'right' as const,
-            render: (_: any, record: OrderListDto) => (
+            fixed: 'right',
+            render: (_, record) => (
                 <Space size="small">
                     <Select
                         value={record.status}
-                        onChange={(val) => handleStatusChange(record.orderId, val as OrderStatus)}
+                        onChange={(value) => handleStatusChange(record.orderId, value as OrderStatus)}
                         style={{ width: 140 }}
                         size="small"
                         disabled={record.status === 'CANCELLED' || record.status === 'DELIVERED'}
@@ -195,8 +228,8 @@ export default function AdminOrders() {
                         Chi tiết
                     </Button>
                 </Space>
-            )
-        }
+            ),
+        },
     ];
 
     if (!isAdmin) {
@@ -220,51 +253,30 @@ export default function AdminOrders() {
         <div style={{ padding: 24 }}>
             <Title level={3}>Quản lý đơn hàng</Title>
 
-            {/* Statistics */}
             <Row gutter={16} style={{ marginBottom: 24 }}>
                 <Col xs={12} sm={8} md={4}>
                     <Card size="small">
-                        <Statistic
-                            title="Tổng đơn"
-                            value={stats.total}
-                            styles={{ content: { color: '#1890ff' } }}
-                        />
+                        <Statistic title="Tổng đơn" value={stats.total} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} md={4}>
                     <Card size="small">
-                        <Statistic
-                            title="Chờ xử lý"
-                            value={stats.pending}
-                            styles={{ content: { color: '#faad14' } }}
-                        />
+                        <Statistic title="Chờ xử lý" value={stats.pending} valueStyle={{ color: '#faad14' }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} md={4}>
                     <Card size="small">
-                        <Statistic
-                            title="Đã xác nhận"
-                            value={stats.confirmed}
-                            styles={{ content: { color: '#1890ff' } }}
-                        />
+                        <Statistic title="Đã xác nhận" value={stats.confirmed} valueStyle={{ color: '#1890ff' }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} md={4}>
                     <Card size="small">
-                        <Statistic
-                            title="Đang giao"
-                            value={stats.shipped}
-                            styles={{ content: { color: '#722ed1' } }}
-                        />
+                        <Statistic title="Đang giao" value={stats.shipped} valueStyle={{ color: '#722ed1' }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} md={4}>
                     <Card size="small">
-                        <Statistic
-                            title="Hoàn thành"
-                            value={stats.delivered}
-                            styles={{ content: { color: '#52c41a' } }}
-                        />
+                        <Statistic title="Hoàn thành" value={stats.delivered} valueStyle={{ color: '#52c41a' }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} md={4}>
@@ -272,28 +284,27 @@ export default function AdminOrders() {
                         <Statistic
                             title="Doanh thu"
                             value={stats.revenue}
-                            styles={{ content: { color: '#52c41a' } }}
-                            formatter={(value) => `${Number(value).toLocaleString('vi-VN')} ₫`}
+                            valueStyle={{ color: '#52c41a' }}
+                            formatter={(value) => formatCurrency(Number(value))}
                         />
                     </Card>
                 </Col>
             </Row>
 
-            {/* Filters */}
             <Card style={{ marginBottom: 16 }}>
                 <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={24} sm={12} md={7}>
                         <Input
-                            placeholder="Tìm theo mã đơn..."
+                            placeholder="Tìm mã đơn, khách hàng, email..."
                             prefix={<SearchOutlined />}
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                             allowClear
                         />
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={24} sm={12} md={5}>
                         <Select
-                            placeholder="Lọc theo trạng thái"
+                            placeholder="Lọc trạng thái"
                             value={statusFilter}
                             onChange={setStatusFilter}
                             style={{ width: '100%' }}
@@ -309,7 +320,7 @@ export default function AdminOrders() {
                     <Col xs={24} sm={12} md={6}>
                         <RangePicker
                             value={dateRange}
-                            onChange={(dates) => setDateRange(dates as any)}
+                            onChange={(dates) => setDateRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)}
                             style={{ width: '100%' }}
                             format="DD/MM/YYYY"
                             placeholder={['Từ ngày', 'Đến ngày']}
@@ -317,14 +328,8 @@ export default function AdminOrders() {
                     </Col>
                     <Col xs={24} sm={12} md={6}>
                         <Space>
-                            <Button onClick={handleClearFilters}>
-                                Xóa bộ lọc
-                            </Button>
-                            <Button
-                                icon={<ReloadOutlined />}
-                                onClick={load}
-                                loading={loading}
-                            >
+                            <Button onClick={handleClearFilters}>Xóa lọc</Button>
+                            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
                                 Làm mới
                             </Button>
                         </Space>
@@ -332,7 +337,6 @@ export default function AdminOrders() {
                 </Row>
             </Card>
 
-            {/* Table */}
             <Card>
                 <Table
                     rowKey="orderId"
@@ -345,17 +349,12 @@ export default function AdminOrders() {
                         showSizeChanger: true,
                         showQuickJumper: true,
                     }}
-                    scroll={{ x: 1000 }}
+                    scroll={{ x: 1450 }}
                 />
             </Card>
 
-            {/* Modal hiển thị chi tiết đơn hàng */}
             <Modal
-                title={
-                    <Title level={4} style={{ margin: 0 }}>
-                        Chi tiết đơn hàng #{detailOrderId}
-                    </Title>
-                }
+                title={<Title level={4} style={{ margin: 0 }}>Chi tiết đơn hàng #{detailOrderId}</Title>}
                 open={detailModalVisible}
                 onCancel={() => setDetailModalVisible(false)}
                 footer={null}
@@ -371,7 +370,6 @@ export default function AdminOrders() {
             >
                 {detailOrderId && (
                     <div style={{ paddingTop: 16 }}>
-                        {/* Loading state cho modal */}
                         {detailLoading && (
                             <div style={{ textAlign: 'center', padding: '40px 0' }}>
                                 <Spin size="large" />

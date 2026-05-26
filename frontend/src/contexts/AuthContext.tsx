@@ -1,24 +1,7 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { AuthUser } from '../types';
+import { useState, useEffect, type ReactNode } from 'react';
 import * as authAPI from '../api/authAPI';
-
-interface AuthContextType {
-    user: AuthUser | null;
-    login: (token: string, refreshToken: string, user: AuthUser) => void;
-    logout: () => Promise<void>;
-    isAdmin: boolean;
-    loading: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
-};
+import { AuthContext } from './authContextCore';
+import type { AuthUser } from '../types';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -34,7 +17,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     role: payload.scope,
                     userId: payload.userId,
                 });
-            } catch (error) {
+            } catch {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
             }

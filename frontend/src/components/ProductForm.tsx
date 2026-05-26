@@ -32,7 +32,19 @@ interface ProductFormProps {
     onSubmit: (product: ProductDetailDto, isEdit: boolean) => void;
     initialValues?: ProductDetailDto;
     isEdit?: boolean;
+    submitting?: boolean;
 }
+
+type ProductFormValues = {
+    name: string;
+    description: string;
+    basePrice: number;
+    categoryId: number;
+    showHomePage?: boolean;
+    items?: ProductDetailDto['items'];
+    avatar?: string;
+    images?: Array<string | null | undefined>;
+};
 
 export default function ProductForm({
     visible,
@@ -40,6 +52,7 @@ export default function ProductForm({
     onSubmit,
     initialValues,
     isEdit = false,
+    submitting = false,
 }: ProductFormProps) {
     const [form] = Form.useForm();
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -73,7 +86,6 @@ export default function ProductForm({
                 setAvatarPreview(undefined);
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible, initialValues, form]);
 
     const loadCategories = async () => {
@@ -89,9 +101,9 @@ export default function ProductForm({
         }
     };
 
-    const handleFinish = (values: any) => {
+    const handleFinish = (values: ProductFormValues) => {
         // Normalize images: keep only non-empty strings
-        const images: string[] = (values.images || []).filter((x: any) => !!x);
+        const images: string[] = (values.images || []).filter((x): x is string => !!x);
 
         const product: ProductDetailDto = {
             productId: initialValues?.productId,
@@ -113,7 +125,7 @@ export default function ProductForm({
         new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target?.result as string);
-            reader.onerror = (e) => reject(e);
+            reader.onerror = () => reject(new Error('Unable to read file'));
             reader.readAsDataURL(file);
         });
 
@@ -127,6 +139,7 @@ export default function ProductForm({
             destroyOnClose
             okText={isEdit ? 'Cập nhật' : 'Thêm'}
             cancelText="Hủy"
+            confirmLoading={submitting}
         >
             <Form
                 form={form}
@@ -228,7 +241,7 @@ export default function ProductForm({
                                         const dataUrl = await fileToDataUrl(file as File);
                                         form.setFieldsValue({ avatar: dataUrl });
                                         setAvatarPreview(dataUrl);
-                                    } catch (err) {
+                                    } catch {
                                         message.error('Không thể đọc file');
                                     }
                                     return false; // prevent auto upload
@@ -289,7 +302,7 @@ export default function ProductForm({
                                                             const images: string[] = form.getFieldValue('images') || [];
                                                             images[index] = dataUrl;
                                                             form.setFieldsValue({ images });
-                                                        } catch (err) {
+                                                        } catch {
                                                             message.error('Không thể đọc file');
                                                         }
                                                         return false;
@@ -357,7 +370,7 @@ export default function ProductForm({
                                                 const images: string[] = form.getFieldValue('images') || [];
                                                 images.push(dataUrl);
                                                 form.setFieldsValue({ images });
-                                            } catch (err) {
+                                            } catch {
                                                 message.error('Không thể đọc file');
                                             }
                                             return false;

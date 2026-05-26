@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageCircle, Send, User, Bot, X, Trash2 } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import {
   sendAiMessage,
   deleteAiConversation,

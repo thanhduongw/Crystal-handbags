@@ -3,7 +3,8 @@ package iuh.fit.se.backend.dto.auth;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-import lombok.Getter;
+
+import java.util.Set;
 
 @Data
 public class UserCreateRequest {
@@ -15,4 +16,5 @@ public class UserCreateRequest {
     private String firstName;
     private String lastName;
     private String phoneNumber;
+    private Set<String> roles;
 }

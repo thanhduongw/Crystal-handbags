@@ -31,9 +31,7 @@ export default function CategoryForm({ visible, onCancel, onSubmit, initialValue
             .then(values => {
                 onSubmit(values);
             })
-            .catch(info => {
-                console.log('Validate Failed:', info);
-            });
+            .catch(() => undefined);
     };
 
     return (

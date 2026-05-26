@@ -1,5 +1,5 @@
 import instance from "./axiosInstance";
-import type { LoginRequest, RegisterRequest } from "../types";
+import type { LoginRequest, RegisterRequest, ResetPasswordRequest, SendOtpRequest, VerifyOtpRequest } from "../types";
 
 export const login = async (data: LoginRequest) => {
   const response = await instance.post("/auth/login", data);
@@ -31,5 +31,20 @@ export const logout = async () => {
 
 export const refreshToken = async (refreshToken: string) => {
   const response = await instance.post("/auth/refresh-token", { refreshToken });
+  return response.data;
+};
+
+export const sendOtp = async (data: SendOtpRequest) => {
+  const response = await instance.post("/auth/send-otp", data);
+  return response.data;
+};
+
+export const verifyOtp = async (data: VerifyOtpRequest): Promise<{ valid: boolean; message: string }> => {
+  const response = await instance.post("/auth/verify-otp", data);
+  return response.data;
+};
+
+export const resetPassword = async (data: ResetPasswordRequest) => {
+  const response = await instance.post("/auth/reset-password", data);
   return response.data;
 };

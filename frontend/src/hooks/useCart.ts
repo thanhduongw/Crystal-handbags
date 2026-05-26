@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { message } from 'antd';
 import type { CartLineDto, ProductItemDto, ProductDetailDto } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './useAuth';
 import * as cartAPI from '../api/cartAPI';
 import * as sessionCartAPI from '../api/sessionCartAPI';
 

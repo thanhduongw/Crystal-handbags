@@ -3,7 +3,7 @@ import { Table, Button, Spin, Typography, message, Modal } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { fetchCategories, createCategory, updateCategory, deleteCategory } from '../../api/categoryAPI';
 import type { CategoryDto } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import CategoryForm from '../../components/CategoryForm';
 
@@ -102,7 +102,7 @@ export default function AdminCategories() {
             title: 'Thao tác',
             key: 'action',
             width: 150,
-            render: (_: any, record: CategoryDto) => (
+            render: (_: unknown, record: CategoryDto) => (
                 <>
                     <Button
                         icon={<EditOutlined />}

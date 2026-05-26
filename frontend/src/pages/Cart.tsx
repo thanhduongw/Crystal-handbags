@@ -3,7 +3,7 @@ import { DeleteOutlined, ShoppingCartOutlined, ShoppingOutlined, MinusOutlined, 
 import { useNavigate } from 'react-router-dom';
 import useCart from '../hooks/useCart';
 import type { CartLineDto } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const { Title, Text } = Typography;
 
@@ -20,16 +20,15 @@ export default function Cart() {
         updateQty(itemId, newQty);
     };
 
-    const handleRemove = (itemId: number, name: string) => {
+    const handleRemove = (itemId: number) => {
         removeItem(itemId);
-        message.success(`Đã xóa "${name}" khỏi giỏ hàng`);
     };
 
     const columns = [
         {
             title: 'Sản phẩm',
             key: 'product',
-            render: (_: any, record: CartLineDto) => (
+            render: (_: unknown, record: CartLineDto) => (
                 <Space>
                     <Image
                         src={record.avatar || 'https://placehold.co/80x80?text=No+Image'}
@@ -70,7 +69,7 @@ export default function Cart() {
             title: 'Số lượng',
             key: 'qty',
             align: 'center' as const,
-            render: (_: any, record: CartLineDto) => (
+            render: (_: unknown, record: CartLineDto) => (
                 <Space.Compact>
                     <Button
                         size="small"
@@ -98,7 +97,7 @@ export default function Cart() {
             title: 'Thành tiền',
             key: 'total',
             align: 'right' as const,
-            render: (_: any, record: CartLineDto) => (
+            render: (_: unknown, record: CartLineDto) => (
                 <Text strong style={{ color: '#ff4d4f', fontSize: 16 }}>
                     {(record.price * record.qty).toLocaleString('vi-VN')} ₫
                 </Text>
@@ -109,11 +108,11 @@ export default function Cart() {
             key: 'action',
             width: 80,
             align: 'center' as const,
-            render: (_: any, record: CartLineDto) => (
+            render: (_: unknown, record: CartLineDto) => (
                 <Button
                     danger
                     icon={<DeleteOutlined />}
-                    onClick={() => handleRemove(record.itemId, record.name)}
+                    onClick={() => handleRemove(record.itemId)}
                     type="text"
                     title="Xóa khỏi giỏ hàng"
                 />

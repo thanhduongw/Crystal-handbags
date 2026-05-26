@@ -21,6 +21,17 @@ interface Address {
 }
 
 type Option = { value: string; label: string };
+type LocationResponse = { code: number | string; name: string };
+type ProvinceDetailResponse = { districts?: LocationResponse[] };
+type DistrictDetailResponse = { wards?: LocationResponse[] };
+type AddressFormValues = {
+    fullName: string;
+    phoneNumber: string;
+    province: string;
+    district: string;
+    ward: string;
+    street: string;
+};
 
 const BASE_PROVINCE_API = 'https://provinces.open-api.vn/api';
 
@@ -65,9 +76,9 @@ export default function AddressManagement() {
     const loadProvinces = async () => {
         try {
             setLoadingProvinces(true);
-            const resp = await axios.get(`${BASE_PROVINCE_API}/p/`);
+            const resp = await axios.get<LocationResponse[]>(`${BASE_PROVINCE_API}/p/`);
             const list = resp.data || [];
-            const opts = list.map((p: any) => ({
+            const opts = list.map((p) => ({
                 value: String(p.code),
                 label: p.name
             }));
@@ -80,11 +91,11 @@ export default function AddressManagement() {
         }
     };
 
-    const loadDistricts = async (provinceCode: string) => {
+    const loadDistricts = async (provinceCode: string): Promise<Option[]> => {
         if (!provinceCode) {
             setDistricts([]);
             setWards([]);
-            return;
+            return [];
         }
 
         try {
@@ -92,44 +103,48 @@ export default function AddressManagement() {
             setDistricts([]);
             setWards([]);
 
-            const resp = await axios.get(`${BASE_PROVINCE_API}/p/${provinceCode}?depth=2`);
+            const resp = await axios.get<ProvinceDetailResponse>(`${BASE_PROVINCE_API}/p/${provinceCode}?depth=2`);
             const districtsData = resp.data?.districts || [];
-            const opts = districtsData.map((d: any) => ({
+            const opts = districtsData.map((d) => ({
                 value: String(d.code),
                 label: d.name
             }));
             setDistricts(opts);
+            return opts;
         } catch (err) {
             console.error('Load districts error', err);
             message.error('Không thể tải danh sách quận/huyện!');
         } finally {
             setLoadingDistricts(false);
         }
+        return [];
     };
 
-    const loadWards = async (districtCode: string) => {
+    const loadWards = async (districtCode: string): Promise<Option[]> => {
         if (!districtCode) {
             setWards([]);
-            return;
+            return [];
         }
 
         try {
             setLoadingWards(true);
             setWards([]);
 
-            const resp = await axios.get(`${BASE_PROVINCE_API}/d/${districtCode}?depth=2`);
+            const resp = await axios.get<DistrictDetailResponse>(`${BASE_PROVINCE_API}/d/${districtCode}?depth=2`);
             const wardsData = resp.data?.wards || [];
-            const opts = wardsData.map((w: any) => ({
+            const opts = wardsData.map((w) => ({
                 value: String(w.code),
                 label: w.name
             }));
             setWards(opts);
+            return opts;
         } catch (err) {
             console.error('Load wards error', err);
             message.error('Không thể tải danh sách phường/xã!');
         } finally {
             setLoadingWards(false);
         }
+        return [];
     };
 
     const openModal = (addr: Address | null = null) => {
@@ -148,13 +163,12 @@ export default function AddressManagement() {
                     province: prov.value,
                     street: addr.street,
                 });
-                // Load districts and wards
-                loadDistricts(prov.value).then(() => {
-                    const dist = districts.find(d => d.label === addr.district);
+                loadDistricts(prov.value).then((districtOptions) => {
+                    const dist = districtOptions.find(d => d.label === addr.district);
                     if (dist) {
                         form.setFieldsValue({ district: dist.value });
-                        loadWards(dist.value).then(() => {
-                            const w = wards.find(w => w.label === addr.ward);
+                        loadWards(dist.value).then((wardOptions) => {
+                            const w = wardOptions.find(w => w.label === addr.ward);
                             if (w) form.setFieldsValue({ ward: w.value });
                         });
                     }
@@ -165,7 +179,7 @@ export default function AddressManagement() {
         setModalVisible(true);
     };
 
-    const handleSubmit = async (values: any) => {
+    const handleSubmit = async (values: AddressFormValues) => {
         const provinceLabel = provinces.find(p => p.value === values.province)?.label || values.province;
         const districtLabel = districts.find(d => d.value === values.district)?.label || values.district;
         const wardLabel = wards.find(w => w.value === values.ward)?.label || values.ward;

@@ -1,6 +1,8 @@
 package iuh.fit.se.backend.model;
 
 import jakarta.persistence.*;
+import iuh.fit.se.backend.model.converter.PaymentMethodConverter;
+import iuh.fit.se.backend.model.converter.PaymentStatusConverter;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -23,10 +25,10 @@ public class Payment {
     private BigDecimal amount;
     private LocalDateTime paymentDate;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PaymentMethodConverter.class)
     private PaymentMethod paymentMethod;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PaymentStatusConverter.class)
     private PaymentStatus status;
 
     //VNPay
