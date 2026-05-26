@@ -1,9 +1,13 @@
 package iuh.fit.se.backend.service.impl;
 
 import iuh.fit.se.backend.dto.*;
+import iuh.fit.se.backend.messaging.EmailNotificationMessage;
+import iuh.fit.se.backend.messaging.OrderCreatedMessage;
+import iuh.fit.se.backend.messaging.publisher.MessagePublisher;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.*;
 import iuh.fit.se.backend.service.DatabaseCartService;
+import iuh.fit.se.backend.service.InventoryService;
 import iuh.fit.se.backend.service.OrderService;
 import iuh.fit.se.backend.service.VNPayService;
 import jakarta.persistence.EntityNotFoundException;
@@ -21,7 +25,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements OrderService (không phải DatabaseCartService)
+public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements OrderService (không phải
+                                                        // DatabaseCartService)
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -30,6 +35,8 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     private final DatabaseCartService cartService; // ✅ SỬA: Dùng DatabaseCartService, không phải implement
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
+    private final InventoryService inventoryService;
+    private final MessagePublisher messagePublisher;
 
     @Override
     public List<OrderListDto> getAllOrders() {
@@ -43,7 +50,6 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     public OrderDetailDto adminGetOrderDetail(Long id) {
         return getOrderDetail(id);
     }
-
 
     @Override
     public List<OrderListDto> getUserOrdersByStatus(String email, OrderStatus status) {
@@ -72,8 +78,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 order.getAddress() != null ? order.getAddress().getFullName() : null,
                 buildFullAddress(order),
                 items,
-                order.getUser().getUserId()
-        );
+                order.getUser().getUserId());
     }
 
     @Override
@@ -87,8 +92,14 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
             throw new IllegalStateException("Only PENDING or CONFIRMED orders can be cancelled");
         }
 
+        for (OrderItem item : order.getOrderItems()) {
+            inventoryService.increaseStock(item.getProductItem().getItemId(), item.getQuantity());
+        }
+
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
+
+        messagePublisher.publishOrderCancelled(buildOrderCancelledMessage(order));
     }
 
     @Override
@@ -125,9 +136,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
             ProductItem productItem = productItemRepository.findById(cartItem.getItemId())
                     .orElseThrow(() -> new RuntimeException("Product item not found: " + cartItem.getItemId()));
 
-            // Check stock availability
-            // ✅ SỬA: Dùng getQty() thay vì getQuantity()
-            if (productItem.getStockQuantity() < cartItem.getQty()) {
+            if (!inventoryService.checkAvailability(productItem.getItemId(), cartItem.getQty())) {
                 throw new RuntimeException("Insufficient stock for product: " + productItem.getProduct().getName());
             }
 
@@ -141,8 +150,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
             order.getOrderItems().add(orderItem);
 
             // Update stock
-            productItem.setStockQuantity(productItem.getStockQuantity() - cartItem.getQty()); // ✅ SỬA: Dùng getQty()
-            productItemRepository.save(productItem);
+            inventoryService.decreaseStock(productItem.getItemId(), cartItem.getQty());
 
             // ✅ SỬA: Tính total với getQty()
             totalAmount = totalAmount.add(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQty())));
@@ -176,6 +184,8 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
 
         cartService.clearCart(email);
 
+        publishOrderCreatedEvent(savedOrder, paymentMethod);
+
         return CheckoutResponse.builder()
                 .orderId(savedOrder.getOrderId())
                 .paymentMethod(paymentMethod.name())
@@ -201,8 +211,6 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
         // Validate status transition
         validateStatusTransition(order.getStatus(), status);
 
-
-
         // If order is delivered, mark payment as completed
         if (status == OrderStatus.DELIVERED && order.getPayment() != null) {
 
@@ -217,6 +225,13 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 paymentRepository.save(order.getPayment());
             }
         }
+        if (status == OrderStatus.CANCELLED && order.getStatus() != OrderStatus.CANCELLED) {
+            for (OrderItem item : order.getOrderItems()) {
+                inventoryService.increaseStock(item.getProductItem().getItemId(), item.getQuantity());
+            }
+            messagePublisher.publishOrderCancelled(buildOrderCancelledMessage(order));
+        }
+
         order.setStatus(status);
         orderRepository.save(order);
 
@@ -238,8 +253,7 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 o.getOrderId(),
                 o.getOrderDate(),
                 o.getStatus(),
-                o.getTotalAmount()
-        );
+                o.getTotalAmount());
     }
 
     private OrderItemDto toItemDto(OrderItem oi) {
@@ -253,22 +267,73 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
                 pi.getColor(),
                 oi.getQuantity(),
                 oi.getPrice(),
-                product.getAvatar()
-        );
+                product.getAvatar());
     }
 
-
     private String buildFullAddress(Order order) {
-        if (order.getAddress() == null) return null;
+        if (order.getAddress() == null)
+            return null;
         return String.join(", ",
                 order.getAddress().getStreet(),
                 order.getAddress().getWard(),
                 order.getAddress().getDistrict(),
-                order.getAddress().getProvince()
-        );
+                order.getAddress().getProvince());
     }
 
     private String generateTxnRef(Order order) {
         return "ORD" + order.getOrderId() + System.currentTimeMillis();
+    }
+
+    private void publishOrderCreatedEvent(Order order, PaymentMethod paymentMethod) {
+        User user = order.getUser();
+        Address address = order.getAddress();
+
+        String customerName = buildCustomerName(user);
+
+        List<OrderCreatedMessage.ItemLine> items = order.getOrderItems().stream()
+                .map(item -> OrderCreatedMessage.ItemLine.builder()
+                        .name(item.getProductItem().getProduct().getName())
+                        .color(item.getProductItem().getColor())
+                        .quantity(item.getQuantity())
+                        .unitPrice(item.getPrice())
+                        .build())
+                .collect(Collectors.toList());
+
+        OrderCreatedMessage message = OrderCreatedMessage.builder()
+                .orderId(order.getOrderId())
+                .customerEmail(user.getEmail())
+                .customerName(customerName)
+                .totalAmount(order.getTotalAmount())
+                .shippingFee(order.getShippingFee())
+                .paymentMethod(paymentMethod.name())
+                .orderDate(order.getOrderDate())
+                .receiverName(address != null ? address.getFullName() : null)
+                .receiverPhone(address != null ? address.getPhoneNumber() : null)
+                .fullAddress(buildFullAddress(order))
+                .items(items)
+                .build();
+
+        messagePublisher.publishOrderCreated(message);
+    }
+
+    private String buildCustomerName(User user) {
+        if (user == null) {
+            return null;
+        }
+        String firstName = user.getFirstName() != null ? user.getFirstName() : "";
+        String lastName = user.getLastName() != null ? user.getLastName() : "";
+        String fullName = (firstName + " " + lastName).trim();
+        return fullName.isBlank() ? user.getEmail() : fullName;
+    }
+
+    private EmailNotificationMessage buildOrderCancelledMessage(Order order) {
+        String email = order.getUser() != null ? order.getUser().getEmail() : null;
+        String subject = "Order cancelled #" + order.getOrderId();
+        String text = "Your order has been cancelled.";
+        return EmailNotificationMessage.builder()
+                .to(email)
+                .subject(subject)
+                .text(text)
+                .build();
     }
 }

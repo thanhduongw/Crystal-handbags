@@ -2,6 +2,7 @@ package iuh.fit.se.backend.dto;
 
 import lombok.*;
 import java.time.LocalDate;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -16,5 +17,5 @@ public class UserProfileDto {
     private String gender;
     private LocalDate dob;
     private String photoUrl;
-    private String role;
+    private Set<String> roles;
 }

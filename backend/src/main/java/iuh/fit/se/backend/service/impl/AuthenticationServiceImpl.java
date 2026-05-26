@@ -6,9 +6,11 @@ import iuh.fit.se.backend.dto.TokenPayload;
 import iuh.fit.se.backend.dto.auth.*;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.RedisTokenRepository;
+import iuh.fit.se.backend.repository.RoleRepository;
 import iuh.fit.se.backend.repository.UserRepository;
 import iuh.fit.se.backend.service.AuthenticationService;
 import iuh.fit.se.backend.service.JwtService;
+import iuh.fit.se.backend.service.OtpService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,12 +32,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final JwtService jwtService;
     private final RedisTokenRepository redisTokenRepository;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final OtpService otpService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        UsernamePasswordAuthenticationToken authenticationToken =
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
+        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                request.getEmail(), request.getPassword());
 
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
         User user = (User) authentication.getPrincipal();
@@ -43,10 +48,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         TokenPayload refreshTokenPayload = jwtService.generateRefreshToken(user);
 
         // Store refresh token info (for rotation tracking)
-//        redisTokenRepository.save(RedisToken.builder()
-//                .jwtId(refreshTokenPayload.getJwtId())
-//                .expiredTime(refreshTokenPayload.getExpiredTime().getTime() / 1000)
-//                .build());
+        // redisTokenRepository.save(RedisToken.builder()
+        // .jwtId(refreshTokenPayload.getJwtId())
+        // .expiredTime(refreshTokenPayload.getExpiredTime().getTime() / 1000)
+        // .build());
 
         return LoginResponse.builder()
                 .accessToken(accessTokenPayload.getToken())
@@ -61,13 +66,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new RuntimeException("Email already exists");
         }
 
+        Role customerRole = roleRepository.findByName("CUSTOMER")
+                .orElseThrow(() -> new RuntimeException("Role CUSTOMER not found"));
+
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .phoneNumber(request.getPhoneNumber())
-                .role(Role.CUSTOMER)
+                .roles(Set.of(customerRole))
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -110,10 +118,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .build());
 
             // Save new refresh token
-//            redisTokenRepository.save(RedisToken.builder()
-//                    .jwtId(newRefreshToken.getJwtId())
-//                    .expiredTime(newRefreshToken.getExpiredTime().getTime() / 1000)
-//                    .build());
+            // redisTokenRepository.save(RedisToken.builder()
+            // .jwtId(newRefreshToken.getJwtId())
+            // .expiredTime(newRefreshToken.getExpiredTime().getTime() / 1000)
+            // .build());
 
             return LoginResponse.builder()
                     .accessToken(newAccessToken.getToken())
@@ -142,5 +150,42 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
 
         redisTokenRepository.save(redisToken);
+    }
+
+    @Override
+    public void sendOtp(SendOtpRequest request) {
+        String purpose = request.getPurpose();
+        String email = request.getEmail();
+
+        if ("REGISTER".equals(purpose) && userRepository.existsByEmail(email)) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        if (("RESET_PASSWORD".equals(purpose) || "LOGIN_2FA".equals(purpose))
+                && !userRepository.existsByEmail(email)) {
+            throw new RuntimeException("Email not found");
+        }
+
+        otpService.sendOtp(email, purpose);
+    }
+
+    @Override
+    public boolean verifyOtp(VerifyOtpRequest request) {
+        return otpService.verifyOtp(request.getEmail(), request.getOtp(), request.getPurpose());
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp(), "RESET_PASSWORD");
+        if (!valid) {
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }

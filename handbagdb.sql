@@ -33,13 +33,45 @@ CREATE TABLE IF NOT EXISTS `address` (
   PRIMARY KEY (`address_id`),
   KEY `FK6i66ijb8twgcqtetl8eeeed6v` (`user_id`),
   CONSTRAINT `FK6i66ijb8twgcqtetl8eeeed6v` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.address: ~3 rows (approximately)
+-- Dumping data for table handbagdb.address: ~4 rows (approximately)
 INSERT INTO `address` (`address_id`, `district`, `full_name`, `is_default`, `phone_number`, `province`, `street`, `ward`, `user_id`) VALUES
 	(1, 'Quận Gò Vấp', 'Lê Vũ Thanh Dương', b'1', '0369384679', 'Thành phố Hồ Chí Minh', '313/20/7 Nguyễn Văn Công', 'Phường 3', 2),
 	(2, 'Quận Gò Vấp', 'Lê Vũ Thanh Dương', b'1', '0369384679', 'Thành phố Hồ Chí Minh', '313/20/7 Nguyễn Văn Công', 'Phường 3', 6),
-	(3, 'Quận Tân Bình', 'Nguyễn Thị Xuân Quỳnh', b'0', '0877152840', 'Thành phố Hồ Chí Minh', '54 Bạch Đằng', 'Phường 2', 6);
+	(3, 'Quận Tân Bình', 'Nguyễn Thị Xuân Quỳnh', b'0', '0877152840', 'Thành phố Hồ Chí Minh', '54 Bạch Đằng', 'Phường 2', 6),
+	(5, 'Quận Gò Vấp', 'Lê Vũ Thanh Dương', b'1', '0369384679', 'Thành phố Hồ Chí Minh', '313/20/7 Nguyễn Văn Công', 'Phường 3', 1);
+
+-- Dumping structure for table handbagdb.ai_conversations
+CREATE TABLE IF NOT EXISTS `ai_conversations` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `deleted` bit(1) DEFAULT NULL,
+  `last_product_context` text DEFAULT NULL,
+  `session_id` varchar(255) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `user_type` enum('ADMIN','CUSTOMER','GUEST') DEFAULT NULL,
+  `user_id` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK1uq0peq5ttjvbxb52g4a4pmhx` (`user_id`),
+  CONSTRAINT `FK1uq0peq5ttjvbxb52g4a4pmhx` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table handbagdb.ai_conversations: ~0 rows (approximately)
+
+-- Dumping structure for table handbagdb.ai_messages
+CREATE TABLE IF NOT EXISTS `ai_messages` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `content` text DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `role` enum('ASSISTANT','SYSTEM','TOOL','USER') DEFAULT NULL,
+  `conversation_id` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKtq1w3mm8r0ioqoyvvxjs765jf` (`conversation_id`),
+  CONSTRAINT `FKtq1w3mm8r0ioqoyvvxjs765jf` FOREIGN KEY (`conversation_id`) REFERENCES `ai_conversations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table handbagdb.ai_messages: ~0 rows (approximately)
 
 -- Dumping structure for table handbagdb.cart
 CREATE TABLE IF NOT EXISTS `cart` (
@@ -68,7 +100,7 @@ CREATE TABLE IF NOT EXISTS `cart_item` (
   KEY `FKqka78udg4oy9g9gn5558ndkq6` (`item_id`),
   CONSTRAINT `FK1uobyhgl1wvgt1jpccia8xxs3` FOREIGN KEY (`cart_id`) REFERENCES `cart` (`cart_id`),
   CONSTRAINT `FKqka78udg4oy9g9gn5558ndkq6` FOREIGN KEY (`item_id`) REFERENCES `product_item` (`item_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table handbagdb.cart_item: ~0 rows (approximately)
 
@@ -89,6 +121,133 @@ INSERT INTO `category` (`category_id`, `description`, `image_url`, `name`) VALUE
 	(3, 'Túi có form rộng, không khóa, chứa được nhiều đồ.', '//cdn.hstatic.net/products/1000003969/kem_txl116_1_20251125094541_efe9e1ce2c544a03a1f574100bc7d995_master.jpeg', 'Túi tote'),
 	(4, 'Ví cầm tay nhỏ, thường dùng trong các buổi tiệc sang trọng.', '//cdn.hstatic.net/products/1000003969/xanh_vi230_1_20251118153450_3bb2795f54854f3a83dd670bf0e5f1b0_grande.jpeg', 'Ví');
 
+-- Dumping structure for table handbagdb.inventory
+CREATE TABLE IF NOT EXISTS `inventory` (
+  `inventory_id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `item_id` bigint(20) NOT NULL,
+  `stock_quantity` int(11) NOT NULL,
+  `reserved_quantity` int(11) NOT NULL DEFAULT 0,
+  `sold_quantity` int(11) NOT NULL DEFAULT 0,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`inventory_id`),
+  UNIQUE KEY `item_id` (`item_id`),
+  CONSTRAINT `fk_inventory_item` FOREIGN KEY (`item_id`) REFERENCES `product_item` (`item_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=128 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table handbagdb.inventory: ~111 rows (approximately)
+INSERT INTO `inventory` (`inventory_id`, `item_id`, `stock_quantity`, `reserved_quantity`, `sold_quantity`, `updated_at`) VALUES
+	(1, 1, 7, 0, 2, '2026-05-26 15:44:09'),
+	(2, 4, 11, 0, 0, '2026-05-26 15:44:09'),
+	(3, 5, 11, 0, 0, '2026-05-26 15:44:09'),
+	(4, 6, 11, 0, 0, '2026-05-26 15:44:09'),
+	(5, 7, 12, 0, 0, '2026-05-26 15:44:09'),
+	(6, 8, 12, 0, 0, '2026-05-26 15:44:09'),
+	(7, 9, 11, 0, 0, '2026-05-26 15:44:09'),
+	(8, 10, 12, 0, 0, '2026-05-26 15:44:09'),
+	(9, 11, 12, 0, 0, '2026-05-26 15:44:09'),
+	(10, 12, 10, 0, 0, '2026-05-26 15:44:09'),
+	(11, 13, 12, 0, 0, '2026-05-26 15:44:09'),
+	(12, 14, 12, 0, 0, '2026-05-26 15:44:09'),
+	(13, 15, 10, 0, 0, '2026-05-26 15:44:09'),
+	(14, 16, 12, 0, 0, '2026-05-26 15:44:09'),
+	(15, 17, 12, 0, 0, '2026-05-26 15:44:09'),
+	(16, 18, 12, 0, 0, '2026-05-26 15:44:09'),
+	(17, 19, 12, 0, 0, '2026-05-26 15:44:09'),
+	(18, 20, 12, 0, 0, '2026-05-26 15:44:09'),
+	(19, 21, 12, 0, 0, '2026-05-26 15:44:09'),
+	(20, 22, 12, 0, 0, '2026-05-26 15:44:09'),
+	(21, 23, 12, 0, 0, '2026-05-26 15:44:09'),
+	(22, 24, 12, 0, 0, '2026-05-26 15:44:09'),
+	(23, 25, 12, 0, 0, '2026-05-26 15:44:09'),
+	(24, 26, 12, 0, 0, '2026-05-26 15:44:09'),
+	(25, 27, 12, 0, 0, '2026-05-26 15:44:09'),
+	(26, 28, 11, 0, 0, '2026-05-26 15:44:09'),
+	(27, 29, 12, 0, 0, '2026-05-26 15:44:09'),
+	(28, 30, 12, 0, 0, '2026-05-26 15:44:09'),
+	(29, 31, 12, 0, 0, '2026-05-26 15:44:09'),
+	(30, 32, 12, 0, 0, '2026-05-26 15:44:09'),
+	(31, 33, 12, 0, 0, '2026-05-26 15:44:09'),
+	(32, 34, 12, 0, 0, '2026-05-26 15:44:09'),
+	(33, 35, 12, 0, 0, '2026-05-26 15:44:09'),
+	(34, 36, 12, 0, 0, '2026-05-26 15:44:09'),
+	(35, 37, 12, 0, 0, '2026-05-26 15:44:09'),
+	(36, 38, 12, 0, 0, '2026-05-26 15:44:09'),
+	(37, 39, 12, 0, 0, '2026-05-26 15:44:09'),
+	(38, 40, 12, 0, 0, '2026-05-26 15:44:09'),
+	(39, 41, 12, 0, 0, '2026-05-26 15:44:09'),
+	(40, 42, 12, 0, 0, '2026-05-26 15:44:09'),
+	(41, 43, 12, 0, 0, '2026-05-26 15:44:09'),
+	(42, 44, 12, 0, 0, '2026-05-26 15:44:09'),
+	(43, 45, 12, 0, 0, '2026-05-26 15:44:09'),
+	(44, 46, 12, 0, 0, '2026-05-26 15:44:09'),
+	(45, 47, 12, 0, 0, '2026-05-26 15:44:09'),
+	(46, 48, 12, 0, 0, '2026-05-26 15:44:09'),
+	(47, 49, 12, 0, 0, '2026-05-26 15:44:09'),
+	(48, 50, 12, 0, 0, '2026-05-26 15:44:09'),
+	(49, 51, 12, 0, 0, '2026-05-26 15:44:09'),
+	(50, 52, 12, 0, 0, '2026-05-26 15:44:09'),
+	(51, 53, 12, 0, 0, '2026-05-26 15:44:09'),
+	(52, 54, 12, 0, 0, '2026-05-26 15:44:09'),
+	(53, 55, 12, 0, 0, '2026-05-26 15:44:09'),
+	(54, 56, 12, 0, 0, '2026-05-26 15:44:09'),
+	(55, 57, 12, 0, 0, '2026-05-26 15:44:09'),
+	(56, 58, 12, 0, 0, '2026-05-26 15:44:09'),
+	(57, 59, 12, 0, 0, '2026-05-26 15:44:09'),
+	(58, 60, 12, 0, 0, '2026-05-26 15:44:09'),
+	(59, 61, 12, 0, 0, '2026-05-26 15:44:09'),
+	(60, 62, 12, 0, 0, '2026-05-26 15:44:09'),
+	(61, 63, 12, 0, 0, '2026-05-26 15:44:09'),
+	(62, 64, 12, 0, 0, '2026-05-26 15:44:09'),
+	(63, 65, 11, 0, 0, '2026-05-26 15:44:09'),
+	(64, 66, 12, 0, 0, '2026-05-26 15:44:09'),
+	(65, 67, 12, 0, 0, '2026-05-26 15:44:09'),
+	(66, 68, 12, 0, 0, '2026-05-26 15:44:09'),
+	(67, 69, 12, 0, 0, '2026-05-26 15:44:09'),
+	(68, 70, 12, 0, 0, '2026-05-26 15:44:09'),
+	(69, 71, 12, 0, 0, '2026-05-26 15:44:09'),
+	(70, 72, 12, 0, 0, '2026-05-26 15:44:09'),
+	(71, 73, 12, 0, 0, '2026-05-26 15:44:09'),
+	(72, 74, 12, 0, 0, '2026-05-26 15:44:09'),
+	(73, 75, 12, 0, 0, '2026-05-26 15:44:09'),
+	(74, 76, 12, 0, 0, '2026-05-26 15:44:09'),
+	(75, 77, 12, 0, 0, '2026-05-26 15:44:09'),
+	(76, 78, 12, 0, 0, '2026-05-26 15:44:09'),
+	(77, 79, 12, 0, 0, '2026-05-26 15:44:09'),
+	(78, 80, 12, 0, 0, '2026-05-26 15:44:09'),
+	(79, 81, 12, 0, 0, '2026-05-26 15:44:09'),
+	(80, 82, 12, 0, 0, '2026-05-26 15:44:09'),
+	(81, 83, 12, 0, 0, '2026-05-26 15:44:09'),
+	(82, 84, 12, 0, 0, '2026-05-26 15:44:09'),
+	(83, 85, 12, 0, 0, '2026-05-26 15:44:09'),
+	(84, 86, 12, 0, 0, '2026-05-26 15:44:09'),
+	(85, 87, 12, 0, 0, '2026-05-26 15:44:09'),
+	(86, 88, 12, 0, 0, '2026-05-26 15:44:09'),
+	(87, 89, 12, 0, 0, '2026-05-26 15:44:09'),
+	(88, 90, 12, 0, 0, '2026-05-26 15:44:09'),
+	(89, 91, 12, 0, 0, '2026-05-26 15:44:09'),
+	(90, 92, 12, 0, 0, '2026-05-26 15:44:09'),
+	(91, 93, 12, 0, 0, '2026-05-26 15:44:09'),
+	(92, 94, 12, 0, 0, '2026-05-26 15:44:09'),
+	(93, 95, 12, 0, 0, '2026-05-26 15:44:09'),
+	(94, 96, 12, 0, 0, '2026-05-26 15:44:09'),
+	(95, 97, 12, 0, 0, '2026-05-26 15:44:09'),
+	(96, 98, 12, 0, 0, '2026-05-26 15:44:09'),
+	(97, 99, 12, 0, 0, '2026-05-26 15:44:09'),
+	(98, 100, 12, 0, 0, '2026-05-26 15:44:09'),
+	(99, 101, 12, 0, 0, '2026-05-26 15:44:09'),
+	(100, 102, 12, 0, 0, '2026-05-26 15:44:09'),
+	(101, 103, 12, 0, 0, '2026-05-26 15:44:09'),
+	(102, 104, 12, 0, 0, '2026-05-26 15:44:09'),
+	(103, 105, 12, 0, 0, '2026-05-26 15:44:09'),
+	(104, 109, 11, 0, 0, '2026-05-26 15:44:09'),
+	(105, 110, 12, 0, 0, '2026-05-26 15:44:09'),
+	(106, 111, 12, 0, 0, '2026-05-26 15:44:09'),
+	(107, 116, 10, 0, 0, '2026-05-26 15:44:09'),
+	(108, 117, 10, 0, 0, '2026-05-26 15:44:09'),
+	(109, 118, 11, 0, 0, '2026-05-26 15:44:09'),
+	(110, 119, 12, 0, 0, '2026-05-26 15:44:09'),
+	(111, 120, 12, 0, 0, '2026-05-26 15:44:09');
+
 -- Dumping structure for table handbagdb.orders
 CREATE TABLE IF NOT EXISTS `orders` (
   `order_id` bigint(20) NOT NULL AUTO_INCREMENT,
@@ -103,9 +262,9 @@ CREATE TABLE IF NOT EXISTS `orders` (
   KEY `FK32ql8ubntj5uh44ph9659tiih` (`user_id`),
   CONSTRAINT `FK32ql8ubntj5uh44ph9659tiih` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
   CONSTRAINT `FKf5464gxwc32ongdvka2rtvw96` FOREIGN KEY (`address_id`) REFERENCES `address` (`address_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.orders: ~8 rows (approximately)
+-- Dumping data for table handbagdb.orders: ~10 rows (approximately)
 INSERT INTO `orders` (`order_id`, `order_date`, `shipping_fee`, `status`, `total_amount`, `address_id`, `user_id`) VALUES
 	(1, '2025-12-10 18:06:46.016150', 15000.00, 'DELIVERED', 2412000.00, 1, 2),
 	(2, '2025-12-10 18:18:28.506518', 15000.00, 'DELIVERED', 864000.00, 1, 2),
@@ -114,7 +273,9 @@ INSERT INTO `orders` (`order_id`, `order_date`, `shipping_fee`, `status`, `total
 	(5, '2025-12-10 23:09:44.192577', 15000.00, 'CANCELLED', 1713000.00, 2, 6),
 	(6, '2025-12-11 01:04:52.304878', 15000.00, 'PENDING', 1613000.00, 1, 2),
 	(7, '2025-12-11 05:22:39.592168', 15000.00, 'PENDING', 814000.00, 1, 2),
-	(8, '2025-12-11 14:04:06.680715', 15000.00, 'PENDING', 764000.00, 1, 2);
+	(8, '2025-12-11 14:04:06.680715', 15000.00, 'PENDING', 764000.00, 1, 2),
+	(11, '2026-05-26 23:25:31.799604', 15000.00, 'PENDING', 764000.00, 5, 1),
+	(12, '2026-05-26 23:26:04.833940', 15000.00, 'PENDING', 764000.00, 2, 6);
 
 -- Dumping structure for table handbagdb.order_item
 CREATE TABLE IF NOT EXISTS `order_item` (
@@ -128,9 +289,9 @@ CREATE TABLE IF NOT EXISTS `order_item` (
   KEY `FKb38vk9ekyl1vbqvfe99r8h990` (`item_id`),
   CONSTRAINT `FKb38vk9ekyl1vbqvfe99r8h990` FOREIGN KEY (`item_id`) REFERENCES `product_item` (`item_id`),
   CONSTRAINT `FKt4dc2r9nbvbujrljv3e23iibt` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.order_item: ~13 rows (approximately)
+-- Dumping data for table handbagdb.order_item: ~15 rows (approximately)
 INSERT INTO `order_item` (`order_item_id`, `price`, `quantity`, `order_id`, `item_id`) VALUES
 	(1, 749000.00, 1, 1, 1),
 	(2, 799000.00, 1, 1, 6),
@@ -144,7 +305,9 @@ INSERT INTO `order_item` (`order_item_id`, `price`, `quantity`, `order_id`, `ite
 	(10, 849000.00, 1, 6, 5),
 	(11, 749000.00, 1, 6, 65),
 	(12, 799000.00, 1, 7, 15),
-	(13, 749000.00, 1, 8, 1);
+	(13, 749000.00, 1, 8, 1),
+	(16, 749000.00, 1, 11, 1),
+	(17, 749000.00, 1, 12, 1);
 
 -- Dumping structure for table handbagdb.payment
 CREATE TABLE IF NOT EXISTS `payment` (
@@ -152,23 +315,32 @@ CREATE TABLE IF NOT EXISTS `payment` (
   `amount` decimal(38,2) DEFAULT NULL,
   `payment_date` datetime(6) DEFAULT NULL,
   `payment_method` enum('BANK_TRANSFER','CARD','CASH','UPI') DEFAULT NULL,
-  `status` bit(1) DEFAULT NULL,
+  `status` enum('PENDING','SUCCESS','FAILED','CANCELLED') DEFAULT NULL,
   `order_id` bigint(20) DEFAULT NULL,
+  `bank_code` varchar(255) DEFAULT NULL,
+  `order_info` varchar(255) DEFAULT NULL,
+  `response_code` varchar(255) DEFAULT NULL,
+  `transaction_no` varchar(255) DEFAULT NULL,
+  `transaction_status` varchar(255) DEFAULT NULL,
+  `txn_ref` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`payment_id`),
   UNIQUE KEY `UKmf7n8wo2rwrxsd6f3t9ub2mep` (`order_id`),
+  UNIQUE KEY `UK3lfsican6ilyolgakyooqlrm` (`txn_ref`),
   CONSTRAINT `FKlouu98csyullos9k25tbpk4va` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.payment: ~8 rows (approximately)
-INSERT INTO `payment` (`payment_id`, `amount`, `payment_date`, `payment_method`, `status`, `order_id`) VALUES
-	(1, 2412000.00, '2025-12-10 18:06:46.025708', 'CASH', b'1', 1),
-	(2, 864000.00, '2025-12-10 18:18:28.513058', 'CASH', b'1', 2),
-	(3, 814000.00, '2025-12-10 18:54:46.215937', 'CASH', b'0', 3),
-	(4, 1613000.00, '2025-12-10 18:55:20.531032', 'CASH', b'0', 4),
-	(5, 1713000.00, '2025-12-10 23:09:44.207355', 'CASH', b'0', 5),
-	(6, 1613000.00, '2025-12-11 01:04:52.391281', 'CASH', b'0', 6),
-	(7, 814000.00, '2025-12-11 05:22:39.620140', 'CASH', b'0', 7),
-	(8, 764000.00, '2025-12-11 14:04:06.716402', 'CASH', b'0', 8);
+-- Dumping data for table handbagdb.payment: ~10 rows (approximately)
+INSERT INTO `payment` (`payment_id`, `amount`, `payment_date`, `payment_method`, `status`, `order_id`, `bank_code`, `order_info`, `response_code`, `transaction_no`, `transaction_status`, `txn_ref`) VALUES
+	(1, 2412000.00, '2025-12-10 18:06:46.025708', 'CASH', 'PENDING', 1, NULL, NULL, NULL, NULL, NULL, NULL),
+	(2, 864000.00, '2025-12-10 18:18:28.513058', 'CASH', 'PENDING', 2, NULL, NULL, NULL, NULL, NULL, NULL),
+	(3, 814000.00, '2025-12-10 18:54:46.215937', 'CASH', '', 3, NULL, NULL, NULL, NULL, NULL, NULL),
+	(4, 1613000.00, '2025-12-10 18:55:20.531032', 'CASH', '', 4, NULL, NULL, NULL, NULL, NULL, NULL),
+	(5, 1713000.00, '2025-12-10 23:09:44.207355', 'CASH', '', 5, NULL, NULL, NULL, NULL, NULL, NULL),
+	(6, 1613000.00, '2025-12-11 01:04:52.391281', 'CASH', '', 6, NULL, NULL, NULL, NULL, NULL, NULL),
+	(7, 814000.00, '2025-12-11 05:22:39.620140', 'CASH', '', 7, NULL, NULL, NULL, NULL, NULL, NULL),
+	(8, 764000.00, '2025-12-11 14:04:06.716402', 'CASH', '', 8, NULL, NULL, NULL, NULL, NULL, NULL),
+	(9, 764000.00, NULL, 'CASH', 'PENDING', 11, NULL, NULL, NULL, NULL, NULL, NULL),
+	(10, 764000.00, NULL, 'CASH', 'PENDING', 12, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- Dumping structure for table handbagdb.product
 CREATE TABLE IF NOT EXISTS `product` (
@@ -690,7 +862,6 @@ CREATE TABLE IF NOT EXISTS `product_item` (
   `created_at` datetime(6) DEFAULT NULL,
   `price` decimal(38,2) DEFAULT NULL,
   `size` varchar(255) DEFAULT NULL,
-  `stock_quantity` int(11) DEFAULT NULL,
   `product_id` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`item_id`),
   KEY `FKa9mjpi98ark8eovbtnnreygbb` (`product_id`),
@@ -698,118 +869,132 @@ CREATE TABLE IF NOT EXISTS `product_item` (
 ) ENGINE=InnoDB AUTO_INCREMENT=121 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table handbagdb.product_item: ~111 rows (approximately)
-INSERT INTO `product_item` (`item_id`, `color`, `created_at`, `price`, `size`, `stock_quantity`, `product_id`) VALUES
-	(1, 'Xanh', '2025-12-10 16:56:27.572808', 749000.00, NULL, 9, 1),
-	(4, 'Xanh đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 11, 2),
-	(5, 'Hồng', '2025-12-10 16:56:27.572808', 849000.00, NULL, 11, 2),
-	(6, 'Xanh', '2025-12-10 16:56:27.572808', 799000.00, NULL, 11, 3),
-	(7, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 3),
-	(8, 'Kem', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 3),
-	(9, 'Kem', '2025-12-10 16:56:27.572808', 799000.00, NULL, 11, 4),
-	(10, 'Đỏ', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 4),
-	(11, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 4),
-	(12, 'Đỏ', '2025-12-10 16:56:27.572808', 849000.00, NULL, 10, 5),
-	(13, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 5),
-	(14, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 5),
-	(15, 'Đỏ', '2025-12-10 16:56:27.572808', 799000.00, NULL, 10, 6),
-	(16, 'Kem', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 6),
-	(17, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 7),
-	(18, 'Nâu', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 7),
-	(19, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 7),
-	(20, 'Bạc', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 8),
-	(21, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 8),
-	(22, 'Kem', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 9),
-	(23, 'Hồng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 9),
-	(24, 'Đen', '2025-12-10 16:56:27.572808', 399000.00, NULL, 12, 10),
-	(25, 'Nâu', '2025-12-10 16:56:27.572808', 399000.00, NULL, 12, 10),
-	(26, 'Xanh', '2025-12-10 16:56:27.572808', 949000.00, NULL, 12, 11),
-	(27, 'Nâu', '2025-12-10 16:56:27.572808', 949000.00, NULL, 12, 11),
-	(28, 'Kem', '2025-12-10 16:56:27.572808', 899000.00, NULL, 11, 12),
-	(29, 'Nâu', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 12),
-	(30, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 12),
-	(31, 'Xanh', '2025-12-10 16:56:27.572808', 499000.00, NULL, 12, 13),
-	(32, 'Đen', '2025-12-10 16:56:27.572808', 499000.00, NULL, 12, 13),
-	(33, 'Nâu', '2025-12-10 16:56:27.572808', 499000.00, NULL, 12, 13),
-	(34, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 14),
-	(35, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 15),
-	(36, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 16),
-	(37, 'Đen', '2025-12-10 16:56:27.572808', 949000.00, NULL, 12, 17),
-	(38, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 18),
-	(39, 'Hồng', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 18),
-	(40, 'Hồng', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 19),
-	(41, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 19),
-	(42, 'Hồng', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 20),
-	(43, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 20),
-	(44, 'Bạc', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 20),
-	(45, 'Nâu', '2025-12-10 16:56:27.572808', 949000.00, NULL, 12, 21),
-	(46, 'Đen', '2025-12-10 16:56:27.572808', 949000.00, NULL, 12, 21),
-	(47, 'Hồng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 22),
-	(48, 'Đen', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 22),
-	(49, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 23),
-	(50, 'Kem', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 23),
-	(51, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 24),
-	(52, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 25),
-	(53, 'Nâu', '2025-12-10 16:56:27.572808', 299000.00, NULL, 12, 26),
-	(54, 'Đen', '2025-12-10 16:56:27.572808', 299000.00, NULL, 12, 26),
-	(55, 'Hồng', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 27),
-	(56, 'Trắng', '2025-12-10 16:56:27.572808', 249000.00, NULL, 12, 28),
-	(57, 'Đen', '2025-12-10 16:56:27.572808', 249000.00, NULL, 12, 28),
-	(58, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 29),
-	(59, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 30),
-	(60, 'Xanh', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 30),
-	(61, 'Kem', '2025-12-10 16:56:27.572808', 639000.00, NULL, 12, 31),
-	(62, 'Kem', '2025-12-10 16:56:27.572808', 719000.00, NULL, 12, 32),
-	(63, 'Đen', '2025-12-10 16:56:27.572808', 719000.00, NULL, 12, 32),
-	(64, 'Nâu', '2025-12-10 16:56:27.572808', 699000.00, NULL, 12, 33),
-	(65, 'Vàng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 11, 34),
-	(66, 'Trắng kem', '2025-12-10 16:56:27.572808', 299000.00, NULL, 12, 35),
-	(67, 'Hồng', '2025-12-10 16:56:27.572808', 299000.00, NULL, 12, 35),
-	(68, 'Đen', '2025-12-10 16:56:27.572808', 299000.00, NULL, 12, 35),
-	(69, 'Đỏ', '2025-12-10 16:56:27.572808', 299000.00, NULL, 12, 35),
-	(70, 'Kem', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 36),
-	(71, 'Đen', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 36),
-	(72, 'Nâu', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 37),
-	(73, 'Bạc', '2025-12-10 16:56:27.572808', 649000.00, NULL, 12, 38),
-	(74, 'Xanh', '2025-12-10 16:56:27.572808', 649000.00, NULL, 12, 38),
-	(75, 'Kem', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 39),
-	(76, 'Đen vân', '2025-12-10 16:56:27.572808', 949000.00, NULL, 12, 40),
-	(77, 'Kem', '2025-12-10 16:56:27.572808', 719000.00, NULL, 12, 41),
-	(78, 'Đen', '2025-12-10 16:56:27.572808', 719000.00, NULL, 12, 41),
-	(79, 'Đỏ', '2025-12-10 16:56:27.572808', 549000.00, NULL, 12, 42),
-	(80, 'Nâu', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 43),
-	(81, 'Kem', '2025-12-10 16:56:27.572808', 639000.00, NULL, 12, 44),
-	(82, 'Kem', '2025-12-10 16:56:27.572808', 449000.00, NULL, 12, 45),
-	(83, 'Xanh', '2025-12-10 16:56:27.572808', 449000.00, NULL, 12, 45),
-	(84, 'Đỏ', '2025-12-10 16:56:27.572808', 599000.00, NULL, 12, 46),
-	(85, 'Kem', '2025-12-10 16:56:27.572808', 449000.00, NULL, 12, 47),
-	(86, 'Hồng', '2025-12-10 16:56:27.572808', 449000.00, NULL, 12, 47),
-	(87, 'Đen', '2025-12-10 16:56:27.572808', 499000.00, NULL, 12, 48),
-	(88, 'Kem', '2025-12-10 16:56:27.572808', 499000.00, NULL, 12, 48),
-	(89, 'Kem', '2025-12-10 16:56:27.572808', 549000.00, NULL, 12, 49),
-	(90, 'Kem', '2025-12-10 16:56:27.572808', 549000.00, NULL, 12, 50),
-	(91, 'Xanh', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 51),
-	(92, 'Hồng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 12, 51),
-	(93, 'Nâu', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 52),
-	(94, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 53),
-	(95, 'Xanh', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 53),
-	(96, 'Kem', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12, 54),
-	(97, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 12, 55),
-	(98, 'Kem', '2025-12-10 16:56:27.572808', 499000.00, NULL, 12, 56),
-	(99, 'Đen', '2025-12-10 16:56:27.572808', 499000.00, NULL, 12, 57),
-	(100, 'Hồng', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 58),
-	(101, 'Đỏ', '2025-12-10 16:56:27.572808', 799000.00, NULL, 12, 58),
-	(102, 'Đen', '2025-12-10 16:56:27.572808', 549000.00, NULL, 12, 59),
-	(103, 'Nâu', '2025-12-10 16:56:27.572808', 959000.00, NULL, 12, 60),
-	(104, 'Hồng', '2025-12-10 16:56:27.572808', 959000.00, NULL, 12, 61),
-	(105, 'Kem vân', '2025-12-10 16:56:27.572808', 395000.00, NULL, 12, 62),
-	(109, 'Xanh đen', '2025-12-10 18:50:52.256393', 849000.00, NULL, 11, 2),
-	(110, 'Hồng', '2025-12-10 18:50:52.260133', 849000.00, NULL, 12, 2),
-	(111, 'Trắng', '2025-12-10 19:09:03.516052', 990000.00, NULL, 12, 63),
-	(116, 'Xanh', '2025-12-10 23:34:38.081375', 749000.00, NULL, 10, 1),
-	(117, 'Xanh', '2025-12-10 23:34:38.085360', 749000.00, NULL, 10, 1),
-	(118, 'Xanh', '2025-12-10 23:34:38.086873', 749000.00, NULL, 11, 1),
-	(119, 'Đen', '2025-12-10 23:34:38.088381', 749000.00, NULL, 12, 1),
-	(120, 'Kem', '2025-12-10 23:34:38.091430', 749000.00, NULL, 12, 1);
+INSERT INTO `product_item` (`item_id`, `color`, `created_at`, `price`, `size`, `product_id`) VALUES
+	(1, 'Xanh', '2025-12-10 16:56:27.572808', 749000.00, NULL, 1),
+	(4, 'Xanh đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 2),
+	(5, 'Hồng', '2025-12-10 16:56:27.572808', 849000.00, NULL, 2),
+	(6, 'Xanh', '2025-12-10 16:56:27.572808', 799000.00, NULL, 3),
+	(7, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 3),
+	(8, 'Kem', '2025-12-10 16:56:27.572808', 799000.00, NULL, 3),
+	(9, 'Kem', '2025-12-10 16:56:27.572808', 799000.00, NULL, 4),
+	(10, 'Đỏ', '2025-12-10 16:56:27.572808', 799000.00, NULL, 4),
+	(11, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 4),
+	(12, 'Đỏ', '2025-12-10 16:56:27.572808', 849000.00, NULL, 5),
+	(13, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 5),
+	(14, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 5),
+	(15, 'Đỏ', '2025-12-10 16:56:27.572808', 799000.00, NULL, 6),
+	(16, 'Kem', '2025-12-10 16:56:27.572808', 799000.00, NULL, 6),
+	(17, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 7),
+	(18, 'Nâu', '2025-12-10 16:56:27.572808', 849000.00, NULL, 7),
+	(19, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 7),
+	(20, 'Bạc', '2025-12-10 16:56:27.572808', 849000.00, NULL, 8),
+	(21, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 8),
+	(22, 'Kem', '2025-12-10 16:56:27.572808', 749000.00, NULL, 9),
+	(23, 'Hồng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 9),
+	(24, 'Đen', '2025-12-10 16:56:27.572808', 399000.00, NULL, 10),
+	(25, 'Nâu', '2025-12-10 16:56:27.572808', 399000.00, NULL, 10),
+	(26, 'Xanh', '2025-12-10 16:56:27.572808', 949000.00, NULL, 11),
+	(27, 'Nâu', '2025-12-10 16:56:27.572808', 949000.00, NULL, 11),
+	(28, 'Kem', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12),
+	(29, 'Nâu', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12),
+	(30, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 12),
+	(31, 'Xanh', '2025-12-10 16:56:27.572808', 499000.00, NULL, 13),
+	(32, 'Đen', '2025-12-10 16:56:27.572808', 499000.00, NULL, 13),
+	(33, 'Nâu', '2025-12-10 16:56:27.572808', 499000.00, NULL, 13),
+	(34, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 14),
+	(35, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 15),
+	(36, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 16),
+	(37, 'Đen', '2025-12-10 16:56:27.572808', 949000.00, NULL, 17),
+	(38, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 18),
+	(39, 'Hồng', '2025-12-10 16:56:27.572808', 849000.00, NULL, 18),
+	(40, 'Hồng', '2025-12-10 16:56:27.572808', 799000.00, NULL, 19),
+	(41, 'Đen', '2025-12-10 16:56:27.572808', 799000.00, NULL, 19),
+	(42, 'Hồng', '2025-12-10 16:56:27.572808', 899000.00, NULL, 20),
+	(43, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 20),
+	(44, 'Bạc', '2025-12-10 16:56:27.572808', 899000.00, NULL, 20),
+	(45, 'Nâu', '2025-12-10 16:56:27.572808', 949000.00, NULL, 21),
+	(46, 'Đen', '2025-12-10 16:56:27.572808', 949000.00, NULL, 21),
+	(47, 'Hồng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 22),
+	(48, 'Đen', '2025-12-10 16:56:27.572808', 749000.00, NULL, 22),
+	(49, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 23),
+	(50, 'Kem', '2025-12-10 16:56:27.572808', 899000.00, NULL, 23),
+	(51, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 24),
+	(52, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 25),
+	(53, 'Nâu', '2025-12-10 16:56:27.572808', 299000.00, NULL, 26),
+	(54, 'Đen', '2025-12-10 16:56:27.572808', 299000.00, NULL, 26),
+	(55, 'Hồng', '2025-12-10 16:56:27.572808', 849000.00, NULL, 27),
+	(56, 'Trắng', '2025-12-10 16:56:27.572808', 249000.00, NULL, 28),
+	(57, 'Đen', '2025-12-10 16:56:27.572808', 249000.00, NULL, 28),
+	(58, 'Kem', '2025-12-10 16:56:27.572808', 849000.00, NULL, 29),
+	(59, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 30),
+	(60, 'Xanh', '2025-12-10 16:56:27.572808', 849000.00, NULL, 30),
+	(61, 'Kem', '2025-12-10 16:56:27.572808', 639000.00, NULL, 31),
+	(62, 'Kem', '2025-12-10 16:56:27.572808', 719000.00, NULL, 32),
+	(63, 'Đen', '2025-12-10 16:56:27.572808', 719000.00, NULL, 32),
+	(64, 'Nâu', '2025-12-10 16:56:27.572808', 699000.00, NULL, 33),
+	(65, 'Vàng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 34),
+	(66, 'Trắng kem', '2025-12-10 16:56:27.572808', 299000.00, NULL, 35),
+	(67, 'Hồng', '2025-12-10 16:56:27.572808', 299000.00, NULL, 35),
+	(68, 'Đen', '2025-12-10 16:56:27.572808', 299000.00, NULL, 35),
+	(69, 'Đỏ', '2025-12-10 16:56:27.572808', 299000.00, NULL, 35),
+	(70, 'Kem', '2025-12-10 16:56:27.572808', 749000.00, NULL, 36),
+	(71, 'Đen', '2025-12-10 16:56:27.572808', 749000.00, NULL, 36),
+	(72, 'Nâu', '2025-12-10 16:56:27.572808', 899000.00, NULL, 37),
+	(73, 'Bạc', '2025-12-10 16:56:27.572808', 649000.00, NULL, 38),
+	(74, 'Xanh', '2025-12-10 16:56:27.572808', 649000.00, NULL, 38),
+	(75, 'Kem', '2025-12-10 16:56:27.572808', 749000.00, NULL, 39),
+	(76, 'Đen vân', '2025-12-10 16:56:27.572808', 949000.00, NULL, 40),
+	(77, 'Kem', '2025-12-10 16:56:27.572808', 719000.00, NULL, 41),
+	(78, 'Đen', '2025-12-10 16:56:27.572808', 719000.00, NULL, 41),
+	(79, 'Đỏ', '2025-12-10 16:56:27.572808', 549000.00, NULL, 42),
+	(80, 'Nâu', '2025-12-10 16:56:27.572808', 749000.00, NULL, 43),
+	(81, 'Kem', '2025-12-10 16:56:27.572808', 639000.00, NULL, 44),
+	(82, 'Kem', '2025-12-10 16:56:27.572808', 449000.00, NULL, 45),
+	(83, 'Xanh', '2025-12-10 16:56:27.572808', 449000.00, NULL, 45),
+	(84, 'Đỏ', '2025-12-10 16:56:27.572808', 599000.00, NULL, 46),
+	(85, 'Kem', '2025-12-10 16:56:27.572808', 449000.00, NULL, 47),
+	(86, 'Hồng', '2025-12-10 16:56:27.572808', 449000.00, NULL, 47),
+	(87, 'Đen', '2025-12-10 16:56:27.572808', 499000.00, NULL, 48),
+	(88, 'Kem', '2025-12-10 16:56:27.572808', 499000.00, NULL, 48),
+	(89, 'Kem', '2025-12-10 16:56:27.572808', 549000.00, NULL, 49),
+	(90, 'Kem', '2025-12-10 16:56:27.572808', 549000.00, NULL, 50),
+	(91, 'Xanh', '2025-12-10 16:56:27.572808', 749000.00, NULL, 51),
+	(92, 'Hồng', '2025-12-10 16:56:27.572808', 749000.00, NULL, 51),
+	(93, 'Nâu', '2025-12-10 16:56:27.572808', 899000.00, NULL, 52),
+	(94, 'Đen', '2025-12-10 16:56:27.572808', 899000.00, NULL, 53),
+	(95, 'Xanh', '2025-12-10 16:56:27.572808', 899000.00, NULL, 53),
+	(96, 'Kem', '2025-12-10 16:56:27.572808', 899000.00, NULL, 54),
+	(97, 'Đen', '2025-12-10 16:56:27.572808', 849000.00, NULL, 55),
+	(98, 'Kem', '2025-12-10 16:56:27.572808', 499000.00, NULL, 56),
+	(99, 'Đen', '2025-12-10 16:56:27.572808', 499000.00, NULL, 57),
+	(100, 'Hồng', '2025-12-10 16:56:27.572808', 799000.00, NULL, 58),
+	(101, 'Đỏ', '2025-12-10 16:56:27.572808', 799000.00, NULL, 58),
+	(102, 'Đen', '2025-12-10 16:56:27.572808', 549000.00, NULL, 59),
+	(103, 'Nâu', '2025-12-10 16:56:27.572808', 959000.00, NULL, 60),
+	(104, 'Hồng', '2025-12-10 16:56:27.572808', 959000.00, NULL, 61),
+	(105, 'Kem vân', '2025-12-10 16:56:27.572808', 395000.00, NULL, 62),
+	(109, 'Xanh đen', '2025-12-10 18:50:52.256393', 849000.00, NULL, 2),
+	(110, 'Hồng', '2025-12-10 18:50:52.260133', 849000.00, NULL, 2),
+	(111, 'Trắng', '2025-12-10 19:09:03.516052', 990000.00, NULL, 63),
+	(116, 'Xanh', '2025-12-10 23:34:38.081375', 749000.00, NULL, 1),
+	(117, 'Xanh', '2025-12-10 23:34:38.085360', 749000.00, NULL, 1),
+	(118, 'Xanh', '2025-12-10 23:34:38.086873', 749000.00, NULL, 1),
+	(119, 'Đen', '2025-12-10 23:34:38.088381', 749000.00, NULL, 1),
+	(120, 'Kem', '2025-12-10 23:34:38.091430', 749000.00, NULL, 1);
+
+-- Dumping structure for table handbagdb.roles
+CREATE TABLE IF NOT EXISTS `roles` (
+  `role_id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`role_id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table handbagdb.roles: ~2 rows (approximately)
+INSERT INTO `roles` (`role_id`, `name`, `description`) VALUES
+	(1, 'ADMIN', NULL),
+	(2, 'CUSTOMER', NULL);
 
 -- Dumping structure for table handbagdb.users
 CREATE TABLE IF NOT EXISTS `users` (
@@ -823,16 +1008,33 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password` varchar(255) DEFAULT NULL,
   `phone_number` varchar(255) DEFAULT NULL,
   `photo_url` varchar(255) DEFAULT NULL,
-  `role` enum('ADMIN','CUSTOMER') DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `UK6dotkott2kjsp8vw4d0m25fb7` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.users: ~2 rows (approximately)
-INSERT INTO `users` (`user_id`, `created_at`, `dob`, `email`, `first_name`, `gender`, `last_name`, `password`, `phone_number`, `photo_url`, `role`) VALUES
-	(1, '2024-01-01 10:00:00.000000', '2004-01-28', 'admin@example.com', 'Admin', 'OTHER', 'System', '$2a$10$CPNN3BDyG0aoamjvHGIRtu95TQUzlPYdLrr8GPEl7FnStpkTqIeWq', '0901000001', NULL, 'ADMIN'),
-	(2, '2024-01-02 14:30:00.000000', '1995-05-15', 'customer@example.com', 'Nguyễn', 'MALE', 'Văn A', '$2a$10$CPNN3BDyG0aoamjvHGIRtu95TQUzlPYdLrr8GPEl7FnStpkTqIeWq', '0901000002', 'https://example.com/avatar/customer1.jpg', 'CUSTOMER'),
-	(6, '2025-12-10 18:52:50.532874', '2004-01-28', 'levuthanhduong2004@gmail.com', 'Lê Vũ Thanh', 'MALE', 'Dương', '$2a$10$ecLDwgq2qogAjxWLxWBXW.nbXzGzl2Ag2lVEMCSPJR87HVcgZGwTu', '0877152840', NULL, 'CUSTOMER');
+-- Dumping data for table handbagdb.users: ~4 rows (approximately)
+INSERT INTO `users` (`user_id`, `created_at`, `dob`, `email`, `first_name`, `gender`, `last_name`, `password`, `phone_number`, `photo_url`) VALUES
+	(1, '2024-01-01 10:00:00.000000', '2004-01-28', 'admin@example.com', 'Admin', 'OTHER', 'System', '$2a$10$CPNN3BDyG0aoamjvHGIRtu95TQUzlPYdLrr8GPEl7FnStpkTqIeWq', '0901000001', NULL),
+	(2, '2024-01-02 14:30:00.000000', '1995-05-15', 'customer@example.com', 'Nguyễn', 'MALE', 'Văn A', '$2a$10$CPNN3BDyG0aoamjvHGIRtu95TQUzlPYdLrr8GPEl7FnStpkTqIeWq', '0901000002', 'https://example.com/avatar/customer1.jpg'),
+	(6, '2025-12-10 18:52:50.532874', '2004-01-28', 'levuthanhduong2004@gmail.com', 'Lê Vũ Thanh', 'MALE', 'Dương', '$2a$10$ecLDwgq2qogAjxWLxWBXW.nbXzGzl2Ag2lVEMCSPJR87HVcgZGwTu', '0877152840', NULL),
+	(7, '2026-05-26 23:19:21.957716', NULL, 'levuthanhduong2812004@gmail.com', 'Lê Vũ Thanh', NULL, 'Dương', '$2a$10$wMBmoZ82wyRM6bj8KyxrferkXXAEJnuv56rEDTA7K1rmi5Ze7pccW', '0369384679', NULL);
+
+-- Dumping structure for table handbagdb.user_roles
+CREATE TABLE IF NOT EXISTS `user_roles` (
+  `user_id` bigint(20) NOT NULL,
+  `role_id` bigint(20) NOT NULL,
+  PRIMARY KEY (`user_id`,`role_id`),
+  KEY `fk_user_roles_role` (`role_id`),
+  CONSTRAINT `fk_user_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table handbagdb.user_roles: ~4 rows (approximately)
+INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
+	(1, 1),
+	(2, 2),
+	(6, 2),
+	(7, 2);
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

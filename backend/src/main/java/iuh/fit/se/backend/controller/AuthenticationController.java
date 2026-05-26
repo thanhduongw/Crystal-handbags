@@ -6,11 +6,13 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.ParseException;
+import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
@@ -57,5 +59,24 @@ public class AuthenticationController {
     @PostMapping("/refresh-token")
     public LoginResponse refreshToken(@RequestBody RefreshTokenRequest request) {
         return authenticationService.refreshToken(request);
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<Map<String, String>> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+        authenticationService.sendOtp(request);
+        return ResponseEntity.ok(Map.of("message", "OTP sent to " + request.getEmail()));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Map<String, Object>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        boolean valid = authenticationService.verifyOtp(request);
+        String message = valid ? "OTP is valid" : "OTP is invalid";
+        return ResponseEntity.ok(Map.of("valid", valid, "message", message));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authenticationService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
     }
 }

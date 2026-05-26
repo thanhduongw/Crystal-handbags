@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
 @Entity
 @Table(name = "product_item")
 @Data
@@ -25,7 +26,6 @@ public class ProductItem {
     @JoinColumn(name = "product_id")
     private Product product;
     private String color;
-    private Integer stockQuantity;
     private BigDecimal price;
 
     private LocalDateTime createdAt;
@@ -44,5 +44,8 @@ public class ProductItem {
     @JsonIgnore
     @Builder.Default
     private List<CartItem> cartItems = new ArrayList<>();
-}
 
+    @OneToOne(mappedBy = "productItem", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Inventory inventory;
+}

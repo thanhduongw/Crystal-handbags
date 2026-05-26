@@ -19,6 +19,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -135,6 +136,11 @@ public class JwtServiceImpl implements iuh.fit.se.backend.service.JwtService {
 
     // Helper method to build scope claim from user role
     private String buildScope(User user) {
-        return "ROLE_" + user.getRole().name();
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            return "";
+        }
+        return user.getRoles().stream()
+                .map(role -> "ROLE_" + role.getName())
+                .collect(Collectors.joining(" "));
     }
 }

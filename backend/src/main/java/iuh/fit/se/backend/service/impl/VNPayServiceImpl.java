@@ -1,6 +1,8 @@
 package iuh.fit.se.backend.service.impl;
 
 import iuh.fit.se.backend.config.VNPayConfig;
+import iuh.fit.se.backend.messaging.PaymentResultMessage;
+import iuh.fit.se.backend.messaging.publisher.MessagePublisher;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.OrderRepository;
 import iuh.fit.se.backend.repository.PaymentRepository;
@@ -24,6 +26,7 @@ public class VNPayServiceImpl implements VNPayService {
     private final VNPayConfig vnPayConfig;
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
+    private final MessagePublisher messagePublisher;
 
     @Override
     public String createPaymentUrl(Order order, Payment payment, String clientIp) {
@@ -31,7 +34,8 @@ public class VNPayServiceImpl implements VNPayService {
         params.put("vnp_Version", vnPayConfig.getVersion());
         params.put("vnp_Command", vnPayConfig.getCommand());
         params.put("vnp_TmnCode", vnPayConfig.getTmnCode());
-        params.put("vnp_Amount", payment.getAmount().multiply(java.math.BigDecimal.valueOf(100)).toBigInteger().toString());
+        params.put("vnp_Amount",
+                payment.getAmount().multiply(java.math.BigDecimal.valueOf(100)).toBigInteger().toString());
         params.put("vnp_CurrCode", vnPayConfig.getCurrCode());
         params.put("vnp_TxnRef", payment.getTxnRef());
         params.put("vnp_OrderInfo", payment.getOrderInfo());
@@ -63,12 +67,13 @@ public class VNPayServiceImpl implements VNPayService {
                 sb.append("&");
             }
         }
-        if (sb.isEmpty()) return "";
+        if (sb.isEmpty())
+            return "";
         sb.setLength(sb.length() - 1);
         return sb.toString();
     }
 
-    //Tạo chuỗi dữ liệu để tạo chữ ký
+    // Tạo chuỗi dữ liệu để tạo chữ ký
     private String buildHashData(Map<String, String> params) {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, String> entry : params.entrySet()) {
@@ -79,12 +84,14 @@ public class VNPayServiceImpl implements VNPayService {
                 sb.append("&");
             }
         }
-        if (sb.isEmpty()) return "";
+        if (sb.isEmpty())
+            return "";
         sb.setLength(sb.length() - 1);
         return sb.toString();
     }
 
-    //Xử lý dữ liệu trả về sau khi khách hàng hoàn tất thanh toán và được chuyển hướng về trang kết quả
+    // Xử lý dữ liệu trả về sau khi khách hàng hoàn tất thanh toán và được chuyển
+    // hướng về trang kết quả
     @Override
     @Transactional
     public Map<String, Object> handleReturn(Map<String, String> params) {
@@ -101,10 +108,12 @@ public class VNPayServiceImpl implements VNPayService {
         result.put("responseCode", responseCode);
         result.put("transactionStatus", transactionStatus);
 
-        if (!valid) return result;
+        if (!valid)
+            return result;
 
         Payment payment = paymentRepository.findByTxnRef(txnRef).orElse(null);
-        if (payment == null) return result;
+        if (payment == null)
+            return result;
 
         // ⚠️ chỉ update nếu chưa SUCCESS
         if (payment.getStatus() != PaymentStatus.SUCCESS) {
@@ -126,8 +135,7 @@ public class VNPayServiceImpl implements VNPayService {
         return result;
     }
 
-
-    //Xử lý thông báo IPN từ VNPay để cập nhật trạng thái đơn hàng và thanh toán BE
+    // Xử lý thông báo IPN từ VNPay để cập nhật trạng thái đơn hàng và thanh toán BE
     @Override
     @Transactional
     public Map<String, String> handleIpn(Map<String, String> params) {
@@ -150,9 +158,8 @@ public class VNPayServiceImpl implements VNPayService {
         }
         String amountParam = params.get("vnp_Amount");
         if (amountParam != null) {
-            java.math.BigDecimal returnedAmount =
-                    new java.math.BigDecimal(amountParam)
-                            .divide(java.math.BigDecimal.valueOf(100));
+            java.math.BigDecimal returnedAmount = new java.math.BigDecimal(amountParam)
+                    .divide(java.math.BigDecimal.valueOf(100));
 
             if (payment.getAmount().compareTo(returnedAmount) != 0) {
                 response.put("RspCode", "04");
@@ -181,9 +188,11 @@ public class VNPayServiceImpl implements VNPayService {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setPaymentDate(LocalDateTime.now());
             order.setStatus(OrderStatus.CONFIRMED);
+            messagePublisher.publishPaymentSuccess(buildPaymentResultMessage(payment, true));
         } else {
             payment.setStatus(PaymentStatus.FAILED);
             order.setStatus(OrderStatus.CANCELLED);
+            messagePublisher.publishPaymentFailed(buildPaymentResultMessage(payment, false));
         }
 
         paymentRepository.save(payment);
@@ -194,11 +203,23 @@ public class VNPayServiceImpl implements VNPayService {
         return response;
     }
 
-    //Xác thực chữ ký trả về từ VNPay để đảm bảo dữ liệu không bị giả mạo
+    private PaymentResultMessage buildPaymentResultMessage(Payment payment, boolean success) {
+        return PaymentResultMessage.builder()
+                .orderId(payment.getOrder().getOrderId())
+                .txnRef(payment.getTxnRef())
+                .success(success)
+                .responseCode(payment.getResponseCode())
+                .customerEmail(payment.getOrder().getUser().getEmail())
+                .amount(payment.getAmount())
+                .build();
+    }
+
+    // Xác thực chữ ký trả về từ VNPay để đảm bảo dữ liệu không bị giả mạo
     @Override
     public boolean verifySignature(Map<String, String> params) {
         String vnpSecureHash = params.get("vnp_SecureHash");
-        if (vnpSecureHash == null) return false;
+        if (vnpSecureHash == null)
+            return false;
 
         Map<String, String> filtered = new TreeMap<>(params);
         filtered.remove("vnp_SecureHash");
@@ -210,7 +231,7 @@ public class VNPayServiceImpl implements VNPayService {
         return calculatedHash.equalsIgnoreCase(vnpSecureHash);
     }
 
-    //tạo chữ ký bảo mật
+    // tạo chữ ký bảo mật
     private String hmacSHA512(String key, String data) {
         try {
             Mac hmac512 = Mac.getInstance("HmacSHA512");
@@ -226,8 +247,5 @@ public class VNPayServiceImpl implements VNPayService {
             throw new RuntimeException("Error while hashing", e);
         }
     }
-
-
-
 
 }

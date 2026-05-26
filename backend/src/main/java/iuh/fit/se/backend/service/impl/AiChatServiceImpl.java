@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-
 @Service
 @RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
@@ -35,6 +34,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     private final ProductRepository productRepository;
     private final ProductItemRepository productItemRepository;
+    private final InventoryRepository inventoryRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
 
@@ -44,8 +44,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     private final ChatClient chatClient;
 
-    private final ThreadLocal<List<Product>> toolProducts =
-            ThreadLocal.withInitial(List::of);
+    private final ThreadLocal<List<Product>> toolProducts = ThreadLocal.withInitial(List::of);
 
     private final ThreadLocal<String> currentUserEmail = new ThreadLocal<>();
 
@@ -97,8 +96,7 @@ public class AiChatServiceImpl implements AiChatService {
                         .role(MessageRole.USER)
                         .content(request.getMessage())
                         .createdAt(LocalDateTime.now())
-                        .build()
-        );
+                        .build());
 
         List<AiMessage> history = messageRepository
                 .findByConversationIdOrderByCreatedAtAsc(conversation.getId());
@@ -109,32 +107,34 @@ public class AiChatServiceImpl implements AiChatService {
 
         String categoryMapping = buildCategoryMapping();
 
-        messages.add(new SystemMessage("""
-                    Bạn là AI shopping assistant của website Crystal.
-                    
-                    %s
-                    
-                    Nhiệm vụ:
-                    - Tư vấn, tìm kiếm, lọc sản phẩm và hỗ trợ thêm sản phẩm vào giỏ hàng.
-                    - Dữ liệu sản phẩm phải lấy từ tool/database, không tự bịa.
-                    
-                    Quy tắc bắt buộc:
-                    - Trả lời ngắn gọn, thân thiện bằng tiếng Việt.
-                    - Nếu khách hỏi về sản phẩm, phải gọi tool phù hợp trước khi trả lời.
-                    - Tìm theo từ khóa: gọi searchProducts(keyword).
-                    - Tìm theo danh mục hoặc có categoryId: gọi searchProductsByCategory(categoryId).
-                    - Tìm theo giá, khoảng giá, màu sắc, ngân sách: gọi searchProductsAdvanced(keyword, color, minPrice, maxPrice).
-                    - Khi cần xem màu, giá, tồn kho: gọi getProductVariants(productId).
-                    - Khi thêm giỏ: nếu chưa đăng nhập thì yêu cầu đăng nhập; nếu đã xác định đúng biến thể nội bộ và số lượng thì gọi addToCart.
-                    - Nếu chưa rõ màu, giá hoặc số lượng, hãy hỏi lại khách.
-                    - Không hiển thị productId, itemId hoặc dữ liệu kỹ thuật nội bộ cho khách.
-                    - itemId chỉ dùng nội bộ để gọi addToCart, không yêu cầu khách nhập itemId.
-                    - Khi hiển thị biến thể, chỉ nói màu, giá và tình trạng còn hàng/tồn kho.
-                    - Không tạo đơn hàng, không thanh toán.
-                    
-                    Mapping category trong DB:
-                    %s
-                    """.formatted(loginStatus, categoryMapping)));
+        messages.add(new SystemMessage(
+                """
+                        Bạn là AI shopping assistant của website Crystal.
+
+                        %s
+
+                        Nhiệm vụ:
+                        - Tư vấn, tìm kiếm, lọc sản phẩm và hỗ trợ thêm sản phẩm vào giỏ hàng.
+                        - Dữ liệu sản phẩm phải lấy từ tool/database, không tự bịa.
+
+                        Quy tắc bắt buộc:
+                        - Trả lời ngắn gọn, thân thiện bằng tiếng Việt.
+                        - Nếu khách hỏi về sản phẩm, phải gọi tool phù hợp trước khi trả lời.
+                        - Tìm theo từ khóa: gọi searchProducts(keyword).
+                        - Tìm theo danh mục hoặc có categoryId: gọi searchProductsByCategory(categoryId).
+                        - Tìm theo giá, khoảng giá, màu sắc, ngân sách: gọi searchProductsAdvanced(keyword, color, minPrice, maxPrice).
+                        - Khi cần xem màu, giá, tồn kho: gọi getProductVariants(productId).
+                        - Khi thêm giỏ: nếu chưa đăng nhập thì yêu cầu đăng nhập; nếu đã xác định đúng biến thể nội bộ và số lượng thì gọi addToCart.
+                        - Nếu chưa rõ màu, giá hoặc số lượng, hãy hỏi lại khách.
+                        - Không hiển thị productId, itemId hoặc dữ liệu kỹ thuật nội bộ cho khách.
+                        - itemId chỉ dùng nội bộ để gọi addToCart, không yêu cầu khách nhập itemId.
+                        - Khi hiển thị biến thể, chỉ nói màu, giá và tình trạng còn hàng/tồn kho.
+                        - Không tạo đơn hàng, không thanh toán.
+
+                        Mapping category trong DB:
+                        %s
+                        """
+                        .formatted(loginStatus, categoryMapping)));
 
         if (conversation.getLastProductContext() != null
                 && !conversation.getLastProductContext().isBlank()) {
@@ -181,8 +181,7 @@ public class AiChatServiceImpl implements AiChatService {
             currentUserEmail.remove();
         }
 
-        List<AiChatResponse.AiProductCardDto> productCards =
-                mapProductsToCards(foundProducts);
+        List<AiChatResponse.AiProductCardDto> productCards = mapProductsToCards(foundProducts);
 
         if (productCards != null && !productCards.isEmpty()) {
             conversation.setLastProductContext(buildProductContext(productCards));
@@ -196,8 +195,7 @@ public class AiChatServiceImpl implements AiChatService {
                         .role(MessageRole.ASSISTANT)
                         .content(aiReply)
                         .createdAt(LocalDateTime.now())
-                        .build()
-        );
+                        .build());
 
         return AiChatResponse.builder()
                 .sessionId(request.getSessionId())
@@ -253,15 +251,16 @@ public class AiChatServiceImpl implements AiChatService {
         return products.stream()
                 .limit(8)
                 .map(product -> {
-                    List<ProductItem> items =
-                            productItemRepository.findByProductId(product.getProductId());
+                    List<ProductItem> items = productItemRepository.findByProductId(product.getProductId());
 
                     List<AiChatResponse.AiVariantDto> variants = items.stream()
                             .map(item -> AiChatResponse.AiVariantDto.builder()
                                     .itemId(item.getItemId())
                                     .color(item.getColor())
                                     .price(item.getPrice())
-                                    .stockQuantity(item.getStockQuantity())
+                                    .stockQuantity(inventoryRepository.findByProductItemItemId(item.getItemId())
+                                            .map(Inventory::getAvailableQuantity)
+                                            .orElse(0))
                                     .build())
                             .toList();
 
@@ -326,10 +325,8 @@ public class AiChatServiceImpl implements AiChatService {
                             .map(product -> java.util.Map.of(
                                     "productId", product.getProductId(),
                                     "name", product.getName(),
-                                    "variants", product.getVariants()
-                            ))
-                            .toList()
-            );
+                                    "variants", product.getVariants()))
+                            .toList());
         } catch (Exception e) {
             return null;
         }
@@ -345,13 +342,12 @@ public class AiChatServiceImpl implements AiChatService {
                 .collect(java.util.stream.Collectors.joining("\n"));
     }
 
-
     @Tool(description = """
-        Tìm kiếm hoặc gợi ý sản phẩm thật trong database theo từ khóa.
-        Bắt buộc dùng khi khách hỏi: tìm sản phẩm, xem sản phẩm, gợi ý sản phẩm,
-        tư vấn sản phẩm, đề xuất sản phẩm, chọn mua sản phẩm, hỏi shop có sản phẩm không.
-        Không tự dịch keyword sang tiếng Anh, không tự thêm từ khóa lạ.
-        """)
+            Tìm kiếm hoặc gợi ý sản phẩm thật trong database theo từ khóa.
+            Bắt buộc dùng khi khách hỏi: tìm sản phẩm, xem sản phẩm, gợi ý sản phẩm,
+            tư vấn sản phẩm, đề xuất sản phẩm, chọn mua sản phẩm, hỏi shop có sản phẩm không.
+            Không tự dịch keyword sang tiếng Anh, không tự thêm từ khóa lạ.
+            """)
     public List<Product> searchProducts(String keyword) {
         System.out.println("===== TOOL searchProducts CALLED với keyword: " + keyword);
 
@@ -408,8 +404,7 @@ public class AiChatServiceImpl implements AiChatService {
         String email = currentUserEmail.get();
 
         if (email == null || email.isBlank()) {
-            Authentication authentication =
-                    SecurityContextHolder.getContext().getAuthentication();
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
             if (authentication != null
                     && authentication.getPrincipal() instanceof Jwt jwt) {
@@ -428,13 +423,17 @@ public class AiChatServiceImpl implements AiChatService {
         ProductItem item = productItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể sản phẩm."));
 
-        if (item.getStockQuantity() == null || item.getStockQuantity() <= 0) {
+        int available = inventoryRepository.findByProductItemItemId(itemId)
+                .map(Inventory::getAvailableQuantity)
+                .orElse(0);
+
+        if (available <= 0) {
             return "Sản phẩm này hiện đã hết hàng.";
         }
 
-        if (quantity > item.getStockQuantity()) {
+        if (quantity > available) {
             return "Số lượng tồn kho không đủ. Hiện chỉ còn "
-                    + item.getStockQuantity()
+                    + available
                     + " sản phẩm.";
         }
 
@@ -450,21 +449,20 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     @Tool(description = """
-    Tìm kiếm/lọc/gợi ý sản phẩm thật trong database theo nhiều điều kiện.
-    Bắt buộc dùng khi khách hỏi sản phẩm theo giá, khoảng giá, màu sắc, ngân sách.
-    Quy tắc truyền tham số:
-    - keyword: loại/tên sản phẩm, ví dụ "túi", "túi xách", "hobo", "shoulder strap", "ví", "balo".
-    - color: màu khách muốn, ví dụ "xanh", "đen", "đỏ", "nâu". Nếu không có màu thì truyền "".
-    - minPrice: giá thấp nhất dạng số VND. Nếu không có thì truyền null.
-    - maxPrice: giá cao nhất dạng số VND. Nếu không có thì truyền null.
-    Không tự bịa sản phẩm, giá, màu, tồn kho nếu tool không có kết quả.
-    """)
+            Tìm kiếm/lọc/gợi ý sản phẩm thật trong database theo nhiều điều kiện.
+            Bắt buộc dùng khi khách hỏi sản phẩm theo giá, khoảng giá, màu sắc, ngân sách.
+            Quy tắc truyền tham số:
+            - keyword: loại/tên sản phẩm, ví dụ "túi", "túi xách", "hobo", "shoulder strap", "ví", "balo".
+            - color: màu khách muốn, ví dụ "xanh", "đen", "đỏ", "nâu". Nếu không có màu thì truyền "".
+            - minPrice: giá thấp nhất dạng số VND. Nếu không có thì truyền null.
+            - maxPrice: giá cao nhất dạng số VND. Nếu không có thì truyền null.
+            Không tự bịa sản phẩm, giá, màu, tồn kho nếu tool không có kết quả.
+            """)
     public List<Product> searchProductsAdvanced(
             String keyword,
             String color,
             Long minPrice,
-            Long maxPrice
-    ) {
+            Long maxPrice) {
         System.out.println("===== TOOL searchProductsAdvanced CALLED =====");
         System.out.println("keyword = " + keyword);
         System.out.println("color = " + color);
@@ -481,8 +479,7 @@ public class AiChatServiceImpl implements AiChatService {
                 finalKeyword,
                 finalColor,
                 min,
-                max
-        );
+                max);
 
         List<Product> limitedProducts = products.stream()
                 .limit(8)

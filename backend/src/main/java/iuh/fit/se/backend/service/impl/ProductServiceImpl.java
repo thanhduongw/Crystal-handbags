@@ -7,9 +7,11 @@ import iuh.fit.se.backend.model.Product;
 import iuh.fit.se.backend.model.ProductItem;
 import iuh.fit.se.backend.model.Category;
 import iuh.fit.se.backend.repository.CategoryRepository;
+import iuh.fit.se.backend.repository.InventoryRepository;
 import iuh.fit.se.backend.repository.ProductItemRepository;
 import iuh.fit.se.backend.repository.ProductRepository;
 import iuh.fit.se.backend.service.FileUploadService;
+import iuh.fit.se.backend.service.InventoryService;
 import iuh.fit.se.backend.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductItemRepository productItemRepository;
     private final CategoryRepository categoryRepository;
     private final FileUploadService fileUploadService;
+    private final InventoryService inventoryService;
+    private final InventoryRepository inventoryRepository;
 
     @Override
     public List<ProductListDto> getAllProducts() {
@@ -59,9 +63,10 @@ public class ProductServiceImpl implements ProductService {
                         .product(savedProduct)
                         .color(itemDto.getColor())
                         .price(itemDto.getPrice())
-                        .stockQuantity(itemDto.getStockQuantity())
                         .build();
-                productItemRepository.save(item);
+                ProductItem savedItem = productItemRepository.save(item);
+                int stockQty = itemDto.getStockQuantity() != null ? itemDto.getStockQuantity() : 0;
+                inventoryService.initInventoryForItem(savedItem, stockQty);
             }
         }
 
@@ -108,17 +113,20 @@ public class ProductServiceImpl implements ProductService {
                     }
                     item.setColor(dto.getColor());
                     item.setPrice(dto.getPrice());
-                    item.setStockQuantity(dto.getStockQuantity());
                     productItemRepository.save(item);
+                    if (dto.getStockQuantity() != null) {
+                        inventoryService.updateStock(item.getItemId(), dto.getStockQuantity());
+                    }
                 } else {
                     // Thêm item mới
                     ProductItem newItem = ProductItem.builder()
                             .product(product)
                             .color(dto.getColor())
                             .price(dto.getPrice())
-                            .stockQuantity(dto.getStockQuantity())
                             .build();
-                    productItemRepository.save(newItem);
+                    ProductItem savedItem = productItemRepository.save(newItem);
+                    int stockQty = dto.getStockQuantity() != null ? dto.getStockQuantity() : 0;
+                    inventoryService.initInventoryForItem(savedItem, stockQty);
                 }
             }
         }
@@ -145,7 +153,8 @@ public class ProductServiceImpl implements ProductService {
                 // Không xóa được — giữ item, và (tuỳ nghiệp vụ) bạn có thể:
                 // - giữ nguyên (đã làm)
                 // - hoặc đánh dấu inactive (bổ sung trường) => tuỳ nhu cầu
-                System.out.println("Skip delete item " + oldItem.getItemId() + " because it's referenced by cart/order");
+                System.out
+                        .println("Skip delete item " + oldItem.getItemId() + " because it's referenced by cart/order");
             }
         }
 
@@ -228,11 +237,16 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
         List<ProductItemDto> items = productItemRepository.findByProductId(id).stream()
-                .map(item -> new ProductItemDto(
-                        item.getItemId(),
-                        item.getColor(),
-                        item.getPrice(),
-                        item.getStockQuantity()))
+                .map(item -> {
+                    int available = inventoryRepository.findByProductItemItemId(item.getItemId())
+                            .map(inv -> inv.getAvailableQuantity())
+                            .orElse(0);
+                    return new ProductItemDto(
+                            item.getItemId(),
+                            item.getColor(),
+                            item.getPrice(),
+                            available);
+                })
                 .collect(Collectors.toList());
 
         return new ProductDetailDto(
@@ -262,7 +276,6 @@ public class ProductServiceImpl implements ProductService {
                 p.getAvatar(),
                 p.getBasePrice(),
                 p.getCategory().getName(),
-                p.getShowHomepage() != null ? p.getShowHomepage() : false
-        );
+                p.getShowHomepage() != null ? p.getShowHomepage() : false);
     }
 }
