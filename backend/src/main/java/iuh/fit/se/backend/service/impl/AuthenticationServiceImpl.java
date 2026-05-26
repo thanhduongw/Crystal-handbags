@@ -43,10 +43,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         TokenPayload refreshTokenPayload = jwtService.generateRefreshToken(user);
 
         // Store refresh token info (for rotation tracking)
-        redisTokenRepository.save(RedisToken.builder()
-                .jwtId(refreshTokenPayload.getJwtId())
-                .expiredTime(refreshTokenPayload.getExpiredTime().getTime() / 1000)
-                .build());
+//        redisTokenRepository.save(RedisToken.builder()
+//                .jwtId(refreshTokenPayload.getJwtId())
+//                .expiredTime(refreshTokenPayload.getExpiredTime().getTime() / 1000)
+//                .build());
 
         return LoginResponse.builder()
                 .accessToken(accessTokenPayload.getToken())
@@ -110,10 +110,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .build());
 
             // Save new refresh token
-            redisTokenRepository.save(RedisToken.builder()
-                    .jwtId(newRefreshToken.getJwtId())
-                    .expiredTime(newRefreshToken.getExpiredTime().getTime() / 1000)
-                    .build());
+//            redisTokenRepository.save(RedisToken.builder()
+//                    .jwtId(newRefreshToken.getJwtId())
+//                    .expiredTime(newRefreshToken.getExpiredTime().getTime() / 1000)
+//                    .build());
 
             return LoginResponse.builder()
                     .accessToken(newAccessToken.getToken())

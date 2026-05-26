@@ -1,43 +1,45 @@
 // App.tsx
-import { Routes, Route } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Spin } from 'antd';
-import ProtectedRoute from './components/ProtectedRoute';
-import AdminLayout from './components/AdminLayout';
-import Home from './pages/Home';
-import ProductList from './pages/ProductList';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import OrderHistory from './pages/OrderHistory';
-import OrderDetail from './pages/OrderDetail';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Profile from './pages/Profile';
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import AdminOrders from './pages/Admin/AdminOrders';
-import AdminProducts from './pages/Admin/AdminProducts';
-import AdminCategories from './pages/Admin/AdminCategories';
-import AddressManagement from './pages/AddressManagement';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import NotFound from './pages/NotFound';
-import ScrollToTop from './components/ScrollToTop';
-import AdminUsers from './pages/Admin/AdminUser';
-import UserLayout from './components/UserLayout';
-import ProductDetail from './pages/ProductDetail';
-import PaymentResult from './pages/PaymentResult';
+import { Routes, Route } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Spin } from "antd";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminLayout from "./components/AdminLayout";
+import Home from "./pages/Home";
+import ProductList from "./pages/ProductList";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import OrderHistory from "./pages/OrderHistory";
+import OrderDetail from "./pages/OrderDetail";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import AdminDashboard from "./pages/Admin/AdminDashboard";
+import AdminOrders from "./pages/Admin/AdminOrders";
+import AdminProducts from "./pages/Admin/AdminProducts";
+import AdminCategories from "./pages/Admin/AdminCategories";
+import AddressManagement from "./pages/AddressManagement";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import NotFound from "./pages/NotFound";
+import ScrollToTop from "./components/ScrollToTop";
+import AdminUsers from "./pages/Admin/AdminUser";
+import UserLayout from "./components/UserLayout";
+import ProductDetail from "./pages/ProductDetail";
+import PaymentResult from "./pages/PaymentResult";
 
 function AppContent() {
   const { loading } = useAuth();
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh'
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
         <Spin size="large" />
       </div>
     );
@@ -46,25 +48,104 @@ function AppContent() {
   return (
     <Routes>
       {/* USER ROUTES */}
-      <Route path="/" element={<UserLayout><Home /></UserLayout>} />
-      <Route path="/login" element={<UserLayout><Login /></UserLayout>} />
-      <Route path="/register" element={<UserLayout><Register /></UserLayout>} />
-      <Route path="/about" element={<UserLayout><About /></UserLayout>} />
-      <Route path="/contact" element={<UserLayout><Contact /></UserLayout>} />
-      <Route path="/products" element={<UserLayout><ProductList /></UserLayout>} />
-      <Route path="/products/search" element={<UserLayout><ProductList /></UserLayout>} />
-      <Route path="/products/:id" element={<UserLayout><ProductDetail /></UserLayout>} />
-      <Route path="/categories/:id/products" element={<UserLayout><ProductList /></UserLayout>} />
-      <Route path="/cart" element={<UserLayout><Cart /></UserLayout>} />
+      <Route
+        path="/"
+        element={
+          <UserLayout>
+            <Home />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <UserLayout>
+            <Login />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <UserLayout>
+            <Register />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/about"
+        element={
+          <UserLayout>
+            <About />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/contact"
+        element={
+          <UserLayout>
+            <Contact />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <UserLayout>
+            <ProductList />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/products/search"
+        element={
+          <UserLayout>
+            <ProductList />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/products/:id"
+        element={
+          <UserLayout>
+            <ProductDetail />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/categories/:id/products"
+        element={
+          <UserLayout>
+            <ProductList />
+          </UserLayout>
+        }
+      />
+      <Route
+        path="/cart"
+        element={
+          <UserLayout>
+            <Cart />
+          </UserLayout>
+        }
+      />
       <Route path="/payment-result" element={<PaymentResult />} />
-      <Route path="*" element={<UserLayout><NotFound /></UserLayout>} />
+      <Route
+        path="*"
+        element={
+          <UserLayout>
+            <NotFound />
+          </UserLayout>
+        }
+      />
 
       {/* PROTECTED USER ROUTES */}
       <Route
         path="/checkout"
         element={
           <ProtectedRoute>
-            <UserLayout><Checkout /></UserLayout>
+            <UserLayout>
+              <Checkout />
+            </UserLayout>
           </ProtectedRoute>
         }
       />
@@ -72,7 +153,9 @@ function AppContent() {
         path="/orders"
         element={
           <ProtectedRoute>
-            <UserLayout><OrderHistory /></UserLayout>
+            <UserLayout>
+              <OrderHistory />
+            </UserLayout>
           </ProtectedRoute>
         }
       />
@@ -80,7 +163,9 @@ function AppContent() {
         path="/orders/:id"
         element={
           <ProtectedRoute>
-            <UserLayout><OrderDetail /></UserLayout>
+            <UserLayout>
+              <OrderDetail />
+            </UserLayout>
           </ProtectedRoute>
         }
       />
@@ -88,7 +173,9 @@ function AppContent() {
         path="/profile"
         element={
           <ProtectedRoute>
-            <UserLayout><Profile /></UserLayout>
+            <UserLayout>
+              <Profile />
+            </UserLayout>
           </ProtectedRoute>
         }
       />
@@ -96,7 +183,9 @@ function AppContent() {
         path="/addresses"
         element={
           <ProtectedRoute>
-            <UserLayout><AddressManagement /></UserLayout>
+            <UserLayout>
+              <AddressManagement />
+            </UserLayout>
           </ProtectedRoute>
         }
       />
@@ -106,7 +195,9 @@ function AppContent() {
         path="/admin"
         element={
           <ProtectedRoute requireAdmin>
-            <AdminLayout><AdminDashboard /></AdminLayout>
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
           </ProtectedRoute>
         }
       />
@@ -114,7 +205,9 @@ function AppContent() {
         path="/admin/orders"
         element={
           <ProtectedRoute requireAdmin>
-            <AdminLayout><AdminOrders /></AdminLayout>
+            <AdminLayout>
+              <AdminOrders />
+            </AdminLayout>
           </ProtectedRoute>
         }
       />
@@ -122,7 +215,9 @@ function AppContent() {
         path="/admin/products"
         element={
           <ProtectedRoute requireAdmin>
-            <AdminLayout><AdminProducts /></AdminLayout>
+            <AdminLayout>
+              <AdminProducts />
+            </AdminLayout>
           </ProtectedRoute>
         }
       />
@@ -130,7 +225,9 @@ function AppContent() {
         path="/admin/categories"
         element={
           <ProtectedRoute requireAdmin>
-            <AdminLayout><AdminCategories /></AdminLayout>
+            <AdminLayout>
+              <AdminCategories />
+            </AdminLayout>
           </ProtectedRoute>
         }
       />
@@ -138,7 +235,9 @@ function AppContent() {
         path="/admin/users"
         element={
           <ProtectedRoute requireAdmin>
-            <AdminLayout><AdminUsers /></AdminLayout>
+            <AdminLayout>
+              <AdminUsers />
+            </AdminLayout>
           </ProtectedRoute>
         }
       />
