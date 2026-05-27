@@ -75,7 +75,7 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
             setLoading(false);
             onLoaded?.();
         }
-    }, [orderId]);
+    }, [orderId, onLoaded]);
 
 
     useEffect(() => {

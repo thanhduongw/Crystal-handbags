@@ -25,52 +25,42 @@ public class AddressController {
 
     @GetMapping
     public List<AddressDto> getAddresses(@AuthenticationPrincipal Jwt jwt) {
-
-        if (jwt == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Missing or invalid JWT"
-            );
-        }
-
-        User user = userRepository
-                .findByEmail(jwt.getSubject())
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found")
-                );
-
-        return addressService.getUserAddresses(user);
+        return addressService.getUserAddresses(requireUser(jwt));
     }
 
 
     @PostMapping
     public AddressDto createAddress(@AuthenticationPrincipal Jwt jwt,
                                  @RequestBody Address address) {
-        User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
-        return addressService.createAddress(user, address);
+        return addressService.createAddress(requireUser(jwt), address);
     }
 
     @PutMapping("/{id}")
     public AddressDto updateAddress(@PathVariable Long id,
                                  @AuthenticationPrincipal  Jwt jwt,
                                  @RequestBody Address address) {
-        User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
-        return addressService.updateAddress(id, user, address);
+        return addressService.updateAddress(id, requireUser(jwt), address);
     }
 
     @DeleteMapping("/{id}")
     public void deleteAddress(@PathVariable Long id,
                               @AuthenticationPrincipal  Jwt jwt) {
-        User user = userRepository.findByEmail(jwt.getSubject()).orElseThrow();
-        addressService.deleteAddress(id, user);
+        addressService.deleteAddress(id, requireUser(jwt));
     }
 
     @PutMapping("/{id}/default")
     public AddressDto setDefaultAddress(@PathVariable Long id,
                                         @AuthenticationPrincipal Jwt jwt) {
-        User user = userRepository.findByEmail(jwt.getSubject())
+        return addressService.setDefaultAddress(id, requireUser(jwt));
+    }
+
+    private User requireUser(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid JWT");
+        }
+
+        return userRepository.findByEmail(jwt.getSubject())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-        return addressService.setDefaultAddress(id, user);
     }
 
 }

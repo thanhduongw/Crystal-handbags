@@ -55,36 +55,41 @@ export default function AdminDashboard() {
     const { isAdmin } = useAuth();
 
     useEffect(() => {
+        if (!isAdmin) return;
+
+        let ignore = false;
+
         const loadDashboard = async () => {
             setLoading(true);
 
-            const [statsResult, ordersResult] = await Promise.allSettled([
-                fetchAdminStatistics(),
-                fetchAdminOrders(),
-            ]);
-
-            if (statsResult.status === 'fulfilled') {
-                setStats(statsResult.value);
-            } else {
-                console.error('Failed to load dashboard stats:', statsResult.reason);
-                setStats(emptyStats);
+            try {
+                const dashboardStats = await fetchAdminStatistics();
+                if (!ignore) setStats(dashboardStats);
+            } catch (error) {
+                console.error('Failed to load dashboard stats:', error);
+                if (!ignore) setStats(emptyStats);
             }
 
-            if (ordersResult.status === 'fulfilled') {
-                const sortedOrders = [...ordersResult.value].sort((a, b) =>
-                    dayjs(b.orderDate).unix() - dayjs(a.orderDate).unix()
+            try {
+                const orders = await fetchAdminOrders();
+                const sortedOrders = [...orders].sort((a, b) =>
+                    dayjs(b.orderDate).valueOf() - dayjs(a.orderDate).valueOf()
                 );
-                setRecentOrders(sortedOrders.slice(0, 5));
-            } else {
-                console.error('Failed to load dashboard orders:', ordersResult.reason);
-                setRecentOrders([]);
+                if (!ignore) setRecentOrders(sortedOrders.slice(0, 5));
+            } catch (error) {
+                console.error('Failed to load dashboard orders:', error);
+                if (!ignore) setRecentOrders([]);
             }
 
-            setLoading(false);
+            if (!ignore) setLoading(false);
         };
 
         void loadDashboard();
-    }, []);
+
+        return () => {
+            ignore = true;
+        };
+    }, [isAdmin]);
 
     const recentOrdersColumns = [
         {

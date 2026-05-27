@@ -85,7 +85,7 @@ export default function Checkout() {
                 message.error('Không thể tải địa chỉ!');
             }
         })();
-    }, [user]);
+    }, [user, navigate]);
 
         const handleCheckout = async () => {
         if (!selectedAddressId) {

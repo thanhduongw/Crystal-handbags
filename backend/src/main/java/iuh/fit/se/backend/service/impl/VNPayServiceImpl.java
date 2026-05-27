@@ -115,21 +115,28 @@ public class VNPayServiceImpl implements VNPayService {
         if (payment == null)
             return result;
 
-        // ⚠️ chỉ update nếu chưa SUCCESS
-        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+        if (payment.getStatus() == PaymentStatus.PENDING_PAYMENT) {
             Order order = payment.getOrder();
+
+            payment.setResponseCode(responseCode);
+            payment.setTransactionStatus(transactionStatus);
+            payment.setTransactionNo(params.get("vnp_TransactionNo"));
+            payment.setBankCode(params.get("vnp_BankCode"));
 
             if ("00".equals(responseCode) && "00".equals(transactionStatus)) {
                 payment.setStatus(PaymentStatus.SUCCESS);
                 payment.setPaymentDate(LocalDateTime.now());
                 order.setStatus(OrderStatus.CONFIRMED);
+                paymentRepository.save(payment);
+                orderRepository.save(order);
+                messagePublisher.publishPaymentSuccess(buildPaymentResultMessage(payment, true));
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
                 order.setStatus(OrderStatus.CANCELLED);
+                paymentRepository.save(payment);
+                orderRepository.save(order);
+                messagePublisher.publishPaymentFailed(buildPaymentResultMessage(payment, false));
             }
-
-            paymentRepository.save(payment);
-            orderRepository.save(order);
         }
 
         return result;
@@ -168,38 +175,45 @@ public class VNPayServiceImpl implements VNPayService {
             }
         }
 
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            response.put("RspCode", "02");
-            response.put("Message", "Order already confirmed");
-            return response;
-        }
-
         String responseCode = params.get("vnp_ResponseCode");
         String transactionStatus = params.get("vnp_TransactionStatus");
 
-        payment.setResponseCode(responseCode);
-        payment.setTransactionStatus(transactionStatus);
-        payment.setTransactionNo(params.get("vnp_TransactionNo"));
-        payment.setBankCode(params.get("vnp_BankCode"));
+        if (payment.getStatus() == PaymentStatus.PENDING_PAYMENT) {
+            payment.setResponseCode(responseCode);
+            payment.setTransactionStatus(transactionStatus);
+            payment.setTransactionNo(params.get("vnp_TransactionNo"));
+            payment.setBankCode(params.get("vnp_BankCode"));
 
-        Order order = payment.getOrder();
+            Order order = payment.getOrder();
 
-        if ("00".equals(responseCode) && "00".equals(transactionStatus)) {
-            payment.setStatus(PaymentStatus.SUCCESS);
-            payment.setPaymentDate(LocalDateTime.now());
-            order.setStatus(OrderStatus.CONFIRMED);
-            messagePublisher.publishPaymentSuccess(buildPaymentResultMessage(payment, true));
+            if ("00".equals(responseCode) && "00".equals(transactionStatus)) {
+                payment.setStatus(PaymentStatus.SUCCESS);
+                payment.setPaymentDate(LocalDateTime.now());
+                order.setStatus(OrderStatus.CONFIRMED);
+                paymentRepository.save(payment);
+                orderRepository.save(order);
+                messagePublisher.publishPaymentSuccess(buildPaymentResultMessage(payment, true));
+            } else {
+                payment.setStatus(PaymentStatus.FAILED);
+                order.setStatus(OrderStatus.CANCELLED);
+                paymentRepository.save(payment);
+                orderRepository.save(order);
+                messagePublisher.publishPaymentFailed(buildPaymentResultMessage(payment, false));
+            }
+
+            response.put("RspCode", "00");
+            response.put("Message", "Confirm Success");
         } else {
-            payment.setStatus(PaymentStatus.FAILED);
-            order.setStatus(OrderStatus.CANCELLED);
-            messagePublisher.publishPaymentFailed(buildPaymentResultMessage(payment, false));
+            if (payment.getTransactionNo() == null) {
+                payment.setResponseCode(responseCode);
+                payment.setTransactionStatus(transactionStatus);
+                payment.setTransactionNo(params.get("vnp_TransactionNo"));
+                payment.setBankCode(params.get("vnp_BankCode"));
+                paymentRepository.save(payment);
+            }
+            response.put("RspCode", "02");
+            response.put("Message", "Order already confirmed");
         }
-
-        paymentRepository.save(payment);
-        orderRepository.save(order);
-
-        response.put("RspCode", "00");
-        response.put("Message", "Confirm Success");
         return response;
     }
 

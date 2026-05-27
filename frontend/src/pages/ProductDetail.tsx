@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import {
     Button,
@@ -37,19 +37,9 @@ export default function ProductDetail() {
     const [activeImage, setActiveImage] = useState<string>('');
     const [addingToCart, setAddingToCart] = useState(false);
 
-    useEffect(() => {
+    const loadProduct = useCallback(async () => {
         if (!id || isNaN(productId)) return;
-        loadProduct();
-    }, [productId, id]);
 
-    useEffect(() => {
-        if (product) {
-            const defaultImage = product.avatar || product.images?.[0] || '';
-            setActiveImage(defaultImage);
-        }
-    }, [product]);
-
-    const loadProduct = async () => {
         try {
             setLoading(true);
             const currentProduct = await fetchProductDetail(productId);
@@ -70,7 +60,18 @@ export default function ProductDetail() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, productId]);
+
+    useEffect(() => {
+        loadProduct();
+    }, [loadProduct]);
+
+    useEffect(() => {
+        if (product) {
+            const defaultImage = product.avatar || product.images?.[0] || '';
+            setActiveImage(defaultImage);
+        }
+    }, [product]);
 
     const handleAddToCart = async () => {
         if (!selectedItem || !product) return;

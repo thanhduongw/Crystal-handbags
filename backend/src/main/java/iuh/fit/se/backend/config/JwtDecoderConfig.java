@@ -50,6 +50,8 @@ public class JwtDecoderConfig implements JwtDecoder {
 
         } catch (ParseException | JOSEException e) {
             throw new BadJwtException("Malformed token", e);
+        } catch (RuntimeException e) {
+            throw new BadJwtException("Invalid token", e);
         }
     }
 }

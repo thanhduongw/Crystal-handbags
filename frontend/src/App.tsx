@@ -1,33 +1,50 @@
 // App.tsx
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./hooks/useAuth";
 import { Spin } from "antd";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./components/AdminLayout";
-import Home from "./pages/Home";
-import ProductList from "./pages/ProductList";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import OrderHistory from "./pages/OrderHistory";
-import OrderDetail from "./pages/OrderDetail";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import Profile from "./pages/Profile";
-import AdminDashboard from "./pages/Admin/AdminDashboard";
-import AdminOrders from "./pages/Admin/AdminOrders";
-import AdminProducts from "./pages/Admin/AdminProducts";
-import AdminCategories from "./pages/Admin/AdminCategories";
-import AddressManagement from "./pages/AddressManagement";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
-import AdminUsers from "./pages/Admin/AdminUser";
 import UserLayout from "./components/UserLayout";
-import ProductDetail from "./pages/ProductDetail";
-import PaymentResult from "./pages/PaymentResult";
+
+const Home = lazy(() => import("./pages/Home"));
+const ProductList = lazy(() => import("./pages/ProductList"));
+const Cart = lazy(() => import("./pages/Cart"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const OrderHistory = lazy(() => import("./pages/OrderHistory"));
+const OrderDetail = lazy(() => import("./pages/OrderDetail"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const Profile = lazy(() => import("./pages/Profile"));
+const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
+const AdminOrders = lazy(() => import("./pages/Admin/AdminOrders"));
+const AdminProducts = lazy(() => import("./pages/Admin/AdminProducts"));
+const AdminCategories = lazy(() => import("./pages/Admin/AdminCategories"));
+const AddressManagement = lazy(() => import("./pages/AddressManagement"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AdminUsers = lazy(() => import("./pages/Admin/AdminUser"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const PaymentResult = lazy(() => import("./pages/PaymentResult"));
+
+function PageFallback() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "60vh",
+      }}
+    >
+      <Spin size="large" />
+    </div>
+  );
+}
 
 function AppContent() {
   const { loading } = useAuth();
@@ -48,213 +65,215 @@ function AppContent() {
   }
 
   return (
-    <Routes>
-      {/* USER ROUTES */}
-      <Route
-        path="/"
-        element={
-          <UserLayout>
-            <Home />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <UserLayout>
-            <Login />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <UserLayout>
-            <Register />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/forgot-password"
-        element={
-          <UserLayout>
-            <ForgotPassword />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/about"
-        element={
-          <UserLayout>
-            <About />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/contact"
-        element={
-          <UserLayout>
-            <Contact />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/products"
-        element={
-          <UserLayout>
-            <ProductList />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/products/search"
-        element={
-          <UserLayout>
-            <ProductList />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/products/:id"
-        element={
-          <UserLayout>
-            <ProductDetail />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/categories/:id/products"
-        element={
-          <UserLayout>
-            <ProductList />
-          </UserLayout>
-        }
-      />
-      <Route
-        path="/cart"
-        element={
-          <UserLayout>
-            <Cart />
-          </UserLayout>
-        }
-      />
-      <Route path="/payment-result" element={<PaymentResult />} />
-      <Route
-        path="*"
-        element={
-          <UserLayout>
-            <NotFound />
-          </UserLayout>
-        }
-      />
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        {/* USER ROUTES */}
+        <Route
+          path="/"
+          element={
+            <UserLayout>
+              <Home />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <UserLayout>
+              <Login />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <UserLayout>
+              <Register />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <UserLayout>
+              <ForgotPassword />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <UserLayout>
+              <About />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <UserLayout>
+              <Contact />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <UserLayout>
+              <ProductList />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/products/search"
+          element={
+            <UserLayout>
+              <ProductList />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/products/:id"
+          element={
+            <UserLayout>
+              <ProductDetail />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/categories/:id/products"
+          element={
+            <UserLayout>
+              <ProductList />
+            </UserLayout>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <UserLayout>
+              <Cart />
+            </UserLayout>
+          }
+        />
+        <Route path="/payment-result" element={<PaymentResult />} />
+        <Route
+          path="*"
+          element={
+            <UserLayout>
+              <NotFound />
+            </UserLayout>
+          }
+        />
 
-      {/* PROTECTED USER ROUTES */}
-      <Route
-        path="/checkout"
-        element={
-          <ProtectedRoute>
-            <UserLayout>
-              <Checkout />
-            </UserLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/orders"
-        element={
-          <ProtectedRoute>
-            <UserLayout>
-              <OrderHistory />
-            </UserLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/orders/:id"
-        element={
-          <ProtectedRoute>
-            <UserLayout>
-              <OrderDetail />
-            </UserLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <UserLayout>
-              <Profile />
-            </UserLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/addresses"
-        element={
-          <ProtectedRoute>
-            <UserLayout>
-              <AddressManagement />
-            </UserLayout>
-          </ProtectedRoute>
-        }
-      />
+        {/* PROTECTED USER ROUTES */}
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <Checkout />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <OrderHistory />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:id"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <OrderDetail />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <Profile />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/addresses"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <AddressManagement />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      {/* ADMIN ROUTES - Order List */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute requireAdmin>
-            <AdminLayout>
-              <AdminDashboard />
-            </AdminLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/orders"
-        element={
-          <ProtectedRoute requireAdmin>
-            <AdminLayout>
-              <AdminOrders />
-            </AdminLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/products"
-        element={
-          <ProtectedRoute requireAdmin>
-            <AdminLayout>
-              <AdminProducts />
-            </AdminLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/categories"
-        element={
-          <ProtectedRoute requireAdmin>
-            <AdminLayout>
-              <AdminCategories />
-            </AdminLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/users"
-        element={
-          <ProtectedRoute requireAdmin>
-            <AdminLayout>
-              <AdminUsers />
-            </AdminLayout>
-          </ProtectedRoute>
-        }
-      />
+        {/* ADMIN ROUTES - Order List */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminLayout>
+                <AdminDashboard />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/orders"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminLayout>
+                <AdminOrders />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/products"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminLayout>
+                <AdminProducts />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/categories"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminLayout>
+                <AdminCategories />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminLayout>
+                <AdminUsers />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }
 

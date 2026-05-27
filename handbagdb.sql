@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS `cart_item` (
   KEY `FKqka78udg4oy9g9gn5558ndkq6` (`item_id`),
   CONSTRAINT `FK1uobyhgl1wvgt1jpccia8xxs3` FOREIGN KEY (`cart_id`) REFERENCES `cart` (`cart_id`),
   CONSTRAINT `FKqka78udg4oy9g9gn5558ndkq6` FOREIGN KEY (`item_id`) REFERENCES `product_item` (`item_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table handbagdb.cart_item: ~0 rows (approximately)
 
@@ -132,12 +132,12 @@ CREATE TABLE IF NOT EXISTS `inventory` (
   PRIMARY KEY (`inventory_id`),
   UNIQUE KEY `item_id` (`item_id`),
   CONSTRAINT `fk_inventory_item` FOREIGN KEY (`item_id`) REFERENCES `product_item` (`item_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=128 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table handbagdb.inventory: ~111 rows (approximately)
 INSERT INTO `inventory` (`inventory_id`, `item_id`, `stock_quantity`, `reserved_quantity`, `sold_quantity`, `updated_at`) VALUES
 	(1, 1, 7, 0, 2, '2026-05-26 15:44:09'),
-	(2, 4, 11, 0, 0, '2026-05-26 15:44:09'),
+	(2, 4, 10, 0, 1, '2026-05-26 15:44:09'),
 	(3, 5, 11, 0, 0, '2026-05-26 15:44:09'),
 	(4, 6, 11, 0, 0, '2026-05-26 15:44:09'),
 	(5, 7, 12, 0, 0, '2026-05-26 15:44:09'),
@@ -262,9 +262,9 @@ CREATE TABLE IF NOT EXISTS `orders` (
   KEY `FK32ql8ubntj5uh44ph9659tiih` (`user_id`),
   CONSTRAINT `FK32ql8ubntj5uh44ph9659tiih` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
   CONSTRAINT `FKf5464gxwc32ongdvka2rtvw96` FOREIGN KEY (`address_id`) REFERENCES `address` (`address_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.orders: ~10 rows (approximately)
+-- Dumping data for table handbagdb.orders: ~11 rows (approximately)
 INSERT INTO `orders` (`order_id`, `order_date`, `shipping_fee`, `status`, `total_amount`, `address_id`, `user_id`) VALUES
 	(1, '2025-12-10 18:06:46.016150', 15000.00, 'DELIVERED', 2412000.00, 1, 2),
 	(2, '2025-12-10 18:18:28.506518', 15000.00, 'DELIVERED', 864000.00, 1, 2),
@@ -275,7 +275,8 @@ INSERT INTO `orders` (`order_id`, `order_date`, `shipping_fee`, `status`, `total
 	(7, '2025-12-11 05:22:39.592168', 15000.00, 'PENDING', 814000.00, 1, 2),
 	(8, '2025-12-11 14:04:06.680715', 15000.00, 'PENDING', 764000.00, 1, 2),
 	(11, '2026-05-26 23:25:31.799604', 15000.00, 'PENDING', 764000.00, 5, 1),
-	(12, '2026-05-26 23:26:04.833940', 15000.00, 'PENDING', 764000.00, 2, 6);
+	(12, '2026-05-26 23:26:04.833940', 15000.00, 'PENDING', 764000.00, 2, 6),
+	(13, '2026-05-27 00:04:24.339673', 15000.00, 'DELIVERED', 864000.00, 5, 1);
 
 -- Dumping structure for table handbagdb.order_item
 CREATE TABLE IF NOT EXISTS `order_item` (
@@ -289,9 +290,9 @@ CREATE TABLE IF NOT EXISTS `order_item` (
   KEY `FKb38vk9ekyl1vbqvfe99r8h990` (`item_id`),
   CONSTRAINT `FKb38vk9ekyl1vbqvfe99r8h990` FOREIGN KEY (`item_id`) REFERENCES `product_item` (`item_id`),
   CONSTRAINT `FKt4dc2r9nbvbujrljv3e23iibt` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.order_item: ~15 rows (approximately)
+-- Dumping data for table handbagdb.order_item: ~16 rows (approximately)
 INSERT INTO `order_item` (`order_item_id`, `price`, `quantity`, `order_id`, `item_id`) VALUES
 	(1, 749000.00, 1, 1, 1),
 	(2, 799000.00, 1, 1, 6),
@@ -307,15 +308,16 @@ INSERT INTO `order_item` (`order_item_id`, `price`, `quantity`, `order_id`, `ite
 	(12, 799000.00, 1, 7, 15),
 	(13, 749000.00, 1, 8, 1),
 	(16, 749000.00, 1, 11, 1),
-	(17, 749000.00, 1, 12, 1);
+	(17, 749000.00, 1, 12, 1),
+	(18, 849000.00, 1, 13, 4);
 
 -- Dumping structure for table handbagdb.payment
 CREATE TABLE IF NOT EXISTS `payment` (
   `payment_id` bigint(20) NOT NULL AUTO_INCREMENT,
   `amount` decimal(38,2) DEFAULT NULL,
   `payment_date` datetime(6) DEFAULT NULL,
-  `payment_method` enum('BANK_TRANSFER','CARD','CASH','UPI') DEFAULT NULL,
-  `status` enum('PENDING','SUCCESS','FAILED','CANCELLED') DEFAULT NULL,
+  `payment_method` varchar(255) DEFAULT NULL,
+  `status` varchar(255) DEFAULT NULL,
   `order_id` bigint(20) DEFAULT NULL,
   `bank_code` varchar(255) DEFAULT NULL,
   `order_info` varchar(255) DEFAULT NULL,
@@ -327,20 +329,21 @@ CREATE TABLE IF NOT EXISTS `payment` (
   UNIQUE KEY `UKmf7n8wo2rwrxsd6f3t9ub2mep` (`order_id`),
   UNIQUE KEY `UK3lfsican6ilyolgakyooqlrm` (`txn_ref`),
   CONSTRAINT `FKlouu98csyullos9k25tbpk4va` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table handbagdb.payment: ~10 rows (approximately)
+-- Dumping data for table handbagdb.payment: ~11 rows (approximately)
 INSERT INTO `payment` (`payment_id`, `amount`, `payment_date`, `payment_method`, `status`, `order_id`, `bank_code`, `order_info`, `response_code`, `transaction_no`, `transaction_status`, `txn_ref`) VALUES
 	(1, 2412000.00, '2025-12-10 18:06:46.025708', 'CASH', 'PENDING', 1, NULL, NULL, NULL, NULL, NULL, NULL),
 	(2, 864000.00, '2025-12-10 18:18:28.513058', 'CASH', 'PENDING', 2, NULL, NULL, NULL, NULL, NULL, NULL),
-	(3, 814000.00, '2025-12-10 18:54:46.215937', 'CASH', '', 3, NULL, NULL, NULL, NULL, NULL, NULL),
-	(4, 1613000.00, '2025-12-10 18:55:20.531032', 'CASH', '', 4, NULL, NULL, NULL, NULL, NULL, NULL),
-	(5, 1713000.00, '2025-12-10 23:09:44.207355', 'CASH', '', 5, NULL, NULL, NULL, NULL, NULL, NULL),
-	(6, 1613000.00, '2025-12-11 01:04:52.391281', 'CASH', '', 6, NULL, NULL, NULL, NULL, NULL, NULL),
-	(7, 814000.00, '2025-12-11 05:22:39.620140', 'CASH', '', 7, NULL, NULL, NULL, NULL, NULL, NULL),
-	(8, 764000.00, '2025-12-11 14:04:06.716402', 'CASH', '', 8, NULL, NULL, NULL, NULL, NULL, NULL),
+	(3, 814000.00, '2025-12-10 18:54:46.215937', 'CASH', 'PENDING', 3, NULL, NULL, NULL, NULL, NULL, NULL),
+	(4, 1613000.00, '2025-12-10 18:55:20.531032', 'CASH', 'PENDING', 4, NULL, NULL, NULL, NULL, NULL, NULL),
+	(5, 1713000.00, '2025-12-10 23:09:44.207355', 'CASH', 'PENDING', 5, NULL, NULL, NULL, NULL, NULL, NULL),
+	(6, 1613000.00, '2025-12-11 01:04:52.391281', 'CASH', 'PENDING', 6, NULL, NULL, NULL, NULL, NULL, NULL),
+	(7, 814000.00, '2025-12-11 05:22:39.620140', 'CASH', 'PENDING', 7, NULL, NULL, NULL, NULL, NULL, NULL),
+	(8, 764000.00, '2025-12-11 14:04:06.716402', 'CASH', 'PENDING', 8, NULL, NULL, NULL, NULL, NULL, NULL),
 	(9, 764000.00, NULL, 'CASH', 'PENDING', 11, NULL, NULL, NULL, NULL, NULL, NULL),
-	(10, 764000.00, NULL, 'CASH', 'PENDING', 12, NULL, NULL, NULL, NULL, NULL, NULL);
+	(10, 764000.00, NULL, 'CASH', 'PENDING', 12, NULL, NULL, NULL, NULL, NULL, NULL),
+	(11, 864000.00, '2026-05-27 00:53:52.577020', 'CASH', 'SUCCESS', 13, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- Dumping structure for table handbagdb.product
 CREATE TABLE IF NOT EXISTS `product` (
@@ -1016,7 +1019,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 INSERT INTO `users` (`user_id`, `created_at`, `dob`, `email`, `first_name`, `gender`, `last_name`, `password`, `phone_number`, `photo_url`) VALUES
 	(1, '2024-01-01 10:00:00.000000', '2004-01-28', 'admin@example.com', 'Admin', 'OTHER', 'System', '$2a$10$CPNN3BDyG0aoamjvHGIRtu95TQUzlPYdLrr8GPEl7FnStpkTqIeWq', '0901000001', NULL),
 	(2, '2024-01-02 14:30:00.000000', '1995-05-15', 'customer@example.com', 'Nguyễn', 'MALE', 'Văn A', '$2a$10$CPNN3BDyG0aoamjvHGIRtu95TQUzlPYdLrr8GPEl7FnStpkTqIeWq', '0901000002', 'https://example.com/avatar/customer1.jpg'),
-	(6, '2025-12-10 18:52:50.532874', '2004-01-28', 'levuthanhduong2004@gmail.com', 'Lê Vũ Thanh', 'MALE', 'Dương', '$2a$10$ecLDwgq2qogAjxWLxWBXW.nbXzGzl2Ag2lVEMCSPJR87HVcgZGwTu', '0877152840', NULL),
+	(6, '2025-12-10 18:52:50.532874', '2004-01-28', 'levuthanhduong2004@gmail.com', 'Lê Vũ Thanh', 'MALE', 'Dương', '$2a$10$Ra3lX7uSz7UoRliBn4NA0O7zgVQrVQrO69h0QvE02Zm/9aOpOrDCK', '0877152840', NULL),
 	(7, '2026-05-26 23:19:21.957716', NULL, 'levuthanhduong2812004@gmail.com', 'Lê Vũ Thanh', NULL, 'Dương', '$2a$10$wMBmoZ82wyRM6bj8KyxrferkXXAEJnuv56rEDTA7K1rmi5Ze7pccW', '0369384679', NULL);
 
 -- Dumping structure for table handbagdb.user_roles

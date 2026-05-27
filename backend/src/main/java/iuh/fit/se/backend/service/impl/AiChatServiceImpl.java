@@ -15,10 +15,12 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -208,7 +210,10 @@ public class AiChatServiceImpl implements AiChatService {
     public List<AiMessageResponse> getMessages(String sessionId, Jwt jwt) {
         AiConversation conversation = conversationRepository
                 .findBySessionIdAndDeletedFalse(sessionId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Conversation not found"
+                ));
 
         validateConversationOwner(conversation, jwt);
 
@@ -233,7 +238,10 @@ public class AiChatServiceImpl implements AiChatService {
     public void deleteConversation(String sessionId, Jwt jwt) {
         AiConversation conversation = conversationRepository
                 .findBySessionIdAndDeletedFalse(sessionId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Conversation not found"
+                ));
 
         validateConversationOwner(conversation, jwt);
 
@@ -287,11 +295,11 @@ public class AiChatServiceImpl implements AiChatService {
         }
 
         if (jwt == null || jwt.getSubject() == null) {
-            throw new RuntimeException("Unauthorized");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid JWT");
         }
 
         if (!conversation.getUser().getEmail().equals(jwt.getSubject())) {
-            throw new RuntimeException("Access denied");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
     }
 
@@ -305,12 +313,18 @@ public class AiChatServiceImpl implements AiChatService {
 
         // Session đã thuộc user nhưng request hiện tại là guest
         if (currentUser == null) {
-            throw new RuntimeException("Bạn không có quyền truy cập đoạn chat này.");
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Bạn không có quyền truy cập đoạn chat này."
+            );
         }
 
         // Session thuộc user khác
         if (!owner.getUserId().equals(currentUser.getUserId())) {
-            throw new RuntimeException("Bạn không có quyền truy cập đoạn chat này.");
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Bạn không có quyền truy cập đoạn chat này."
+            );
         }
     }
 

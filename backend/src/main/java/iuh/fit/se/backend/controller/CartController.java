@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -28,7 +29,7 @@ public class CartController {
     @GetMapping
     public ResponseEntity<?> getCart(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(
-                databaseCartService.getAllCart(jwt.getSubject())
+                databaseCartService.getAllCart(requireSubject(jwt))
         );
     }
 
@@ -38,7 +39,7 @@ public class CartController {
             @RequestBody CartLineDto dto) {
 
         databaseCartService.addCartItem(
-                jwt.getSubject(),
+                requireSubject(jwt),
                 dto.getItemId(),
                 dto.getQty()
         );
@@ -52,7 +53,7 @@ public class CartController {
             @RequestParam int quantity) {
 
         databaseCartService.updateQuantity(
-                jwt.getSubject(),
+                requireSubject(jwt),
                 itemId,
                 quantity
         );
@@ -65,7 +66,7 @@ public class CartController {
             @PathVariable Long itemId) {
 
         databaseCartService.removeCartItem(
-                jwt.getSubject(),
+                requireSubject(jwt),
                 itemId
         );
         return ResponseEntity.noContent().build();
@@ -74,7 +75,7 @@ public class CartController {
     @DeleteMapping
     public ResponseEntity<Void> clearCart(@AuthenticationPrincipal Jwt jwt) {
 
-        databaseCartService.clearCart(jwt.getSubject());
+        databaseCartService.clearCart(requireSubject(jwt));
         return ResponseEntity.noContent().build();
     }
 
@@ -85,11 +86,35 @@ public class CartController {
             HttpServletRequest httpRequest) {
 
         CheckoutResponse response = orderService.createOrder(
-                jwt.getSubject(),
+                requireSubject(jwt),
                 request,
-                httpRequest.getRemoteAddr()
+                getClientIp(httpRequest)
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    private String requireSubject(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid JWT");
+        }
+        return jwt.getSubject();
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }

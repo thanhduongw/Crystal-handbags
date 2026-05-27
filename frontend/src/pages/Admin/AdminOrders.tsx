@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Table, Select, Tag, Typography, Spin, message, Button, Space,
     DatePicker, Input, Card, Row, Col, Statistic, Modal
@@ -110,6 +110,10 @@ export default function AdminOrders() {
         setDetailModalVisible(true);
         setDetailLoading(true);
     };
+
+    const handleDetailLoaded = useCallback(() => {
+        setDetailLoading(false);
+    }, []);
 
     const handleClearFilters = () => {
         setSearchText('');
@@ -377,7 +381,7 @@ export default function AdminOrders() {
                         )}
                         <AdminOrderDetail
                             orderId={detailOrderId}
-                            onLoaded={() => setDetailLoading(false)}
+                            onLoaded={handleDetailLoaded}
                         />
                     </div>
                 )}

@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { login } from '../api/authAPI';
 import * as sessionCartAPI from '../api/sessionCartAPI';
 import type { AxiosError } from 'axios';
+import { getUserFromToken, isAdminUser } from '../utils/authToken';
 
 const { Title } = Typography;
 
@@ -19,12 +20,10 @@ export default function Login() {
             setLoading(true);
             const response = await login(values);
 
-            const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
-            const userData = {
-                email: payload.sub,
-                role: payload.scope,
-                userId: payload.userId,
-            };
+            const userData = getUserFromToken(response.accessToken);
+            if (!userData) {
+                throw new Error('Invalid login token');
+            }
 
             localStorage.setItem('accessToken', response.accessToken);
             localStorage.setItem('refreshToken', response.refreshToken);
@@ -43,7 +42,7 @@ export default function Login() {
             loginContext(response.accessToken, response.refreshToken, userData);
 
             message.success('Đăng nhập thành công!');
-            navigate('/');
+            navigate(isAdminUser(userData) ? '/admin' : '/', { replace: true });
         } catch (err) {
             const error = err as AxiosError<{ code?: string; message?: string }>;
             if (error.response) {

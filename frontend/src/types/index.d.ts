@@ -121,6 +121,7 @@ export interface UserProfileDto {
 export interface AuthUser {
   email: string;
   role: Role;
+  roles: Role[];
   userId: number;
 }
 

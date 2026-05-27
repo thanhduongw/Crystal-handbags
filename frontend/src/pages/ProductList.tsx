@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import {
     Col,
@@ -30,7 +30,6 @@ export default function ProductList() {
     const categoryId = id ? Number(id) : null;
 
     const [data, setData] = useState<ProductListDto[]>([]);
-    const [filteredData, setFilteredData] = useState<ProductListDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [categoriesLoading, setCategoriesLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -45,23 +44,7 @@ export default function ProductList() {
 
     const pageSize = 12;
 
-    // Load categories on mount
-    useEffect(() => {
-        loadCategories();
-    }, []);
-
-    // Load products when route changes
-    useEffect(() => {
-        loadProducts();
-        setCurrentPage(1);
-    }, [id, searchQuery]);
-
-    // Apply filters when data or filters change
-    useEffect(() => {
-        applyFilters();
-    }, [data, priceRange, selectedCategory, sortBy]);
-
-    const loadCategories = async () => {
+    const loadCategories = useCallback(async () => {
         try {
             setCategoriesLoading(true);
             const cats = await fetchCategories();
@@ -71,9 +54,9 @@ export default function ProductList() {
         } finally {
             setCategoriesLoading(false);
         }
-    };
+    }, []);
 
-    const loadProducts = async () => {
+    const loadProducts = useCallback(async () => {
         try {
             setLoading(true);
             let products: ProductListDto[];
@@ -81,6 +64,7 @@ export default function ProductList() {
             if (searchQuery) {
                 // Search mode
                 products = await searchProducts(searchQuery);
+                setCategory(undefined);
                 setSelectedCategory(null);
             } else if (categoryId && !isNaN(categoryId)) {
                 // Category filter mode
@@ -91,6 +75,7 @@ export default function ProductList() {
             } else {
                 // All products mode
                 products = await fetchProducts();
+                setCategory(undefined);
                 setSelectedCategory(null);
             }
 
@@ -111,9 +96,20 @@ export default function ProductList() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [categoryId, searchQuery]);
 
-    const applyFilters = () => {
+    // Load categories on mount
+    useEffect(() => {
+        loadCategories();
+    }, [loadCategories]);
+
+    // Load products when route changes
+    useEffect(() => {
+        loadProducts();
+        setCurrentPage(1);
+    }, [loadProducts]);
+
+    const filteredData = useMemo(() => {
         let filtered = [...data];
 
         // Price filter
@@ -148,8 +144,8 @@ export default function ProductList() {
                 break;
         }
 
-        setFilteredData(filtered);
-    };
+        return filtered;
+    }, [data, priceRange, selectedCategory, sortBy, categoryId, categories]);
 
     const handleClearFilters = () => {
         setPriceRange([0, maxPrice]);
