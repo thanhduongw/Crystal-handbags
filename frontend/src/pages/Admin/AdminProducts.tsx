@@ -14,7 +14,7 @@ import {
 import type { ProductListDto, ProductDetailDto } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import ProductForm from '../../components/ProductForm';
+import ProductForm, { type ProductFormUploadFiles } from '../../components/ProductForm';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -93,26 +93,57 @@ export default function AdminProducts() {
         }
     };
 
-    const handleSubmit = async (product: ProductDetailDto, isEdit: boolean) => {
-        try {
-            setSubmitting(true);
-            if (isEdit && editing) {
-                await updateProduct(editing.productId!, product);
-                message.success('Cập nhật thành công');
-            } else {
-                await createProduct(product);
-                message.success('Tạo sản phẩm thành công');
-            }
-            setModalVisible(false);
-            setEditing(null);
-            load();
-        } catch (error: unknown) {
-            console.error('Submit error:', error);
-            message.error(getApiErrorMessage(error, 'Lưu thất bại'));
-        } finally {
-            setSubmitting(false);
-        }
-    };
+            const handleSubmit = async (
+                product: ProductDetailDto,
+                isEdit: boolean,
+                files?: ProductFormUploadFiles
+            ) => {
+                try {
+                    setSubmitting(true);
+
+                    let savedProduct: ProductDetailDto;
+
+                    if (isEdit && editing) {
+                        savedProduct = await updateProduct(editing.productId!, product);
+                    } else {
+                        savedProduct = await createProduct(product);
+                    }
+
+                    const productId = isEdit && editing
+                        ? editing.productId!
+                        : savedProduct.productId!;
+
+                    if (files?.avatarFile && productId) {
+                        const uploadedAvatarUrl = await uploadProductImage(
+                            productId,
+                            files.avatarFile
+                        );
+
+                        const latestProduct = await fetchProductDetail(productId);
+
+                        await updateProduct(productId, {
+                            ...latestProduct,
+                            avatar: uploadedAvatarUrl,
+                        });
+                    }
+
+                    if (files?.imageFiles && files.imageFiles.length > 0 && productId) {
+                        for (const file of files.imageFiles) {
+                            await uploadProductImage(productId, file);
+                        }
+                    }
+
+                    message.success(isEdit ? 'Cập nhật thành công' : 'Tạo sản phẩm thành công');
+                    setModalVisible(false);
+                    setEditing(null);
+                    load();
+                } catch (error: unknown) {
+                    console.error('Submit error:', error);
+                    message.error(getApiErrorMessage(error, 'Lưu thất bại'));
+                } finally {
+                    setSubmitting(false);
+                }
+            };
 
     const handleManageImages = async (record: ProductListDto) => {
         try {

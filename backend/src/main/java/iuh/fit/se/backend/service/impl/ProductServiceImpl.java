@@ -167,15 +167,21 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
-        // Xóa images từ storage
+        Set<String> imageUrls = new HashSet<>();
+
+        if (product.getAvatar() != null && !product.getAvatar().isBlank()) {
+            imageUrls.add(product.getAvatar());
+        }
+
         if (product.getImages() != null) {
-            for (String imageUrl : product.getImages()) {
-                try {
-                    fileUploadService.deleteImage(imageUrl);
-                } catch (Exception e) {
-                    // Log nhưng không throw để tiếp tục xóa
-                    System.err.println("Failed to delete image: " + imageUrl + " - " + e.getMessage());
-                }
+            imageUrls.addAll(product.getImages());
+        }
+
+        for (String imageUrl : imageUrls) {
+            try {
+                fileUploadService.deleteImage(imageUrl);
+            } catch (Exception e) {
+                System.err.println("Failed to delete image: " + imageUrl + " - " + e.getMessage());
             }
         }
 
