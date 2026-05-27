@@ -26,10 +26,19 @@ import {
 import type { CategoryDto, ProductDetailDto } from '../types';
 import { fetchCategories } from '../api/categoryAPI';
 
+export type ProductFormUploadFiles = {
+  avatarFile?: File;
+  imageFiles?: File[];
+};
+
 interface ProductFormProps {
     visible: boolean;
     onCancel: () => void;
-    onSubmit: (product: ProductDetailDto, isEdit: boolean) => void;
+    onSubmit: (
+        product: ProductDetailDto,
+        isEdit: boolean,
+        files?: ProductFormUploadFiles
+    ) => void;
     initialValues?: ProductDetailDto;
     isEdit?: boolean;
     submitting?: boolean;
@@ -58,10 +67,16 @@ export default function ProductForm({
     const [categories, setCategories] = useState<CategoryDto[]>([]);
     const [loadingCats, setLoadingCats] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState<string | undefined>();
+    const [avatarFile, setAvatarFile] = useState<File | undefined>();
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
     useEffect(() => {
         if (visible) {
             loadCategories();
+            setAvatarFile(undefined);
+            setImageFiles([]);
+            setImagePreviews([]);
             if (initialValues) {
                 form.setFieldsValue({
                     name: initialValues.name,
@@ -102,8 +117,9 @@ export default function ProductForm({
     };
 
     const handleFinish = (values: ProductFormValues) => {
-        // Normalize images: keep only non-empty strings
-        const images: string[] = (values.images || []).filter((x): x is string => !!x);
+        const images: string[] = (values.images || []).filter(
+            (x): x is string => !!x && x.trim().length > 0
+        );
 
         const product: ProductDetailDto = {
             productId: initialValues?.productId,
@@ -113,21 +129,12 @@ export default function ProductForm({
             categoryId: values.categoryId,
             showHomePage: values.showHomePage || false,
             items: values.items || [],
-            avatar: values.avatar || undefined,
+            avatar: avatarFile ? initialValues?.avatar : values.avatar || undefined,
             images,
         };
 
-        onSubmit(product, isEdit);
+        onSubmit(product, isEdit, { avatarFile, imageFiles });
     };
-
-    // Utility to convert File -> dataURL and optionally set to a given setter
-    const fileToDataUrl = (file: File): Promise<string> =>
-        new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target?.result as string);
-            reader.onerror = () => reject(new Error('Unable to read file'));
-            reader.readAsDataURL(file);
-        });
 
     return (
         <Modal
@@ -145,7 +152,10 @@ export default function ProductForm({
                 form={form}
                 layout="vertical"
                 onFinish={handleFinish}
-                initialValues={{ items: [{ color: '', price: 0, stockQuantity: 0 }], images: [] }}
+                initialValues={{
+                    items: [{ color: '', price: 0, stockQuantity: 0 }],
+                    images: [],
+                }}
             >
                 <Row gutter={16}>
                     <Col span={12}>
@@ -167,7 +177,12 @@ export default function ProductForm({
                             label="Danh mục"
                             rules={[{ required: true, message: 'Vui lòng chọn danh mục!' }]}
                         >
-                            <Select loading={loadingCats} placeholder="Chọn danh mục" showSearch optionFilterProp="children">
+                            <Select
+                                loading={loadingCats}
+                                placeholder="Chọn danh mục"
+                                showSearch
+                                optionFilterProp="children"
+                            >
                                 {categories.map((c) => (
                                     <Select.Option key={c.categoryId} value={c.categoryId}>
                                         {c.name}
@@ -202,20 +217,25 @@ export default function ProductForm({
                             <InputNumber
                                 min={0}
                                 style={{ width: '100%' }}
-                                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                formatter={(value) =>
+                                    `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                }
                                 placeholder="Nhập giá sản phẩm"
                             />
                         </Form.Item>
                     </Col>
 
                     <Col span={12}>
-                        <Form.Item name="showHomePage" label="Hiển thị trang chủ" valuePropName="checked">
+                        <Form.Item
+                            name="showHomePage"
+                            label="Hiển thị trang chủ"
+                            valuePropName="checked"
+                        >
                             <Switch />
                         </Form.Item>
                     </Col>
                 </Row>
 
-                {/* AVATAR SECTION */}
                 <Divider>Ảnh đại diện (Avatar)</Divider>
 
                 <Row gutter={16} align="middle">
@@ -225,6 +245,7 @@ export default function ProductForm({
                                 placeholder="https://example.com/avatar.jpg"
                                 onChange={(e) => {
                                     const v = e.target.value;
+                                    setAvatarFile(undefined);
                                     setAvatarPreview(v || undefined);
                                 }}
                             />
@@ -236,15 +257,28 @@ export default function ProductForm({
                             <Upload
                                 listType="picture-card"
                                 showUploadList={false}
-                                beforeUpload={async (file) => {
-                                    try {
-                                        const dataUrl = await fileToDataUrl(file as File);
-                                        form.setFieldsValue({ avatar: dataUrl });
-                                        setAvatarPreview(dataUrl);
-                                    } catch {
-                                        message.error('Không thể đọc file');
+                                beforeUpload={(file) => {
+                                    const selectedFile = file as File;
+
+                                    if (!selectedFile.type.startsWith('image/')) {
+                                        message.error('Chỉ được chọn file ảnh');
+                                        return false;
                                     }
-                                    return false; // prevent auto upload
+
+                                    const isLt5M = selectedFile.size / 1024 / 1024 < 5;
+                                    if (!isLt5M) {
+                                        message.error('Ảnh phải nhỏ hơn 5MB');
+                                        return false;
+                                    }
+
+                                    setAvatarFile(selectedFile);
+                                    setAvatarPreview(URL.createObjectURL(selectedFile));
+
+                                    // Không lưu base64 vào DB nữa.
+                                    form.setFieldsValue({ avatar: undefined });
+
+                                    message.success('Đã chọn ảnh');
+                                    return false;
                                 }}
                                 accept="image/*"
                             >
@@ -260,9 +294,24 @@ export default function ProductForm({
                         <div>
                             <div style={{ marginBottom: 8, fontWeight: 500 }}>Preview</div>
                             {avatarPreview ? (
-                                <Image src={avatarPreview} width={120} height={120} style={{ objectFit: 'cover', borderRadius: 6 }} />
+                                <Image
+                                    src={avatarPreview}
+                                    width={120}
+                                    height={120}
+                                    style={{ objectFit: 'cover', borderRadius: 6 }}
+                                />
                             ) : (
-                                <div style={{ width: 120, height: 120, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}>
+                                <div
+                                    style={{
+                                        width: 120,
+                                        height: 120,
+                                        background: '#f5f5f5',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: 6,
+                                    }}
+                                >
                                     <PictureOutlined style={{ fontSize: 24, color: '#999' }} />
                                 </div>
                             )}
@@ -270,7 +319,6 @@ export default function ProductForm({
                     </Col>
                 </Row>
 
-                {/* IMAGES GALLERY */}
                 <Divider>Ảnh chi tiết (Images)</Divider>
 
                 <Form.List name="images">
@@ -287,37 +335,60 @@ export default function ProductForm({
                                                 <Form.Item
                                                     {...restField}
                                                     name={[name]}
-                                                    rules={[{ required: true, message: 'Nhập URL hoặc upload ảnh' }]}
+                                                    rules={[{ required: true, message: 'Nhập URL ảnh' }]}
                                                 >
                                                     <Input placeholder="Nhập URL ảnh" />
                                                 </Form.Item>
                                             </Col>
-
-                                            <Col span={4}>
+                                                <Col span={4}>
                                                 <Upload
                                                     showUploadList={false}
-                                                    beforeUpload={async (file) => {
-                                                        try {
-                                                            const dataUrl = await fileToDataUrl(file as File);
-                                                            const images: string[] = form.getFieldValue('images') || [];
-                                                            images[index] = dataUrl;
-                                                            form.setFieldsValue({ images });
-                                                        } catch {
-                                                            message.error('Không thể đọc file');
-                                                        }
+                                                    beforeUpload={(file) => {
+                                                    const selectedFile = file as File;
+
+                                                    if (!selectedFile.type.startsWith("image/")) {
+                                                        message.error("Chỉ được chọn file ảnh");
                                                         return false;
+                                                    }
+
+                                                    const isLt5M = selectedFile.size / 1024 / 1024 < 5;
+                                                    if (!isLt5M) {
+                                                        message.error("Ảnh phải nhỏ hơn 5MB");
+                                                        return false;
+                                                    }
+
+                                                    setImageFiles((prev) => [...prev, selectedFile]);
+                                                    setImagePreviews((prev) => [...prev, URL.createObjectURL(selectedFile)]);
+
+                                                    message.success("Đã chọn ảnh chi tiết");
+                                                    return false;
                                                     }}
                                                     accept="image/*"
                                                 >
                                                     <Button icon={<UploadOutlined />}>Upload</Button>
                                                 </Upload>
-                                            </Col>
+                                                </Col>
 
                                             <Col span={4}>
                                                 {preview ? (
-                                                    <Image src={preview} width={80} height={80} style={{ objectFit: 'cover' }} fallback="https://via.placeholder.com/80" />
+                                                    <Image
+                                                        src={preview}
+                                                        width={80}
+                                                        height={80}
+                                                        style={{ objectFit: 'cover' }}
+                                                        fallback="https://placehold.co/80x80?text=Error"
+                                                    />
                                                 ) : (
-                                                    <div style={{ width: 80, height: 80, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <div
+                                                        style={{
+                                                            width: 80,
+                                                            height: 80,
+                                                            background: '#f5f5f5',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                        }}
+                                                    >
                                                         <PictureOutlined />
                                                     </div>
                                                 )}
@@ -327,12 +398,15 @@ export default function ProductForm({
                                                 <Space>
                                                     <Button
                                                         onClick={() => {
-                                                            const images: string[] = form.getFieldValue('images') || [];
+                                                            const images: string[] =
+                                                                form.getFieldValue('images') || [];
                                                             const val = images[index];
                                                             if (!val) {
                                                                 message.error('Ảnh rỗng');
                                                                 return;
                                                             }
+
+                                                            setAvatarFile(undefined);
                                                             form.setFieldsValue({ avatar: val });
                                                             setAvatarPreview(val);
                                                             message.success('Đã đặt ảnh này làm avatar');
@@ -342,7 +416,11 @@ export default function ProductForm({
                                                         Đặt làm avatar
                                                     </Button>
 
-                                                    <Button danger onClick={() => remove(name)} icon={<DeleteOutlined />}>
+                                                    <Button
+                                                        danger
+                                                        onClick={() => remove(name)}
+                                                        icon={<DeleteOutlined />}
+                                                    >
                                                         Xóa
                                                     </Button>
                                                 </Space>
@@ -359,81 +437,166 @@ export default function ProductForm({
                                         onClick={() => add('')}
                                         icon={<PlusOutlined />}
                                     >
-                                        Thêm ảnh (URL hoặc upload)
+                                        Thêm ảnh URL
                                     </Button>
 
                                     <Upload
-                                        showUploadList={false}
-                                        beforeUpload={async (file) => {
-                                            try {
-                                                const dataUrl = await fileToDataUrl(file as File);
-                                                const images: string[] = form.getFieldValue('images') || [];
-                                                images.push(dataUrl);
-                                                form.setFieldsValue({ images });
-                                            } catch {
-                                                message.error('Không thể đọc file');
-                                            }
-                                            return false;
-                                        }}
-                                        accept="image/*"
+                                    showUploadList={false}
+                                    multiple
+                                    beforeUpload={(file) => {
+                                        const selectedFile = file as File;
+
+                                        if (!selectedFile.type.startsWith("image/")) {
+                                        message.error("Chỉ được chọn file ảnh");
+                                        return false;
+                                        }
+
+                                        const isLt5M = selectedFile.size / 1024 / 1024 < 5;
+                                        if (!isLt5M) {
+                                        message.error("Ảnh phải nhỏ hơn 5MB");
+                                        return false;
+                                        }
+
+                                        setImageFiles((prev) => [...prev, selectedFile]);
+                                        setImagePreviews((prev) => [...prev, URL.createObjectURL(selectedFile)]);
+
+                                        message.success("Đã chọn ảnh chi tiết");
+                                        return false;
+                                    }}
+                                    accept="image/*"
                                     >
-                                        <Button icon={<UploadOutlined />}>Upload & Thêm</Button>
+                                    <Button icon={<UploadOutlined />}>Upload & Thêm</Button>
                                     </Upload>
                                 </Space>
                             </Form.Item>
                         </>
                     )}
                 </Form.List>
+                    {imagePreviews.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                        <div style={{ marginBottom: 8, fontWeight: 500 }}>
+                        Ảnh chi tiết đã chọn
+                        </div>
 
-                {/* VARIANTS */}
-                <Card title="Biến thể sản phẩm (Màu sắc, Giá, Số lượng)" style={{ marginTop: 16 }}>
+                        <Row gutter={[12, 12]}>
+                        {imagePreviews.map((src, index) => (
+                            <Col key={src} span={4}>
+                            <div style={{ position: "relative" }}>
+                                <Image
+                                src={src}
+                                width={100}
+                                height={100}
+                                style={{ objectFit: "cover", borderRadius: 6 }}
+                                />
+
+                                <Button
+                                danger
+                                size="small"
+                                icon={<DeleteOutlined />}
+                                style={{
+                                    position: "absolute",
+                                    top: 4,
+                                    right: 4,
+                                }}
+                                onClick={() => {
+                                    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+                                    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+                                }}
+                                />
+                            </div>
+                            </Col>
+                        ))}
+                        </Row>
+                    </div>
+                    )}
+                <Card
+                    title="Biến thể sản phẩm (Màu sắc, Giá, Số lượng)"
+                    style={{ marginTop: 16 }}
+                >
                     <Form.List name="items">
                         {(fields, { add, remove }) => (
                             <>
                                 {fields.map(({ key, name, ...restField }) => (
-                                    <Card
-                                        key={key}
-                                        size="small"
-                                        style={{ marginBottom: 16 }}
-                                        extra={
-                                            fields.length > 1 ? (
-                                                <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)}>
-                                                    Xóa
-                                                </Button>
-                                            ) : null
-                                        }
-                                    >
-                                        <Row gutter={16}>
-                                            <Col span={8}>
-                                                <Form.Item {...restField} name={[name, 'color']} rules={[{ required: true, message: 'Nhập màu!' }]}>
-                                                    <Input placeholder="Màu sắc (VD: Đỏ, Xanh)" />
-                                                </Form.Item>
-                                            </Col>
+                                    <Card key={key} size="small" style={{ marginBottom: 12 }}>
+                                        <Row gutter={16} align="middle">
                                             <Col span={8}>
                                                 <Form.Item
                                                     {...restField}
-                                                    name={[name, 'price']}
-                                                    rules={[{ required: true, message: 'Nhập giá!' }, { type: 'number', min: 0, message: 'Giá >= 0' }]}
+                                                    name={[name, 'color']}
+                                                    label="Màu sắc"
+                                                    rules={[
+                                                        { required: true, message: 'Nhập màu sắc' },
+                                                    ]}
                                                 >
-                                                    <InputNumber placeholder="Giá" style={{ width: '100%' }} formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+                                                    <Input placeholder="VD: Đen, Trắng, Xanh..." />
                                                 </Form.Item>
                                             </Col>
 
-                                            <Col span={8}>
+                                            <Col span={7}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    name={[name, 'price']}
+                                                    label="Giá"
+                                                    rules={[
+                                                        { required: true, message: 'Nhập giá' },
+                                                        {
+                                                            type: 'number',
+                                                            min: 0,
+                                                            message: 'Giá phải >= 0',
+                                                        },
+                                                    ]}
+                                                >
+                                                    <InputNumber
+                                                        min={0}
+                                                        style={{ width: '100%' }}
+                                                        formatter={(value) =>
+                                                            `${value}`.replace(
+                                                                /\B(?=(\d{3})+(?!\d))/g,
+                                                                ','
+                                                            )
+                                                        }
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+
+                                            <Col span={7}>
                                                 <Form.Item
                                                     {...restField}
                                                     name={[name, 'stockQuantity']}
-                                                    rules={[{ required: true, message: 'Nhập số lượng!' }, { type: 'number', min: 0, message: 'Số lượng >= 0' }]}
+                                                    label="Tồn kho"
+                                                    rules={[
+                                                        { required: true, message: 'Nhập số lượng' },
+                                                        {
+                                                            type: 'number',
+                                                            min: 0,
+                                                            message: 'Số lượng phải >= 0',
+                                                        },
+                                                    ]}
                                                 >
-                                                    <InputNumber placeholder="Số lượng" style={{ width: '100%' }} />
+                                                    <InputNumber min={0} style={{ width: '100%' }} />
                                                 </Form.Item>
+                                            </Col>
+
+                                            <Col span={2}>
+                                                {fields.length > 1 && (
+                                                    <Button
+                                                        danger
+                                                        icon={<DeleteOutlined />}
+                                                        onClick={() => remove(name)}
+                                                    />
+                                                )}
                                             </Col>
                                         </Row>
                                     </Card>
                                 ))}
 
                                 <Form.Item>
-                                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                                    <Button
+                                        type="dashed"
+                                        onClick={() => add({ color: '', price: 0, stockQuantity: 0 })}
+                                        block
+                                        icon={<PlusOutlined />}
+                                    >
                                         Thêm biến thể
                                     </Button>
                                 </Form.Item>

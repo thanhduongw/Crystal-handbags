@@ -1,114 +1,132 @@
 package iuh.fit.se.backend.service.impl;
 
 import iuh.fit.se.backend.service.FileUploadService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class FileUploadServiceImpl implements FileUploadService {
 
-    @Value("${app.file.upload.dir:uploads}")
-    private String uploadDir;
+    private final S3Client s3Client;
 
-    private final Path rootLocation;
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
 
-    public FileUploadServiceImpl(@Value("${app.file.upload.dir:uploads}") String uploadDir) {
-        this.uploadDir = uploadDir;
-        this.rootLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
-        try {
-            Files.createDirectories(this.rootLocation);
-            log.info("Upload directory created at: {}", this.rootLocation);
-        } catch (IOException e) {
-            log.error("Could not create upload directory: {}", e.getMessage());
-            throw new RuntimeException("Could not create upload directory", e);
-        }
-    }
+    @Value("${aws.s3.region}")
+    private String region;
+
+    @Value("${aws.s3.public-base-url:}")
+    private String publicBaseUrl;
+
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif"
+    );
 
     @Override
     public String uploadImage(MultipartFile file, String directory) {
-        // Validate file
         validateFile(file);
 
-        // Create directory if not exists
-        Path targetLocation = createTargetDirectory(directory);
-
-        // Generate unique filename
+        String safeDirectory = normalizeDirectory(directory);
         String fileName = generateUniqueFileName(file.getOriginalFilename());
-        Path targetPath = targetLocation.resolve(fileName);
+        String key = safeDirectory + "/" + fileName;
 
         try {
-            // Copy file to target location
-            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(file.getContentType())
+                    .contentLength(file.getSize())
+                    .build();
 
-            // Return relative path for URL
-            return "/" + uploadDir + "/" + directory + "/" + fileName;
+            s3Client.putObject(
+                    putObjectRequest,
+                    RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+            );
 
+            String imageUrl = buildPublicUrl(key);
+            log.info("Uploaded image to S3: {}", imageUrl);
+
+            return imageUrl;
         } catch (IOException e) {
-            log.error("Failed to upload file: {}", e.getMessage());
+            log.error("Failed to read upload file", e);
             throw new RuntimeException("Could not upload file. Please try again.", e);
+        } catch (Exception e) {
+            log.error("Failed to upload file to S3", e);
+            throw new RuntimeException("Could not upload file to S3", e);
         }
     }
 
     @Override
     public void deleteImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            log.warn("Attempt to delete null or empty image URL");
+        if (imageUrl == null || imageUrl.isBlank()) {
             return;
         }
 
-        // Extract path from URL
-        String filePath = imageUrl.replace("/" + uploadDir + "/", "");
-        Path fileToDelete = rootLocation.resolve(filePath).normalize();
+        // Không xóa ảnh CDN ngoài như hstatic, placehold, v.v.
+        if (!isManagedS3Url(imageUrl)) {
+            log.info("Skip deleting external image URL: {}", imageUrl);
+            return;
+        }
+
+        String key = extractKeyFromUrl(imageUrl);
+
+        if (key == null || key.isBlank()) {
+            log.warn("Cannot extract S3 key from image URL: {}", imageUrl);
+            return;
+        }
 
         try {
-            // Security check: ensure file is inside upload directory
-            if (!fileToDelete.toAbsolutePath().startsWith(rootLocation.toAbsolutePath())) {
-                log.warn("Security warning: Attempt to delete file outside upload directory: {}", imageUrl);
-                return;
-            }
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
 
-            if (Files.exists(fileToDelete)) {
-                Files.delete(fileToDelete);
-                log.info("Successfully deleted file: {}", fileToDelete);
-
-                // Try to delete parent directory if empty
-                deleteEmptyParentDirectories(fileToDelete.getParent());
-            }
-        } catch (IOException e) {
-            log.error("Failed to delete file: {}", e.getMessage());
-            throw new RuntimeException("Could not delete file", e);
+            s3Client.deleteObject(deleteObjectRequest);
+            log.info("Deleted image from S3: {}", key);
+        } catch (Exception e) {
+            log.error("Failed to delete image from S3: {}", imageUrl, e);
+            throw new RuntimeException("Could not delete image from S3", e);
         }
     }
 
     @Override
     public List<String> getProductImages(Long productId) {
-        Path productDir = rootLocation.resolve("products/" + productId);
+        String prefix = "products/" + productId + "/";
 
-        if (!Files.exists(productDir)) {
-            return List.of();
-        }
+        ListObjectsV2Request request = ListObjectsV2Request.builder()
+                .bucket(bucketName)
+                .prefix(prefix)
+                .build();
 
-        try {
-            return Files.list(productDir)
-                    .filter(Files::isRegularFile)
-                    .map(path -> "/" + uploadDir + "/products/" + productId + "/" + path.getFileName().toString())
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            log.error("Failed to list files for product {}: {}", productId, e.getMessage());
-            return List.of();
-        }
+        return s3Client.listObjectsV2(request)
+                .contents()
+                .stream()
+                .map(s3Object -> buildPublicUrl(s3Object.key()))
+                .collect(Collectors.toList());
     }
 
     private void validateFile(MultipartFile file) {
@@ -116,69 +134,88 @@ public class FileUploadServiceImpl implements FileUploadService {
             throw new RuntimeException("File is empty or not provided");
         }
 
-        // Check file type
         String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new RuntimeException("Only image files are allowed (JPEG, PNG, GIF, etc.)");
+
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+            throw new RuntimeException("Only JPEG, PNG, WEBP, GIF images are allowed");
         }
 
-        // Check file size (max 5MB)
-        long maxSize = 5 * 1024 * 1024;
-        if (file.getSize() > maxSize) {
+        if (file.getSize() > MAX_FILE_SIZE) {
             throw new RuntimeException("File size exceeds maximum allowed size (5MB)");
         }
     }
 
-    private Path createTargetDirectory(String directory) {
-        Path targetLocation = rootLocation.resolve(directory).normalize();
+    private String normalizeDirectory(String directory) {
+        if (directory == null || directory.isBlank()) {
+            return "misc";
+        }
 
-        // Security check: prevent directory traversal
-        if (!targetLocation.toAbsolutePath().startsWith(rootLocation.toAbsolutePath())) {
-            log.error("Invalid directory path attempted: {}", directory);
+        String normalized = directory
+                .replace("\\", "/")
+                .replaceAll("^/+", "")
+                .replaceAll("/+$", "");
+
+        if (normalized.contains("..")) {
             throw new RuntimeException("Invalid directory path");
         }
 
-        try {
-            if (!Files.exists(targetLocation)) {
-                Files.createDirectories(targetLocation);
-                log.debug("Created directory: {}", targetLocation);
-            }
-        } catch (IOException e) {
-            log.error("Could not create directory: {}", e.getMessage());
-            throw new RuntimeException("Could not create directory", e);
-        }
-
-        return targetLocation;
+        return normalized;
     }
 
     private String generateUniqueFileName(String originalFilename) {
-        if (originalFilename == null || originalFilename.isEmpty()) {
-            return UUID.randomUUID().toString();
-        }
-
         String extension = "";
-        int lastDotIndex = originalFilename.lastIndexOf(".");
-        if (lastDotIndex > 0) {
-            extension = originalFilename.substring(lastDotIndex).toLowerCase();
+
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
         }
 
-        return UUID.randomUUID().toString() + extension;
+        return UUID.randomUUID() + extension;
     }
 
-    private void deleteEmptyParentDirectories(Path directory) {
-        try {
-            if (Files.isDirectory(directory) && Files.list(directory).count() == 0) {
-                Files.delete(directory);
-                log.debug("Deleted empty directory: {}", directory);
+    private String buildPublicUrl(String key) {
+        if (publicBaseUrl != null && !publicBaseUrl.isBlank()) {
+            return publicBaseUrl.replaceAll("/+$", "") + "/" + key;
+        }
 
-                // Recursively check parent directory
-                Path parent = directory.getParent();
-                if (parent != null && !parent.equals(rootLocation)) {
-                    deleteEmptyParentDirectories(parent);
-                }
+        return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+    }
+
+    private boolean isManagedS3Url(String imageUrl) {
+        if (!imageUrl.startsWith("http")) {
+            return true;
+        }
+
+        String defaultS3Host = bucketName + ".s3." + region + ".amazonaws.com";
+
+        if (imageUrl.contains(defaultS3Host)) {
+            return true;
+        }
+
+        return publicBaseUrl != null
+                && !publicBaseUrl.isBlank()
+                && imageUrl.startsWith(publicBaseUrl.replaceAll("/+$", ""));
+    }
+
+    private String extractKeyFromUrl(String imageUrl) {
+        try {
+            if (!imageUrl.startsWith("http")) {
+                return imageUrl.replaceAll("^/+", "");
             }
-        } catch (IOException e) {
-            log.debug("Could not delete directory (may not be empty): {}", e.getMessage());
+
+            URI uri = URI.create(imageUrl);
+            String path = uri.getPath();
+
+            if (path == null || path.isBlank()) {
+                return null;
+            }
+
+            return URLDecoder.decode(
+                    path.replaceAll("^/+", ""),
+                    StandardCharsets.UTF_8
+            );
+        } catch (Exception e) {
+            log.warn("Failed to extract S3 key from URL: {}", imageUrl, e);
+            return null;
         }
     }
 }
