@@ -33,8 +33,12 @@ const genderOptions = [
     { value: 'OTHER', label: 'Khác' },
 ];
 
+function hasAdminRole(user: UserProfileDto) {
+    return user.roles?.some(role => role === 'ADMIN' || role === 'ROLE_ADMIN') ?? false;
+}
+
 function getPrimaryRole(user: UserProfileDto) {
-    if (user.roles?.includes('ADMIN')) return 'ADMIN';
+    if (hasAdminRole(user)) return 'ADMIN';
     return user.roles?.[0] || 'CUSTOMER';
 }
 
@@ -55,7 +59,10 @@ export default function AdminUsers() {
         try {
             setLoading(true);
             const data = await getAllUsers();
-            setUsers(data);
+            // Chỉ hiển thị khách hàng
+            const customerUsers = data.filter(user => !hasAdminRole(user));
+
+            setUsers(customerUsers);
         } catch (error) {
             console.error('Load users error:', error);
             message.error('Tải người dùng thất bại');
