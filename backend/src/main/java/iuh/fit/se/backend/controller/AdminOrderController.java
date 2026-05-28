@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/admin/orders")
 @PreAuthorize("hasRole('ADMIN')")
@@ -26,10 +25,9 @@ public class AdminOrderController {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
 
-
     @PutMapping("/{id}/status")
     public ResponseEntity<OrderDetailDto> updateOrderStatus(@PathVariable Long id,
-                                                            @RequestParam OrderStatus status) {
+            @RequestParam OrderStatus status) {
         return ResponseEntity.ok(orderService.adminUpdateOrder(id, status));
     }
 

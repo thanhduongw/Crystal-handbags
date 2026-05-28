@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/session-cart")
 @RequiredArgsConstructor
@@ -43,6 +42,7 @@ public class SessionCartController {
         sessionCartService.updateCartQuantity(session, itemId, quantity);
         return ResponseEntity.ok().build();
     }
+
     // Xóa một sản phẩm khỏi giỏ hàng guest theo itemId
     @DeleteMapping("/items/{itemId}")
     public ResponseEntity<Void> removeItem(
@@ -51,6 +51,7 @@ public class SessionCartController {
         sessionCartService.removeCartItem(session, itemId);
         return ResponseEntity.noContent().build();
     }
+
     @DeleteMapping
     public ResponseEntity<Void> clearCart(HttpSession session) {
         sessionCartService.clearCart(session);

@@ -14,7 +14,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/addresses")
 @RequiredArgsConstructor
@@ -28,29 +27,28 @@ public class AddressController {
         return addressService.getUserAddresses(requireUser(jwt));
     }
 
-
     @PostMapping
     public AddressDto createAddress(@AuthenticationPrincipal Jwt jwt,
-                                 @RequestBody Address address) {
+            @RequestBody Address address) {
         return addressService.createAddress(requireUser(jwt), address);
     }
 
     @PutMapping("/{id}")
     public AddressDto updateAddress(@PathVariable Long id,
-                                 @AuthenticationPrincipal  Jwt jwt,
-                                 @RequestBody Address address) {
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Address address) {
         return addressService.updateAddress(id, requireUser(jwt), address);
     }
 
     @DeleteMapping("/{id}")
     public void deleteAddress(@PathVariable Long id,
-                              @AuthenticationPrincipal  Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt) {
         addressService.deleteAddress(id, requireUser(jwt));
     }
 
     @PutMapping("/{id}/default")
     public AddressDto setDefaultAddress(@PathVariable Long id,
-                                        @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt) {
         return addressService.setDefaultAddress(id, requireUser(jwt));
     }
 

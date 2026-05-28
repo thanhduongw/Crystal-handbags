@@ -10,6 +10,6 @@ import java.util.List;
 
 @Repository
 public interface ProductItemRepository  extends JpaRepository<ProductItem, Long> {
-    @Query(value = "select * from product_item where product_id = :productId", nativeQuery = true)
+    @Query("SELECT i FROM ProductItem i WHERE i.product.productId = :productId")
     List<ProductItem> findByProductId(@Param("productId") Long productId);
 }
