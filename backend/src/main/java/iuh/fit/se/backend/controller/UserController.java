@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -41,7 +40,7 @@ public class UserController {
 
     @PutMapping("/users/profile")
     public UserProfileDto updateProfile(@AuthenticationPrincipal Jwt jwt,
-                                        @RequestBody UserProfileDto profileDto) {
+            @RequestBody UserProfileDto profileDto) {
         return userService.updateUserProfile(jwt.getSubject(), profileDto);
     }
 

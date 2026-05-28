@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
@@ -34,7 +33,6 @@ public class OrderController {
 
         return ResponseEntity.ok(orders);
     }
-
 
     @GetMapping("/{id}")
     public ResponseEntity<OrderDetailDto> getOrderDetail(
@@ -81,4 +79,3 @@ public class OrderController {
     }
 
 }
-

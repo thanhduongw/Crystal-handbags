@@ -17,7 +17,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
@@ -29,8 +28,7 @@ public class CartController {
     @GetMapping
     public ResponseEntity<?> getCart(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(
-                databaseCartService.getAllCart(requireSubject(jwt))
-        );
+                databaseCartService.getAllCart(requireSubject(jwt)));
     }
 
     @PostMapping("/items")
@@ -41,8 +39,7 @@ public class CartController {
         databaseCartService.addCartItem(
                 requireSubject(jwt),
                 dto.getItemId(),
-                dto.getQty()
-        );
+                dto.getQty());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -55,8 +52,7 @@ public class CartController {
         databaseCartService.updateQuantity(
                 requireSubject(jwt),
                 itemId,
-                quantity
-        );
+                quantity);
         return ResponseEntity.ok().build();
     }
 
@@ -67,8 +63,7 @@ public class CartController {
 
         databaseCartService.removeCartItem(
                 requireSubject(jwt),
-                itemId
-        );
+                itemId);
         return ResponseEntity.noContent().build();
     }
 
@@ -88,8 +83,7 @@ public class CartController {
         CheckoutResponse response = orderService.createOrder(
                 requireSubject(jwt),
                 request,
-                getClientIp(httpRequest)
-        );
+                getClientIp(httpRequest));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
