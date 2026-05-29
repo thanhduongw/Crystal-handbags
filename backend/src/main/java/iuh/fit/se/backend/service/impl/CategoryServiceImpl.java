@@ -4,10 +4,12 @@ import iuh.fit.se.backend.dto.CategoryDto;
 import iuh.fit.se.backend.model.Category;
 import iuh.fit.se.backend.repository.CategoryRepository;
 import iuh.fit.se.backend.service.CategoryService;
+import iuh.fit.se.backend.service.FileUploadService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -16,7 +18,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
-
+    private final FileUploadService fileUploadService;
     @Override
     public List<CategoryDto> getAllCategories() {
         return categoryRepository.findAll()
@@ -66,7 +68,6 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         category.setName(categoryDto.getName());
-        category.setImageUrl(categoryDto.getImageUrl());
         category.setDescription(categoryDto.getDescription());
 
         Category updatedCategory = categoryRepository.save(category);
@@ -76,19 +77,73 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public void deleteCategory(Long id) {
-        if (!categoryRepository.existsById(id)) {
-            throw new EntityNotFoundException("Category not found: " + id);
-        }
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found: " + id));
 
         // Check if category has products
-        Category category = categoryRepository.findById(id).get();
         if (category.getProducts() != null && !category.getProducts().isEmpty()) {
             throw new RuntimeException("Cannot delete category with existing products");
         }
 
-        categoryRepository.deleteById(id);
-    }
+        if (category.getImageUrl() != null && !category.getImageUrl().isBlank()) {
+            try {
+                fileUploadService.deleteImage(category.getImageUrl());
+            } catch (Exception e) {
+                System.err.println("Failed to delete category image: "
+                        + category.getImageUrl()
+                        + " - "
+                        + e.getMessage());
+            }
+        }
 
+        categoryRepository.delete(category);
+    }
+    @Override
+    @Transactional
+    public CategoryDto uploadCategoryImage(Long id, MultipartFile image) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found: " + id));
+
+        String oldImageUrl = category.getImageUrl();
+
+        String imageUrl = fileUploadService.uploadImage(image, "categories/" + id);
+
+        category.setImageUrl(imageUrl);
+        Category savedCategory = categoryRepository.save(category);
+
+        if (oldImageUrl != null && !oldImageUrl.isBlank()) {
+            try {
+                fileUploadService.deleteImage(oldImageUrl);
+            } catch (Exception e) {
+                System.err.println("Failed to delete old category image: "
+                        + oldImageUrl
+                        + " - "
+                        + e.getMessage());
+            }
+        }
+
+        return convertToDto(savedCategory);
+    }
+    @Override
+    @Transactional
+    public void deleteCategoryImage(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found: " + id));
+
+        if (category.getImageUrl() != null && !category.getImageUrl().isBlank()) {
+            try {
+                fileUploadService.deleteImage(category.getImageUrl());
+            } catch (Exception e) {
+                System.err.println("Failed to delete category image: "
+                        + category.getImageUrl()
+                        + " - "
+                        + e.getMessage());
+            }
+        }
+
+        category.setImageUrl(null);
+        categoryRepository.save(category);
+    }
     private CategoryDto convertToDto(Category category) {
         return CategoryDto.builder()
                 .categoryId(category.getCategoryId())

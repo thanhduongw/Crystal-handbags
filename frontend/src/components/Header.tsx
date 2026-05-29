@@ -20,10 +20,12 @@ import {
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useCart from '../hooks/useCart';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getProfile } from '../api/userAPI';
 
 const { Header } = Layout;
 const { Search } = Input;
+
 
 export default function AppHeader() {
     const navigate = useNavigate();
@@ -31,7 +33,8 @@ export default function AppHeader() {
     const { lines } = useCart();
     const { user, logout, isAdmin } = useAuth();
     const [searchValue, setSearchValue] = useState('');
-
+    const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>();
+    
     const userMenuItems: MenuProps['items'] = [
         {
             key: 'profile',
@@ -109,7 +112,42 @@ export default function AppHeader() {
             setSearchValue('');
         }
     };
+    useEffect(() => {
+        let mounted = true;
 
+        const loadProfilePhoto = async () => {
+            if (!user) {
+                setProfilePhotoUrl(undefined);
+                return;
+            }
+
+            try {
+                const profile = await getProfile();
+
+                if (mounted) {
+                    setProfilePhotoUrl(profile.photoUrl);
+                }
+            } catch {
+                if (mounted) {
+                    setProfilePhotoUrl(undefined);
+                }
+            }
+        };
+
+        void loadProfilePhoto();
+
+        const reloadProfilePhoto = () => {
+            void loadProfilePhoto();
+        };
+
+        window.addEventListener('profile:updated', reloadProfilePhoto);
+
+        return () => {
+            mounted = false;
+            window.removeEventListener('profile:updated', reloadProfilePhoto);
+        };
+    }, [user]);
+    
     return (
         <Header
             style={{
@@ -185,13 +223,14 @@ export default function AppHeader() {
                         trigger={['click']}
                     >
                         <Space style={{ cursor: 'pointer' }}>
-                            <Avatar
-                                size="default"
-                                icon={<UserOutlined />}
-                                style={{
-                                    backgroundColor: '#1890ff',
-                                }}
-                            />
+                    <Avatar
+                        size="default"
+                        src={profilePhotoUrl}
+                        icon={<UserOutlined />}
+                        style={{
+                            backgroundColor: profilePhotoUrl ? undefined : '#1890ff',
+                        }}
+                    />
                         </Space>
                     </Dropdown>
                 ) : (

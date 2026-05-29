@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Spin, Typography, message, Modal } from 'antd';
+import type { TableProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { fetchCategories, createCategory, updateCategory, deleteCategory } from '../../api/categoryAPI';
-import type { CategoryDto } from '../../types';
+import {
+    fetchCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    uploadCategoryImage,
+    deleteCategoryImage,
+} from '../../api/categoryAPI';
+import type { CategoryDto, CategoryFormFiles } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import CategoryForm from '../../components/CategoryForm';
@@ -13,11 +21,12 @@ export default function AdminCategories() {
     const { isAdmin } = useAuth();
     const [categories, setCategories] = useState<CategoryDto[]>([]);
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingCategory, setEditingCategory] = useState<CategoryDto | null>(null);
 
     useEffect(() => {
-        loadCategories();
+        void loadCategories();
     }, []);
 
     const loadCategories = async () => {
@@ -33,6 +42,11 @@ export default function AdminCategories() {
         }
     };
 
+    const closeModal = () => {
+        setModalVisible(false);
+        setEditingCategory(null);
+    };
+
     const handleDelete = (id: number) => {
         Modal.confirm({
             title: 'Xác nhận xóa?',
@@ -44,7 +58,7 @@ export default function AdminCategories() {
                 try {
                     await deleteCategory(id);
                     message.success('Xóa thành công!');
-                    loadCategories();
+                    await loadCategories();
                 } catch (error) {
                     console.error('Delete error:', error);
                     message.error('Xóa thất bại!');
@@ -53,30 +67,78 @@ export default function AdminCategories() {
         });
     };
 
-    const handleSubmit = async (values: Omit<CategoryDto, 'categoryId'>) => {
+    const handleSubmit = async (
+        values: Omit<CategoryDto, 'categoryId'>,
+        files?: CategoryFormFiles
+    ) => {
         try {
+            setSubmitting(true);
+
             if (editingCategory) {
-                await updateCategory(editingCategory.categoryId, values);
+                await updateCategory(editingCategory.categoryId, {
+                    ...values,
+                    imageUrl: editingCategory.imageUrl,
+                });
+
+                // Nếu bấm Xóa ảnh trong form, bấm Cập nhật mới xóa ảnh trên S3.
+                if (files?.deleteImage) {
+                    await deleteCategoryImage(editingCategory.categoryId);
+                }
+
+                // Nếu chọn ảnh mới, bấm Cập nhật mới upload ảnh lên S3.
+                if (files?.imageFile) {
+                    await uploadCategoryImage(editingCategory.categoryId, files.imageFile);
+                }
+
                 message.success('Cập nhật thành công!');
             } else {
-                await createCategory(values);
+                const createdCategory = await createCategory({
+                    ...values,
+                    imageUrl: undefined,
+                });
+
+                // Tạo category xong mới có categoryId để upload ảnh.
+                if (files?.imageFile) {
+                    await uploadCategoryImage(createdCategory.categoryId, files.imageFile);
+                }
+
                 message.success('Thêm thành công!');
             }
-            setModalVisible(false);
-            setEditingCategory(null);
-            loadCategories();
+
+            closeModal();
+            await loadCategories();
         } catch (error) {
             console.error('Submit error:', error);
             message.error(editingCategory ? 'Cập nhật thất bại!' : 'Thêm thất bại!');
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    const columns = [
+    const columns: TableProps<CategoryDto>['columns'] = [
         {
             title: 'ID',
             dataIndex: 'categoryId',
             key: 'categoryId',
             width: 80,
+        },
+        {
+            title: 'Hình ảnh',
+            dataIndex: 'imageUrl',
+            key: 'imageUrl',
+            width: 100,
+            render: (url?: string) => url ? (
+                <img
+                    src={url}
+                    alt="Category"
+                    style={{
+                        width: 50,
+                        height: 50,
+                        objectFit: 'cover',
+                        borderRadius: 6,
+                    }}
+                />
+            ) : '-',
         },
         {
             title: 'Tên',
@@ -90,19 +152,10 @@ export default function AdminCategories() {
             ellipsis: true,
         },
         {
-            title: 'Hình ảnh',
-            dataIndex: 'imageUrl',
-            key: 'imageUrl',
-            width: 100,
-            render: (url: string) => url ? (
-                <img src={url} alt="Category" style={{ width: 50, height: 50, objectFit: 'cover' }} />
-            ) : '-',
-        },
-        {
             title: 'Thao tác',
             key: 'action',
             width: 150,
-            render: (_: unknown, record: CategoryDto) => (
+            render: (_, record) => (
                 <>
                     <Button
                         icon={<EditOutlined />}
@@ -133,6 +186,7 @@ export default function AdminCategories() {
     return (
         <div style={{ padding: 24 }}>
             <Title level={3}>Quản lý danh mục</Title>
+
             <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -144,20 +198,20 @@ export default function AdminCategories() {
             >
                 Thêm danh mục
             </Button>
+
             <Table
                 rowKey="categoryId"
                 columns={columns}
                 dataSource={categories}
                 pagination={{ pageSize: 10 }}
             />
+
             <CategoryForm
                 visible={modalVisible}
-                onCancel={() => {
-                    setModalVisible(false);
-                    setEditingCategory(null);
-                }}
+                onCancel={closeModal}
                 onSubmit={handleSubmit}
                 initialValues={editingCategory || undefined}
+                submitting={submitting}
             />
         </div>
     );

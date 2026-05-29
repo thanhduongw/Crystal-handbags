@@ -4,6 +4,7 @@ import iuh.fit.se.backend.dto.UserProfileDto;
 import iuh.fit.se.backend.dto.auth.UserCreateRequest;
 import iuh.fit.se.backend.dto.auth.UserCreateResponse;
 import iuh.fit.se.backend.model.User;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -18,4 +19,8 @@ public interface UserService {
     UserProfileDto updateUserById(Long id, UserProfileDto userDto);
     List<UserProfileDto> getAllUsersDto();
     UserProfileDto getUserByIdDto(Long id);
+    UserProfileDto uploadMyAvatar(String email, MultipartFile image);
+    UserProfileDto deleteMyAvatar(String email);
+    UserProfileDto uploadUserAvatarById(Long id, MultipartFile image);
+    UserProfileDto deleteUserAvatarById(Long id);
 }
