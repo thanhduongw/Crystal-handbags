@@ -10,6 +10,7 @@ import {
 } from "../api/aiChatAPI";
 
 import { fetchCategories } from "../api/categoryAPI";
+import { getProfile } from "../api/userAPI";
 
 import type {
   ChatMessage,
@@ -105,6 +106,7 @@ export default function ChatBotAI() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [categorySuggestions, setCategorySuggestions] = useState<
@@ -116,6 +118,46 @@ export default function ChatBotAI() {
   >({});
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfilePhoto = async () => {
+      if (!user) {
+        if (mounted) {
+          setProfilePhotoUrl(undefined);
+        }
+        return;
+      }
+
+      try {
+        const profile = await getProfile();
+
+        if (mounted) {
+          setProfilePhotoUrl(profile.photoUrl);
+        }
+      } catch (err) {
+        console.error("Load chat profile photo error:", err);
+
+        if (mounted) {
+          setProfilePhotoUrl(undefined);
+        }
+      }
+    };
+
+    void loadProfilePhoto();
+
+    const reloadProfilePhoto = () => {
+      void loadProfilePhoto();
+    };
+
+    window.addEventListener("profile:updated", reloadProfilePhoto);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("profile:updated", reloadProfilePhoto);
+    };
+  }, [user]);
 
   useEffect(() => {
     const initChat = async () => {
@@ -173,6 +215,30 @@ export default function ChatBotAI() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading, open]);
+
+  const renderMessageAvatar = (sender: AiSender) => {
+  const isUser = sender === "USER";
+
+  if (isUser && profilePhotoUrl) {
+    return (
+      <img
+        src={profilePhotoUrl}
+        alt="User avatar"
+        className="h-9 w-9 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+        isUser ? "bg-blue-100 text-blue-600" : "bg-blue-600 text-white"
+      }`}
+    >
+      {isUser ? <User size={18} /> : <Bot size={18} />}
+    </div>
+  );
+};
 
   const sendMessage = async (text?: string, displayText?: string) => {
     const apiText = (text ?? input).trim();
@@ -336,15 +402,7 @@ export default function ChatBotAI() {
                   key={msg.id}
                   className={`flex gap-2 ${isUser ? "flex-row-reverse" : ""}`}
                 >
-                  <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                      isUser
-                        ? "bg-blue-100 text-blue-600"
-                        : "bg-blue-600 text-white"
-                    }`}
-                  >
-                    {isUser ? <User size={18} /> : <Bot size={18} />}
-                  </div>
+                       {renderMessageAvatar(msg.sender)}
 
                   <div
                     className={`max-w-[78%] ${

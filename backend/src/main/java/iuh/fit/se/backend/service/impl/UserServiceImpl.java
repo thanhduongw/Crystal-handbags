@@ -8,11 +8,13 @@ import iuh.fit.se.backend.model.Role;
 import iuh.fit.se.backend.model.User;
 import iuh.fit.se.backend.repository.RoleRepository;
 import iuh.fit.se.backend.repository.UserRepository;
+import iuh.fit.se.backend.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Set;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final FileUploadService fileUploadService;
 
     @Override
     public UserCreateResponse createUser(UserCreateRequest request) {
@@ -71,7 +74,6 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
         }
 
         user.setDob(userProfileDto.getDob());
-        user.setPhotoUrl(userProfileDto.getPhotoUrl());
 
         userRepository.save(user);
         return convertToProfileDto(user);
@@ -105,7 +107,6 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
         }
 
         existing.setDob(userDto.getDob());
-        existing.setPhotoUrl(userDto.getPhotoUrl());
 
         if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
             Set<Role> roles = roleRepository.findByNameIn(userDto.getRoles());
@@ -181,5 +182,82 @@ public class UserServiceImpl implements iuh.fit.se.backend.service.UserService {
             throw new RuntimeException("Invalid role provided");
         }
         return roles;
+    }
+
+    @Override
+    @Transactional
+    public UserProfileDto uploadMyAvatar(String email, MultipartFile image) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return replaceUserAvatar(user, image);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileDto deleteMyAvatar(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return clearUserAvatar(user);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileDto uploadUserAvatarById(Long id, MultipartFile image) {
+        User user = getUserById(id);
+        return replaceUserAvatar(user, image);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileDto deleteUserAvatarById(Long id) {
+        User user = getUserById(id);
+        return clearUserAvatar(user);
+    }
+
+    private UserProfileDto replaceUserAvatar(User user, MultipartFile image) {
+        String oldPhotoUrl = user.getPhotoUrl();
+
+        String imageUrl = fileUploadService.uploadImage(
+                image,
+                "users/" + user.getUserId() + "/avatar"
+        );
+
+        user.setPhotoUrl(imageUrl);
+        userRepository.save(user);
+
+        if (oldPhotoUrl != null && !oldPhotoUrl.isBlank()) {
+            try {
+                fileUploadService.deleteImage(oldPhotoUrl);
+            } catch (Exception ignored) {
+                // Upload ảnh mới và lưu DB đã thành công.
+                // Nếu xóa ảnh cũ thất bại thì không làm fail cập nhật avatar.
+            }
+        }
+
+        return convertToProfileDto(user);
+    }
+
+    private UserProfileDto clearUserAvatar(User user) {
+        deleteCurrentAvatarIfExists(user);
+
+        user.setPhotoUrl(null);
+        userRepository.save(user);
+
+        return convertToProfileDto(user);
+    }
+
+    private void deleteCurrentAvatarIfExists(User user) {
+        if (user.getPhotoUrl() == null || user.getPhotoUrl().isBlank()) {
+            return;
+        }
+
+        try {
+            fileUploadService.deleteImage(user.getPhotoUrl());
+        } catch (Exception ignored) {
+            // Nếu ảnh cũ không thuộc S3 của mình hoặc xóa thất bại,
+            // vẫn cho cập nhật DB để user quay về avatar mặc định.
+        }
     }
 }

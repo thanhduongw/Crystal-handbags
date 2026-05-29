@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Typography, message, Modal, Space, Tag, Spin, Form, Input, Select } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
-import { getAllUsers, deleteUser, createUser, updateUser } from '../../api/userAPI';
+import { Table, Button, Typography, message, Modal, Space, Tag, Spin, Form, Input, Select, Upload, Avatar } from 'antd';
+import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined, UserOutlined } from '@ant-design/icons';
+import {
+    getAllUsers,
+    deleteUser,
+    createUser,
+    updateUser,
+    uploadUserAvatar,
+    deleteUserAvatar,
+} from '../../api/userAPI';
 import type { Gender, UserProfileDto } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -18,7 +25,6 @@ type UserFormValues = {
     phoneNumber: string;
     gender?: Gender;
     dob?: string;
-    photoUrl?: string;
     roles: string[];
 };
 
@@ -33,8 +39,12 @@ const genderOptions = [
     { value: 'OTHER', label: 'Khác' },
 ];
 
+function hasAdminRole(user: UserProfileDto) {
+    return user.roles?.some(role => role === 'ADMIN' || role === 'ROLE_ADMIN') ?? false;
+}
+
 function getPrimaryRole(user: UserProfileDto) {
-    if (user.roles?.includes('ADMIN')) return 'ADMIN';
+    if (hasAdminRole(user)) return 'ADMIN';
     return user.roles?.[0] || 'CUSTOMER';
 }
 
@@ -45,17 +55,45 @@ export default function AdminUsers() {
     const [saving, setSaving] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfileDto | null>(null);
+
+    const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string>();
+    const [avatarUrl, setAvatarUrl] = useState<string>();
+
     const [form] = Form.useForm<UserFormValues>();
 
     useEffect(() => {
-        load();
+        void load();
     }, []);
+
+    useEffect(() => {
+        return () => {
+            if (avatarPreview) {
+                URL.revokeObjectURL(avatarPreview);
+            }
+        };
+    }, [avatarPreview]);
+
+    const resetAvatarState = () => {
+        if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+        }
+
+        setSelectedAvatarFile(null);
+        setAvatarPreview(undefined);
+        setAvatarUrl(undefined);
+    };
 
     const load = async () => {
         try {
             setLoading(true);
             const data = await getAllUsers();
-            setUsers(data);
+
+            // Chỉ hiển thị CUSTOMER ở FE.
+            // Admin vẫn có thể tạo ADMIN, nhưng ADMIN sẽ không hiện trong bảng này.
+            const customerUsers = data.filter(user => !hasAdminRole(user));
+
+            setUsers(customerUsers);
         } catch (error) {
             console.error('Load users error:', error);
             message.error('Tải người dùng thất bại');
@@ -66,6 +104,7 @@ export default function AdminUsers() {
 
     const openCreateModal = () => {
         setEditingUser(null);
+        resetAvatarState();
         form.resetFields();
         form.setFieldsValue({ roles: ['CUSTOMER'] });
         setModalVisible(true);
@@ -73,6 +112,7 @@ export default function AdminUsers() {
 
     const openEditModal = (user: UserProfileDto) => {
         setEditingUser(user);
+
         form.setFieldsValue({
             email: user.email,
             firstName: user.firstName,
@@ -80,15 +120,74 @@ export default function AdminUsers() {
             phoneNumber: user.phoneNumber,
             gender: user.gender,
             dob: user.dob,
-            photoUrl: user.photoUrl,
             roles: user.roles?.length ? user.roles : ['CUSTOMER'],
         });
+
+        if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+        }
+
+        setSelectedAvatarFile(null);
+        setAvatarPreview(undefined);
+        setAvatarUrl(user.photoUrl);
+
         setModalVisible(true);
+    };
+
+    const closeModal = () => {
+        setModalVisible(false);
+        setEditingUser(null);
+        form.resetFields();
+        resetAvatarState();
+    };
+
+    const handleSelectAvatar = (file: File) => {
+        if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+        }
+
+        setSelectedAvatarFile(file);
+        setAvatarPreview(URL.createObjectURL(file));
+
+        // Chỉ preview, bấm Cập nhật mới upload S3.
+        return false;
+    };
+
+    const handleDeleteAvatar = async () => {
+        if (!editingUser?.userId) return;
+
+        try {
+            setSaving(true);
+
+            // Nếu chỉ mới chọn ảnh nhưng chưa lưu, xóa preview trước.
+            if (selectedAvatarFile || avatarPreview) {
+                setSelectedAvatarFile(null);
+                setAvatarPreview(undefined);
+
+                if (!avatarUrl) {
+                    message.success('Đã bỏ ảnh vừa chọn');
+                    return;
+                }
+            }
+
+            const updatedUser = await deleteUserAvatar(editingUser.userId);
+
+            setAvatarUrl(updatedUser.photoUrl);
+            await load();
+
+            message.success('Đã xóa ảnh đại diện');
+        } catch (error) {
+            console.error('Delete avatar error:', error);
+            message.error('Xóa ảnh đại diện thất bại');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleSubmit = async (values: UserFormValues) => {
         try {
             setSaving(true);
+
             if (editingUser?.userId) {
                 await updateUser(editingUser.userId, {
                     email: editingUser.email,
@@ -97,9 +196,14 @@ export default function AdminUsers() {
                     phoneNumber: values.phoneNumber,
                     gender: values.gender,
                     dob: values.dob,
-                    photoUrl: values.photoUrl,
                     roles: values.roles,
                 });
+
+                // Nếu admin chọn ảnh mới thì bấm Cập nhật mới upload lên S3.
+                if (selectedAvatarFile) {
+                    await uploadUserAvatar(editingUser.userId, selectedAvatarFile);
+                }
+
                 message.success('Cập nhật người dùng thành công');
             } else {
                 await createUser({
@@ -110,12 +214,11 @@ export default function AdminUsers() {
                     phoneNumber: values.phoneNumber,
                     roles: values.roles,
                 });
+
                 message.success('Thêm người dùng thành công');
             }
 
-            setModalVisible(false);
-            setEditingUser(null);
-            form.resetFields();
+            closeModal();
             await load();
         } catch (error) {
             console.error('Save user error:', error);
@@ -153,6 +256,15 @@ export default function AdminUsers() {
             dataIndex: 'userId',
             key: 'userId',
             width: 80,
+        },
+        {
+            title: 'Ảnh',
+            dataIndex: 'photoUrl',
+            key: 'photoUrl',
+            width: 80,
+            render: (photoUrl?: string) => (
+                <Avatar src={photoUrl} icon={<UserOutlined />} />
+            ),
         },
         {
             title: 'Email',
@@ -215,7 +327,7 @@ export default function AdminUsers() {
                         danger
                         icon={<DeleteOutlined />}
                         onClick={() => handleDelete(record)}
-                        disabled={record.roles?.includes('ADMIN')}
+                        disabled={hasAdminRole(record)}
                     />
                 </Space>
             )
@@ -259,11 +371,7 @@ export default function AdminUsers() {
             <Modal
                 open={modalVisible}
                 title={editingUser ? 'Sửa người dùng' : 'Thêm người dùng'}
-                onCancel={() => {
-                    setModalVisible(false);
-                    setEditingUser(null);
-                    form.resetFields();
-                }}
+                onCancel={closeModal}
                 onOk={() => form.submit()}
                 okText={editingUser ? 'Cập nhật' : 'Thêm'}
                 cancelText="Hủy"
@@ -324,9 +432,40 @@ export default function AdminUsers() {
                         <Input type="date" />
                     </Form.Item>
 
-                    <Form.Item name="photoUrl" label="Ảnh đại diện">
-                        <Input />
-                    </Form.Item>
+                    {editingUser && (
+                        <Form.Item label="Ảnh đại diện">
+                            <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                                <Avatar
+                                    size={96}
+                                    src={avatarPreview || avatarUrl}
+                                    icon={<UserOutlined />}
+                                />
+
+                                <Space>
+                                    <Upload
+                                        showUploadList={false}
+                                        accept="image/*"
+                                        beforeUpload={handleSelectAvatar}
+                                    >
+                                        <Button icon={<UploadOutlined />}>
+                                            Chọn ảnh
+                                        </Button>
+                                    </Upload>
+
+                                    {(avatarPreview || avatarUrl) && (
+                                        <Button
+                                            danger
+                                            icon={<DeleteOutlined />}
+                                            onClick={handleDeleteAvatar}
+                                            loading={saving}
+                                        >
+                                            Xóa ảnh
+                                        </Button>
+                                    )}
+                                </Space>
+                            </Space>
+                        </Form.Item>
+                    )}
 
                     <Form.Item
                         name="roles"

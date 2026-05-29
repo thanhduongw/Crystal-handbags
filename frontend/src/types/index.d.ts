@@ -17,7 +17,10 @@ export interface CategoryDto {
   imageUrl?: string;
   description?: string;
 }
-
+export interface CategoryFormFiles {
+  imageFile?: File;
+  deleteImage?: boolean;
+}
 // ==================== PRODUCT ====================
 export interface ProductItemDto {
   itemId?: number;
