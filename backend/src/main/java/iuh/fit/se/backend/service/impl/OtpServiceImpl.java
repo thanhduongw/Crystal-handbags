@@ -34,14 +34,19 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public void sendOtp(String email, String purpose) {
-        enforceResendLimit(email, purpose);
+        String resendKey = enforceResendLimit(email, purpose);
 
         String otp = generateOtp();
         String otpKey = RedisKeyConstants.otpKey(purpose, email);
         stringRedisTemplate.opsForValue().set(otpKey, otp, Duration.ofMinutes(expiryMinutes));
 
         stringRedisTemplate.delete(RedisKeyConstants.otpAttemptKey(purpose, email));
-        sendOtpEmail(email, purpose, otp);
+        try {
+            sendOtpEmail(email, purpose, otp);
+        } catch (RuntimeException ex) {
+            rollbackOtpStateAfterMailFailure(email, purpose, otpKey, resendKey);
+            throw ex;
+        }
         log.info("OTP sent for email {} and purpose {}", email, purpose);
     }
 
@@ -79,7 +84,7 @@ public class OtpServiceImpl implements OtpService {
         stringRedisTemplate.delete(RedisKeyConstants.otpAttemptKey(purpose, email));
     }
 
-    private void enforceResendLimit(String email, String purpose) {
+    private String enforceResendLimit(String email, String purpose) {
         String resendKey = RedisKeyConstants.otpResendKey(purpose, email);
         Long resendCount = stringRedisTemplate.opsForValue().increment(resendKey);
         if (Long.valueOf(1).equals(resendCount)) {
@@ -87,6 +92,17 @@ public class OtpServiceImpl implements OtpService {
         }
         if (resendCount != null && resendCount > MAX_RESEND_PER_HOUR) {
             throw new RuntimeException("OTP resend limit exceeded. Please try again later.");
+        }
+        return resendKey;
+    }
+
+    private void rollbackOtpStateAfterMailFailure(String email, String purpose, String otpKey, String resendKey) {
+        stringRedisTemplate.delete(otpKey);
+        stringRedisTemplate.delete(RedisKeyConstants.otpAttemptKey(purpose, email));
+
+        Long resendCount = stringRedisTemplate.opsForValue().decrement(resendKey);
+        if (resendCount == null || resendCount <= 0) {
+            stringRedisTemplate.delete(resendKey);
         }
     }
 

@@ -13,6 +13,17 @@ type ForgotPasswordValues = {
     confirmPassword: string;
 };
 
+type ApiError = {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+};
+
+const getApiErrorMessage = (error: unknown) =>
+    (error as ApiError).response?.data?.message;
+
 export default function ForgotPassword() {
     const [form] = Form.useForm<ForgotPasswordValues>();
     const [sendingOtp, setSendingOtp] = useState(false);
@@ -34,7 +45,12 @@ export default function ForgotPassword() {
             await sendOtp({ email, purpose: 'RESET_PASSWORD' });
             setCountdown(60);
             message.success('Mã OTP đặt lại mật khẩu đã được gửi đến Gmail.');
-        } catch {
+        } catch (error) {
+            const apiMessage = getApiErrorMessage(error);
+            if (apiMessage) {
+                message.error(apiMessage);
+                return;
+            }
             message.error('Không thể gửi OTP. Vui lòng kiểm tra email.');
         } finally {
             setSendingOtp(false);
@@ -51,7 +67,12 @@ export default function ForgotPassword() {
             });
             message.success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
             navigate('/login');
-        } catch {
+        } catch (error) {
+            const apiMessage = getApiErrorMessage(error);
+            if (apiMessage) {
+                message.error(apiMessage);
+                return;
+            }
             message.error('Đổi mật khẩu thất bại. Vui lòng kiểm tra OTP.');
         } finally {
             setSaving(false);

@@ -11,6 +11,17 @@ type RegisterFormValues = RegisterRequest & {
     confirmPassword: string;
 };
 
+type ApiError = {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+};
+
+const getApiErrorMessage = (error: unknown) =>
+    (error as ApiError).response?.data?.message;
+
 export default function Register() {
     const [form] = Form.useForm<RegisterFormValues>();
     const [loading, setLoading] = useState(false);
@@ -32,7 +43,12 @@ export default function Register() {
             await sendOtp({ email, purpose: 'REGISTER' });
             setCountdown(60);
             message.success('Mã OTP đã được gửi đến Gmail của bạn.');
-        } catch {
+        } catch (error) {
+            const apiMessage = getApiErrorMessage(error);
+            if (apiMessage) {
+                message.error(apiMessage);
+                return;
+            }
             message.error('Không thể gửi OTP. Vui lòng kiểm tra email.');
         } finally {
             setSendingOtp(false);
@@ -52,7 +68,12 @@ export default function Register() {
             });
             message.success('Đăng ký thành công! Vui lòng đăng nhập.');
             navigate('/login');
-        } catch {
+        } catch (error) {
+            const apiMessage = getApiErrorMessage(error);
+            if (apiMessage) {
+                message.error(apiMessage);
+                return;
+            }
             message.error('Đăng ký thất bại. Vui lòng kiểm tra OTP hoặc email đã sử dụng.');
         } finally {
             setLoading(false);

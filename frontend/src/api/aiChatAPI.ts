@@ -1,3 +1,4 @@
+import axios from "axios";
 import instance from "./axiosInstance";
 import type {
   AiChatRequest,
@@ -21,9 +22,18 @@ export const deleteAiConversation = async (
 export const getAiMessages = async (
   sessionId: string,
 ): Promise<AiMessageResponse[]> => {
-  const res = await instance.get<AiMessageResponse[]>(
-    `/ai/conversations/${sessionId}/messages`,
-  );
+  try {
+    const res = await instance.get<AiMessageResponse[]>(
+      `/ai/conversations/${sessionId}/messages`,
+    );
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      localStorage.removeItem("ai_session_id");
+      return [];
+    }
+
+    throw error;
+  }
 };

@@ -33,6 +33,8 @@ const mapRoleToSender = (role: string): AiSender => {
   return role === "USER" ? "USER" : "AI";
 };
 
+const getStoredSessionId = () => localStorage.getItem("ai_session_id");
+
 const getSessionId = () => {
   let sessionId = localStorage.getItem("ai_session_id");
 
@@ -161,8 +163,6 @@ export default function ChatBotAI() {
 
   useEffect(() => {
     const initChat = async () => {
-      const sessionId = getSessionId();
-
       let suggestions: AiSuggestion[] = [];
 
       try {
@@ -176,6 +176,12 @@ export default function ChatBotAI() {
 
       // Chưa đăng nhập thì KHÔNG gọi API history vì backend đang bắt authenticated
       if (!user) {
+        setMessages([welcomeMessage(suggestions)]);
+        return;
+      }
+
+      const sessionId = getStoredSessionId();
+      if (!sessionId) {
         setMessages([welcomeMessage(suggestions)]);
         return;
       }
