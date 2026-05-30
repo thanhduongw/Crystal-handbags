@@ -1,8 +1,8 @@
 package iuh.fit.se.backend.service.impl;
 
 import iuh.fit.se.backend.dto.*;
-import iuh.fit.se.backend.messaging.EmailNotificationMessage;
-import iuh.fit.se.backend.messaging.OrderCreatedMessage;
+import iuh.fit.se.backend.messaging.event.OrderCancelledEvent;
+import iuh.fit.se.backend.messaging.event.OrderCreatedEvent;
 import iuh.fit.se.backend.messaging.publisher.MessagePublisher;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.*;
@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -103,14 +104,11 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Only PENDING or CONFIRMED orders can be cancelled");
         }
 
-        for (OrderItem item : order.getOrderItems()) {
-            inventoryService.increaseStock(item.getProductItem().getItemId(), item.getQuantity());
-        }
-
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
 
-        messagePublisher.publishOrderCancelled(buildOrderCancelledMessage(order));
+        OrderCancelledEvent event = buildOrderCancelledEvent(order, "Customer cancelled order");
+        publishAfterCommit(() -> messagePublisher.publishOrderCancelled(event));
     }
 
     @Override
@@ -190,7 +188,8 @@ public class OrderServiceImpl implements OrderService {
             }
 
             cartService.clearCart(email);
-            publishOrderCreatedEvent(savedOrder, paymentMethod);
+            OrderCreatedEvent event = buildOrderCreatedEvent(savedOrder, paymentMethod);
+            publishAfterCommit(() -> messagePublisher.publishOrderCreated(event));
 
             return CheckoutResponse.builder()
                     .orderId(savedOrder.getOrderId())
@@ -232,10 +231,8 @@ public class OrderServiceImpl implements OrderService {
             }
         }
         if (status == OrderStatus.CANCELLED && order.getStatus() != OrderStatus.CANCELLED) {
-            for (OrderItem item : order.getOrderItems()) {
-                inventoryService.increaseStock(item.getProductItem().getItemId(), item.getQuantity());
-            }
-            messagePublisher.publishOrderCancelled(buildOrderCancelledMessage(order));
+            OrderCancelledEvent event = buildOrderCancelledEvent(order, "Admin cancelled order");
+            publishAfterCommit(() -> messagePublisher.publishOrderCancelled(event));
         }
 
         order.setStatus(status);
@@ -340,24 +337,28 @@ public class OrderServiceImpl implements OrderService {
         return "ORD" + order.getOrderId() + System.currentTimeMillis();
     }
 
-    private void publishOrderCreatedEvent(Order order, PaymentMethod paymentMethod) {
+    private OrderCreatedEvent buildOrderCreatedEvent(Order order, PaymentMethod paymentMethod) {
         User user = order.getUser();
         Address address = order.getAddress();
 
         String customerName = buildCustomerName(user);
 
-        List<OrderCreatedMessage.ItemLine> items = order.getOrderItems().stream()
-                .map(item -> OrderCreatedMessage.ItemLine.builder()
+        List<OrderCreatedEvent.ItemLine> items = order.getOrderItems().stream()
+                .map(item -> OrderCreatedEvent.ItemLine.builder()
+                        .itemId(item.getProductItem().getItemId())
                         .name(item.getProductItem().getProduct().getName())
                         .color(item.getProductItem().getColor())
                         .quantity(item.getQuantity())
                         .unitPrice(item.getPrice())
-                        .build())
+                .build())
                 .collect(Collectors.toList());
 
-        OrderCreatedMessage message = OrderCreatedMessage.builder()
+        return OrderCreatedEvent.builder()
+                .eventId(UUID.randomUUID().toString())
                 .orderId(order.getOrderId())
-                .customerEmail(user.getEmail())
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .createdAt(LocalDateTime.now())
                 .customerName(customerName)
                 .totalAmount(order.getTotalAmount())
                 .shippingFee(order.getShippingFee())
@@ -368,8 +369,6 @@ public class OrderServiceImpl implements OrderService {
                 .fullAddress(buildFullAddress(order))
                 .items(items)
                 .build();
-
-        messagePublisher.publishOrderCreated(message);
     }
 
     private String buildCustomerName(User user) {
@@ -382,14 +381,38 @@ public class OrderServiceImpl implements OrderService {
         return fullName.isBlank() ? user.getEmail() : fullName;
     }
 
-    private EmailNotificationMessage buildOrderCancelledMessage(Order order) {
-        String email = order.getUser() != null ? order.getUser().getEmail() : null;
-        String subject = "Order cancelled #" + order.getOrderId();
-        String text = "Your order has been cancelled.";
-        return EmailNotificationMessage.builder()
-                .to(email)
-                .subject(subject)
-                .text(text)
+    private OrderCancelledEvent buildOrderCancelledEvent(Order order, String reason) {
+        User user = order.getUser();
+        List<OrderCancelledEvent.InventoryLine> inventoryItems = order.getOrderItems().stream()
+                .map(item -> OrderCancelledEvent.InventoryLine.builder()
+                        .itemId(item.getProductItem().getItemId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+
+        return OrderCancelledEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .orderId(order.getOrderId())
+                .userId(user != null ? user.getUserId() : null)
+                .email(user != null ? user.getEmail() : null)
+                .createdAt(LocalDateTime.now())
+                .customerName(buildCustomerName(user))
+                .totalAmount(order.getTotalAmount())
+                .reason(reason)
+                .inventoryItems(inventoryItems)
                 .build();
+    }
+
+    private void publishAfterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 }

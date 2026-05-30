@@ -1,7 +1,8 @@
 package iuh.fit.se.backend.service.impl;
 
 import iuh.fit.se.backend.config.VNPayConfig;
-import iuh.fit.se.backend.messaging.PaymentResultMessage;
+import iuh.fit.se.backend.messaging.event.PaymentFailedEvent;
+import iuh.fit.se.backend.messaging.event.PaymentSucceededEvent;
 import iuh.fit.se.backend.messaging.publisher.MessagePublisher;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.OrderRepository;
@@ -10,6 +11,8 @@ import iuh.fit.se.backend.service.VNPayService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -129,13 +132,15 @@ public class VNPayServiceImpl implements VNPayService {
                 order.setStatus(OrderStatus.CONFIRMED);
                 paymentRepository.save(payment);
                 orderRepository.save(order);
-                messagePublisher.publishPaymentSuccess(buildPaymentResultMessage(payment, true));
+                PaymentSucceededEvent event = buildPaymentSucceededEvent(payment);
+                publishAfterCommit(() -> messagePublisher.publishPaymentSucceeded(event));
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
                 order.setStatus(OrderStatus.CANCELLED);
                 paymentRepository.save(payment);
                 orderRepository.save(order);
-                messagePublisher.publishPaymentFailed(buildPaymentResultMessage(payment, false));
+                PaymentFailedEvent event = buildPaymentFailedEvent(payment);
+                publishAfterCommit(() -> messagePublisher.publishPaymentFailed(event));
             }
         }
 
@@ -192,13 +197,15 @@ public class VNPayServiceImpl implements VNPayService {
                 order.setStatus(OrderStatus.CONFIRMED);
                 paymentRepository.save(payment);
                 orderRepository.save(order);
-                messagePublisher.publishPaymentSuccess(buildPaymentResultMessage(payment, true));
+                PaymentSucceededEvent event = buildPaymentSucceededEvent(payment);
+                publishAfterCommit(() -> messagePublisher.publishPaymentSucceeded(event));
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
                 order.setStatus(OrderStatus.CANCELLED);
                 paymentRepository.save(payment);
                 orderRepository.save(order);
-                messagePublisher.publishPaymentFailed(buildPaymentResultMessage(payment, false));
+                PaymentFailedEvent event = buildPaymentFailedEvent(payment);
+                publishAfterCommit(() -> messagePublisher.publishPaymentFailed(event));
             }
 
             response.put("RspCode", "00");
@@ -217,15 +224,60 @@ public class VNPayServiceImpl implements VNPayService {
         return response;
     }
 
-    private PaymentResultMessage buildPaymentResultMessage(Payment payment, boolean success) {
-        return PaymentResultMessage.builder()
+    private PaymentSucceededEvent buildPaymentSucceededEvent(Payment payment) {
+        Order order = payment.getOrder();
+        User user = order.getUser();
+
+        return PaymentSucceededEvent.builder()
+                .eventId(UUID.randomUUID().toString())
                 .orderId(payment.getOrder().getOrderId())
+                .userId(user != null ? user.getUserId() : null)
+                .email(user != null ? user.getEmail() : null)
+                .createdAt(LocalDateTime.now())
+                .paymentId(payment.getPaymentId())
                 .txnRef(payment.getTxnRef())
-                .success(success)
+                .transactionNo(payment.getTransactionNo())
                 .responseCode(payment.getResponseCode())
-                .customerEmail(payment.getOrder().getUser().getEmail())
                 .amount(payment.getAmount())
                 .build();
+    }
+
+    private PaymentFailedEvent buildPaymentFailedEvent(Payment payment) {
+        Order order = payment.getOrder();
+        User user = order.getUser();
+        List<PaymentFailedEvent.InventoryLine> inventoryItems = order.getOrderItems().stream()
+                .map(item -> PaymentFailedEvent.InventoryLine.builder()
+                        .itemId(item.getProductItem().getItemId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+
+        return PaymentFailedEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .orderId(order.getOrderId())
+                .userId(user != null ? user.getUserId() : null)
+                .email(user != null ? user.getEmail() : null)
+                .createdAt(LocalDateTime.now())
+                .paymentId(payment.getPaymentId())
+                .txnRef(payment.getTxnRef())
+                .responseCode(payment.getResponseCode())
+                .transactionStatus(payment.getTransactionStatus())
+                .amount(payment.getAmount())
+                .inventoryItems(inventoryItems)
+                .build();
+    }
+
+    private void publishAfterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 
     // Xác thực chữ ký trả về từ VNPay để đảm bảo dữ liệu không bị giả mạo

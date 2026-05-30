@@ -1,6 +1,9 @@
-package iuh.fit.se.backend.messaging;
+package iuh.fit.se.backend.messaging.event;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -11,9 +14,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrderCreatedMessage implements Serializable {
+public class OrderCreatedEvent implements Serializable {
+    private String eventId;
     private Long orderId;
-    private String customerEmail;
+    private Long userId;
+    private String email;
+    private LocalDateTime createdAt;
     private String customerName;
     private BigDecimal totalAmount;
     private BigDecimal shippingFee;
@@ -29,6 +35,7 @@ public class OrderCreatedMessage implements Serializable {
     @AllArgsConstructor
     @Builder
     public static class ItemLine implements Serializable {
+        private Long itemId;
         private String name;
         private String color;
         private Integer quantity;

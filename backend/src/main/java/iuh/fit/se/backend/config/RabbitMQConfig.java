@@ -14,26 +14,29 @@ public class RabbitMQConfig {
     @Value("${app.rabbitmq.exchange}")
     private String mainExchangeName;
 
-    @Value("${app.rabbitmq.dlx}")
-    private String deadLetterExchangeName;
-
     @Value("${app.rabbitmq.queue.order-created}")
     private String orderCreatedQueueName;
-
-    @Value("${app.rabbitmq.queue.order-created-dead}")
-    private String orderCreatedDeadQueueName;
-
-    @Value("${app.rabbitmq.queue.payment-success}")
-    private String paymentSuccessQueueName;
-
-    @Value("${app.rabbitmq.queue.payment-failed}")
-    private String paymentFailedQueueName;
 
     @Value("${app.rabbitmq.queue.order-cancelled}")
     private String orderCancelledQueueName;
 
-    @Value("${app.rabbitmq.queue.email-notification}")
-    private String emailNotificationQueueName;
+    @Value("${app.rabbitmq.queue.payment-succeeded}")
+    private String paymentSucceededQueueName;
+
+    @Value("${app.rabbitmq.queue.payment-failed}")
+    private String paymentFailedQueueName;
+
+    @Value("${app.rabbitmq.routing-key.order-created}")
+    private String orderCreatedRoutingKey;
+
+    @Value("${app.rabbitmq.routing-key.order-cancelled}")
+    private String orderCancelledRoutingKey;
+
+    @Value("${app.rabbitmq.routing-key.payment-succeeded}")
+    private String paymentSucceededRoutingKey;
+
+    @Value("${app.rabbitmq.routing-key.payment-failed}")
+    private String paymentFailedRoutingKey;
 
     @Bean
     public TopicExchange mainExchange() {
@@ -41,31 +44,8 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public DirectExchange deadLetterExchange() {
-        return new DirectExchange(deadLetterExchangeName, true, false);
-    }
-
-    @Bean
     public Queue orderCreatedQueue() {
-        return QueueBuilder.durable(orderCreatedQueueName)
-                .withArgument("x-dead-letter-exchange", deadLetterExchangeName)
-                .withArgument("x-dead-letter-routing-key", orderCreatedDeadQueueName)
-                .build();
-    }
-
-    @Bean
-    public Queue orderCreatedDeadQueue() {
-        return QueueBuilder.durable(orderCreatedDeadQueueName).build();
-    }
-
-    @Bean
-    public Queue paymentSuccessQueue() {
-        return QueueBuilder.durable(paymentSuccessQueueName).build();
-    }
-
-    @Bean
-    public Queue paymentFailedQueue() {
-        return QueueBuilder.durable(paymentFailedQueueName).build();
+        return QueueBuilder.durable(orderCreatedQueueName).build();
     }
 
     @Bean
@@ -74,38 +54,33 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue emailNotificationQueue() {
-        return QueueBuilder.durable(emailNotificationQueueName).build();
+    public Queue paymentSucceededQueue() {
+        return QueueBuilder.durable(paymentSucceededQueueName).build();
+    }
+
+    @Bean
+    public Queue paymentFailedQueue() {
+        return QueueBuilder.durable(paymentFailedQueueName).build();
     }
 
     @Bean
     public Binding orderCreatedBinding(TopicExchange mainExchange) {
-        return BindingBuilder.bind(orderCreatedQueue()).to(mainExchange).with(orderCreatedQueueName);
-    }
-
-    @Bean
-    public Binding orderCreatedDeadBinding(DirectExchange deadLetterExchange) {
-        return BindingBuilder.bind(orderCreatedDeadQueue()).to(deadLetterExchange).with(orderCreatedDeadQueueName);
-    }
-
-    @Bean
-    public Binding paymentSuccessBinding(TopicExchange mainExchange) {
-        return BindingBuilder.bind(paymentSuccessQueue()).to(mainExchange).with(paymentSuccessQueueName);
-    }
-
-    @Bean
-    public Binding paymentFailedBinding(TopicExchange mainExchange) {
-        return BindingBuilder.bind(paymentFailedQueue()).to(mainExchange).with(paymentFailedQueueName);
+        return BindingBuilder.bind(orderCreatedQueue()).to(mainExchange).with(orderCreatedRoutingKey);
     }
 
     @Bean
     public Binding orderCancelledBinding(TopicExchange mainExchange) {
-        return BindingBuilder.bind(orderCancelledQueue()).to(mainExchange).with(orderCancelledQueueName);
+        return BindingBuilder.bind(orderCancelledQueue()).to(mainExchange).with(orderCancelledRoutingKey);
     }
 
     @Bean
-    public Binding emailNotificationBinding(TopicExchange mainExchange) {
-        return BindingBuilder.bind(emailNotificationQueue()).to(mainExchange).with("email.#");
+    public Binding paymentSucceededBinding(TopicExchange mainExchange) {
+        return BindingBuilder.bind(paymentSucceededQueue()).to(mainExchange).with(paymentSucceededRoutingKey);
+    }
+
+    @Bean
+    public Binding paymentFailedBinding(TopicExchange mainExchange) {
+        return BindingBuilder.bind(paymentFailedQueue()).to(mainExchange).with(paymentFailedRoutingKey);
     }
 
     @Bean
