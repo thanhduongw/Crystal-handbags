@@ -1,5 +1,6 @@
 package iuh.fit.se.backend.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.backend.constants.RedisKeyConstants;
 import iuh.fit.se.backend.service.OtpService;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +12,14 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,12 +32,21 @@ public class OtpServiceImpl implements OtpService {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final JavaMailSender mailSender;
+    private final ObjectMapper objectMapper;
+
+    private final HttpClient httpClient = HttpClient.newHttpClient();
 
     @Value("${app.otp.expiry-minutes:5}")
     private int expiryMinutes;
 
     @Value("${spring.mail.username:}")
     private String mailFrom;
+
+    @Value("${app.resend.api-key:}")
+    private String resendApiKey;
+
+    @Value("${app.resend.from-email:}")
+    private String resendFromEmail;
 
     @Override
     public void sendOtp(String email, String purpose) {
@@ -112,6 +128,11 @@ public class OtpServiceImpl implements OtpService {
     }
 
     private void sendOtpEmail(String email, String purpose, String otp) {
+        if (resendApiKey != null && !resendApiKey.isBlank()) {
+            sendOtpEmailViaResend(email, purpose, otp);
+            return;
+        }
+
         if (mailFrom == null || mailFrom.isBlank()) {
             throw new RuntimeException("Gmail SMTP is not configured. Set GMAIL_USERNAME and GMAIL_APP_PASSWORD.");
         }
@@ -126,6 +147,43 @@ public class OtpServiceImpl implements OtpService {
         } catch (MailException ex) {
             log.error("Failed to send OTP email to {} for purpose {}", email, purpose, ex);
             throw new RuntimeException("Failed to send OTP email. Check Gmail SMTP credentials and Render env vars.", ex);
+        }
+    }
+
+    private void sendOtpEmailViaResend(String email, String purpose, String otp) {
+        String from = resendFromEmail != null && !resendFromEmail.isBlank()
+                ? resendFromEmail
+                : mailFrom;
+
+        if (from == null || from.isBlank()) {
+            throw new RuntimeException("Resend is configured but RESEND_FROM_EMAIL is missing.");
+        }
+
+        try {
+            String body = objectMapper.writeValueAsString(Map.of(
+                    "from", from,
+                    "to", List.of(email),
+                    "subject", buildSubject(purpose),
+                    "text", buildBody(purpose, otp)
+            ));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .header("Authorization", "Bearer " + resendApiKey.trim())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.error("Resend OTP email failed with status {} and body {}", response.statusCode(), response.body());
+                throw new RuntimeException("Failed to send OTP email via Resend. Status: " + response.statusCode());
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Failed to send OTP email via Resend.", ex);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to send OTP email via Resend.", ex);
         }
     }
 
