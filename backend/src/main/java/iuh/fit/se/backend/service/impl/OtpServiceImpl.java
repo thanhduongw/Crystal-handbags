@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -95,14 +96,21 @@ public class OtpServiceImpl implements OtpService {
     }
 
     private void sendOtpEmail(String email, String purpose, String otp) {
+        if (mailFrom == null || mailFrom.isBlank()) {
+            throw new RuntimeException("Gmail SMTP is not configured. Set GMAIL_USERNAME and GMAIL_APP_PASSWORD.");
+        }
+
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);
-        if (mailFrom != null && !mailFrom.isBlank()) {
-            message.setFrom(mailFrom);
-        }
+        message.setFrom(mailFrom);
         message.setSubject(buildSubject(purpose));
         message.setText(buildBody(purpose, otp));
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (MailException ex) {
+            log.error("Failed to send OTP email to {} for purpose {}", email, purpose, ex);
+            throw new RuntimeException("Failed to send OTP email. Check Gmail SMTP credentials and Render env vars.", ex);
+        }
     }
 
     private String buildSubject(String purpose) {

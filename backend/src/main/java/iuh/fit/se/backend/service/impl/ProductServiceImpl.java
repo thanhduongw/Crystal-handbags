@@ -38,7 +38,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST, key = "'all'", unless = "#result == null")
+    @Cacheable(cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST, key = "'all'", unless = "#result == null || #result.isEmpty()")
     public List<ProductListDto> getAllProducts() {
         return productRepository.findAll().stream()
                 .map(this::convertToListDto)
@@ -247,7 +247,7 @@ public class ProductServiceImpl implements ProductService {
     @Cacheable(
             cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST,
             key = "T(iuh.fit.se.backend.constants.RedisKeyConstants).productCategoryKey(#categoryId)",
-            unless = "#result == null")
+            unless = "#result == null || #result.isEmpty()")
     public List<ProductListDto> getProductsByCategory(Long categoryId) {
         return productRepository.findByCategoryId(categoryId).stream()
                 .map(this::convertToListDto)
@@ -292,7 +292,7 @@ public class ProductServiceImpl implements ProductService {
     @Cacheable(
             cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST,
             key = "T(iuh.fit.se.backend.constants.RedisKeyConstants).productSearchKey(#keyword)",
-            unless = "#result == null")
+            unless = "#result == null || #result.isEmpty()")
     public List<ProductListDto> searchProducts(String keyword) {
         return productRepository.search(keyword).stream()
                 .map(this::convertToListDto)
@@ -304,7 +304,7 @@ public class ProductServiceImpl implements ProductService {
     @Cacheable(
             cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST,
             key = "T(iuh.fit.se.backend.constants.RedisKeyConstants).productFilterKey(#keyword, #categoryId, #minPrice, #maxPrice, #color, #size, #page, #pageSize)",
-            unless = "#result == null")
+            unless = "#result == null || #result.isEmpty()")
     public List<ProductListDto> filterProducts(
             String keyword,
             Long categoryId,

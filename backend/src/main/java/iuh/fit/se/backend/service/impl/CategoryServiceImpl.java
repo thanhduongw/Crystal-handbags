@@ -26,7 +26,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = RedisKeyConstants.Cache.CATEGORY, key = "'all'", unless = "#result == null")
+    @Cacheable(cacheNames = RedisKeyConstants.Cache.CATEGORY, key = "'all'", unless = "#result == null || #result.isEmpty()")
     public List<CategoryDto> getAllCategories() {
         return categoryRepository.findAll()
                 .stream()
