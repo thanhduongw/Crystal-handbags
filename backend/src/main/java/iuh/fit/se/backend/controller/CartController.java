@@ -3,8 +3,7 @@ package iuh.fit.se.backend.controller;
 import iuh.fit.se.backend.dto.CartLineDto;
 import iuh.fit.se.backend.dto.CheckoutRequest;
 import iuh.fit.se.backend.dto.CheckoutResponse;
-import iuh.fit.se.backend.dto.OrderDetailDto;
-import iuh.fit.se.backend.service.DatabaseCartService;
+import iuh.fit.se.backend.service.CartService;
 import iuh.fit.se.backend.service.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -15,20 +14,18 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
 public class CartController {
 
-    private final DatabaseCartService databaseCartService;
+    private final CartService cartService;
     private final OrderService orderService;
 
     @GetMapping
     public ResponseEntity<?> getCart(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(
-                databaseCartService.getAllCart(requireSubject(jwt)));
+                cartService.getAllCart(requireSubject(jwt)));
     }
 
     @PostMapping("/items")
@@ -36,7 +33,7 @@ public class CartController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody CartLineDto dto) {
 
-        databaseCartService.addCartItem(
+        cartService.addCartItem(
                 requireSubject(jwt),
                 dto.getItemId(),
                 dto.getQty());
@@ -49,7 +46,7 @@ public class CartController {
             @PathVariable Long itemId,
             @RequestParam int quantity) {
 
-        databaseCartService.updateQuantity(
+        cartService.updateQuantity(
                 requireSubject(jwt),
                 itemId,
                 quantity);
@@ -61,7 +58,7 @@ public class CartController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long itemId) {
 
-        databaseCartService.removeCartItem(
+        cartService.removeCartItem(
                 requireSubject(jwt),
                 itemId);
         return ResponseEntity.noContent().build();
@@ -70,7 +67,7 @@ public class CartController {
     @DeleteMapping
     public ResponseEntity<Void> clearCart(@AuthenticationPrincipal Jwt jwt) {
 
-        databaseCartService.clearCart(requireSubject(jwt));
+        cartService.clearCart(requireSubject(jwt));
         return ResponseEntity.noContent().build();
     }
 

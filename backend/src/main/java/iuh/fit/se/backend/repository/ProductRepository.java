@@ -36,6 +36,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                     OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
                     OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
                 )
+                AND (:categoryId IS NULL OR c.categoryId = :categoryId)
                 AND (:color IS NULL OR :color = ''
                     OR LOWER(i.color) LIKE LOWER(CONCAT('%', :color, '%'))
                 )
@@ -45,6 +46,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             """)
     List<Product> searchAdvanced(
             @Param("keyword") String keyword,
+            @Param("categoryId") Long categoryId,
             @Param("color") String color,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice);

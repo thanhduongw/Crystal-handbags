@@ -1,5 +1,6 @@
 package iuh.fit.se.backend.service.impl;
 
+import iuh.fit.se.backend.constants.RedisKeyConstants;
 import iuh.fit.se.backend.dto.ProductDetailDto;
 import iuh.fit.se.backend.dto.ProductItemDto;
 import iuh.fit.se.backend.dto.ProductListDto;
@@ -10,14 +11,17 @@ import iuh.fit.se.backend.repository.CategoryRepository;
 import iuh.fit.se.backend.repository.InventoryRepository;
 import iuh.fit.se.backend.repository.ProductItemRepository;
 import iuh.fit.se.backend.repository.ProductRepository;
+import iuh.fit.se.backend.service.CacheInvalidationService;
 import iuh.fit.se.backend.service.FileUploadService;
 import iuh.fit.se.backend.service.InventoryService;
 import iuh.fit.se.backend.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,8 +34,11 @@ public class ProductServiceImpl implements ProductService {
     private final FileUploadService fileUploadService;
     private final InventoryService inventoryService;
     private final InventoryRepository inventoryRepository;
+    private final CacheInvalidationService cacheInvalidationService;
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST, key = "'all'", unless = "#result == null")
     public List<ProductListDto> getAllProducts() {
         return productRepository.findAll().stream()
                 .map(this::convertToListDto)
@@ -70,6 +77,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        cacheInvalidationService.evictProductCaches();
         return getProductDetail(savedProduct.getProductId());
     }
 
@@ -158,6 +166,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        cacheInvalidationService.evictProductCaches();
         return getProductDetail(id);
     }
 
@@ -186,6 +195,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         productRepository.deleteById(id);
+        cacheInvalidationService.evictProductCaches();
     }
 
     @Override
@@ -207,6 +217,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         productRepository.save(product);
+        cacheInvalidationService.evictProductCaches();
         return imageUrl;
     }
 
@@ -228,9 +239,15 @@ public class ProductServiceImpl implements ProductService {
         }
 
         fileUploadService.deleteImage(imageUrl);
+        cacheInvalidationService.evictProductCaches();
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST,
+            key = "T(iuh.fit.se.backend.constants.RedisKeyConstants).productCategoryKey(#categoryId)",
+            unless = "#result == null")
     public List<ProductListDto> getProductsByCategory(Long categoryId) {
         return productRepository.findByCategoryId(categoryId).stream()
                 .map(this::convertToListDto)
@@ -238,6 +255,8 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = RedisKeyConstants.Cache.PRODUCT_DETAIL, key = "#id", unless = "#result == null")
     public ProductDetailDto getProductDetail(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -269,10 +288,45 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST,
+            key = "T(iuh.fit.se.backend.constants.RedisKeyConstants).productSearchKey(#keyword)",
+            unless = "#result == null")
     public List<ProductListDto> searchProducts(String keyword) {
         return productRepository.search(keyword).stream()
                 .map(this::convertToListDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(
+            cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST,
+            key = "T(iuh.fit.se.backend.constants.RedisKeyConstants).productFilterKey(#keyword, #categoryId, #minPrice, #maxPrice, #color, #size, #page, #pageSize)",
+            unless = "#result == null")
+    public List<ProductListDto> filterProducts(
+            String keyword,
+            Long categoryId,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            String color,
+            String size,
+            Integer page,
+            Integer pageSize) {
+
+        List<ProductListDto> products = productRepository
+                .searchAdvanced(keyword, categoryId, color, minPrice, maxPrice)
+                .stream()
+                .map(this::convertToListDto)
+                .distinct()
+                .collect(Collectors.toList());
+
+        int safePage = page != null && page > 0 ? page - 1 : 0;
+        int safePageSize = pageSize != null && pageSize > 0 ? pageSize : products.size();
+        int from = Math.min(safePage * safePageSize, products.size());
+        int to = Math.min(from + safePageSize, products.size());
+        return products.subList(from, to);
     }
 
     private ProductListDto convertToListDto(Product p) {

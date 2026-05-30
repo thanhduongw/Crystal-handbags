@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -40,6 +41,27 @@ public class ProductController {
         public ResponseEntity<List<ProductListDto>> searchProducts(
                         @RequestParam String keyword) {
                 return ResponseEntity.ok(productService.searchProducts(keyword));
+        }
+
+        @GetMapping("/products/filter")
+        public ResponseEntity<List<ProductListDto>> filterProducts(
+                        @RequestParam(required = false) String keyword,
+                        @RequestParam(required = false) Long categoryId,
+                        @RequestParam(required = false) BigDecimal minPrice,
+                        @RequestParam(required = false) BigDecimal maxPrice,
+                        @RequestParam(required = false) String color,
+                        @RequestParam(required = false) String size,
+                        @RequestParam(required = false) Integer page,
+                        @RequestParam(required = false) Integer pageSize) {
+                return ResponseEntity.ok(productService.filterProducts(
+                                keyword,
+                                categoryId,
+                                minPrice,
+                                maxPrice,
+                                color,
+                                size,
+                                page,
+                                pageSize));
         }
 
         @PostMapping("/products")

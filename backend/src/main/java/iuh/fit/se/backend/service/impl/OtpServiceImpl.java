@@ -1,17 +1,17 @@
 package iuh.fit.se.backend.service.impl;
 
-import iuh.fit.se.backend.model.OtpToken;
-import iuh.fit.se.backend.repository.OtpRepository;
+import iuh.fit.se.backend.constants.RedisKeyConstants;
 import iuh.fit.se.backend.service.OtpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -19,8 +19,10 @@ import java.time.LocalDateTime;
 public class OtpServiceImpl implements OtpService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int MAX_VERIFY_ATTEMPTS = 5;
+    private static final int MAX_RESEND_PER_HOUR = 5;
 
-    private final OtpRepository otpRepository;
+    private final StringRedisTemplate stringRedisTemplate;
     private final JavaMailSender mailSender;
 
     @Value("${app.otp.expiry-minutes:5}")
@@ -31,50 +33,65 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public void sendOtp(String email, String purpose) {
+        enforceResendLimit(email, purpose);
+
         String otp = generateOtp();
-        String key = buildKey(email, purpose);
+        String otpKey = RedisKeyConstants.otpKey(purpose, email);
+        stringRedisTemplate.opsForValue().set(otpKey, otp, Duration.ofMinutes(expiryMinutes));
 
-        OtpToken token = OtpToken.builder()
-                .id(key)
-                .email(email)
-                .otp(otp)
-                .purpose(purpose)
-                .createdAt(LocalDateTime.now())
-                .ttl(expiryMinutes * 60L)
-                .build();
-
-        otpRepository.save(token);
+        stringRedisTemplate.delete(RedisKeyConstants.otpAttemptKey(purpose, email));
         sendOtpEmail(email, purpose, otp);
+        log.info("OTP sent for email {} and purpose {}", email, purpose);
     }
 
     @Override
     public boolean verifyOtp(String email, String otp, String purpose) {
-        String key = buildKey(email, purpose);
-        return otpRepository.findById(key)
-                .map(token -> {
-                    boolean valid = token.getOtp() != null && token.getOtp().equals(otp);
-                    if (valid) {
-                        otpRepository.deleteById(key);
-                    } else {
-                        log.warn("Invalid OTP for email {} and purpose {}", email, purpose);
-                    }
-                    return valid;
-                })
-                .orElse(false);
+        String otpKey = RedisKeyConstants.otpKey(purpose, email);
+        String storedOtp = stringRedisTemplate.opsForValue().get(otpKey);
+
+        if (storedOtp == null) {
+            return false;
+        }
+
+        if (storedOtp.equals(otp)) {
+            invalidateOtp(email, purpose);
+            return true;
+        }
+
+        Long attempts = stringRedisTemplate.opsForValue()
+                .increment(RedisKeyConstants.otpAttemptKey(purpose, email));
+        stringRedisTemplate.expire(
+                RedisKeyConstants.otpAttemptKey(purpose, email),
+                Duration.ofMinutes(expiryMinutes));
+
+        log.warn("Invalid OTP attempt {} for email {} and purpose {}", attempts, email, purpose);
+        if (attempts != null && attempts >= MAX_VERIFY_ATTEMPTS) {
+            invalidateOtp(email, purpose);
+            throw new RuntimeException("OTP verification attempts exceeded. Please request a new OTP.");
+        }
+        return false;
     }
 
     @Override
     public void invalidateOtp(String email, String purpose) {
-        otpRepository.deleteById(buildKey(email, purpose));
+        stringRedisTemplate.delete(RedisKeyConstants.otpKey(purpose, email));
+        stringRedisTemplate.delete(RedisKeyConstants.otpAttemptKey(purpose, email));
+    }
+
+    private void enforceResendLimit(String email, String purpose) {
+        String resendKey = RedisKeyConstants.otpResendKey(purpose, email);
+        Long resendCount = stringRedisTemplate.opsForValue().increment(resendKey);
+        if (Long.valueOf(1).equals(resendCount)) {
+            stringRedisTemplate.expire(resendKey, Duration.ofHours(1));
+        }
+        if (resendCount != null && resendCount > MAX_RESEND_PER_HOUR) {
+            throw new RuntimeException("OTP resend limit exceeded. Please try again later.");
+        }
     }
 
     private String generateOtp() {
         int number = SECURE_RANDOM.nextInt(1_000_000);
         return String.format("%06d", number);
-    }
-
-    private String buildKey(String email, String purpose) {
-        return email + ":" + purpose;
     }
 
     private void sendOtpEmail(String email, String purpose, String otp) {

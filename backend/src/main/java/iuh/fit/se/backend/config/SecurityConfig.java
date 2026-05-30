@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/api/products",
                                 "/api/products/{id}",
                                 "/api/products/search",
+                                "/api/products/filter",
                                 "/api/categories",
                                 "/api/categories/{id}",
                                 "/api/categories/*/products",

@@ -491,6 +491,7 @@ public class AiChatServiceImpl implements AiChatService {
 
         List<Product> products = productRepository.searchAdvanced(
                 finalKeyword,
+                null,
                 finalColor,
                 min,
                 max);

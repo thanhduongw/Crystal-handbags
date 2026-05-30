@@ -6,7 +6,8 @@ import iuh.fit.se.backend.messaging.OrderCreatedMessage;
 import iuh.fit.se.backend.messaging.publisher.MessagePublisher;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.*;
-import iuh.fit.se.backend.service.DatabaseCartService;
+import iuh.fit.se.backend.service.CartService;
+import iuh.fit.se.backend.service.InventoryLockService;
 import iuh.fit.se.backend.service.InventoryService;
 import iuh.fit.se.backend.service.OrderService;
 import iuh.fit.se.backend.service.VNPayService;
@@ -15,27 +16,33 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements OrderService (không phải
-                                                        // DatabaseCartService)
+public class OrderServiceImpl implements OrderService {
+
+    private static final Duration INVENTORY_LOCK_TTL = Duration.ofSeconds(15);
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final ProductItemRepository productItemRepository;
-    private final DatabaseCartService cartService; // ✅ SỬA: Dùng DatabaseCartService, không phải implement
+    private final CartService cartService;
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
     private final InventoryService inventoryService;
+    private final InventoryLockService inventoryLockService;
     private final MessagePublisher messagePublisher;
 
     @Override
@@ -125,78 +132,76 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
             throw new RuntimeException("Payment method is required");
         }
 
-        Order order = Order.builder()
-                .user(user)
-                .address(address)
-                .orderDate(LocalDateTime.now())
-                .status(OrderStatus.PENDING)
-                .shippingFee(new BigDecimal("15000"))
-                .orderItems(new ArrayList<>())
-                .build();
-
-        // Calculate total and create order items
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        for (CartLineDto cartItem : cartItems) { // ✅ SỬA: Loop CartLineDto
-            ProductItem productItem = productItemRepository.findById(cartItem.getItemId())
-                    .orElseThrow(() -> new RuntimeException("Product item not found: " + cartItem.getItemId()));
-
-            if (!inventoryService.checkAvailability(productItem.getItemId(), cartItem.getQty())) {
-                throw new RuntimeException("Insufficient stock for product: " + productItem.getProduct().getName());
-            }
-
-            OrderItem orderItem = OrderItem.builder()
-                    .order(order)
-                    .productItem(productItem)
-                    .quantity(cartItem.getQty()) // ✅ SỬA: Dùng getQty()
-                    .price(cartItem.getPrice())
+        List<InventoryLockService.LockHandle> locks = acquireInventoryLocks(cartItems);
+        try {
+            Order order = Order.builder()
+                    .user(user)
+                    .address(address)
+                    .orderDate(LocalDateTime.now())
+                    .status(OrderStatus.PENDING)
+                    .shippingFee(new BigDecimal("15000"))
+                    .orderItems(new ArrayList<>())
                     .build();
 
-            order.getOrderItems().add(orderItem);
+            BigDecimal totalAmount = BigDecimal.ZERO;
+            for (CartLineDto cartItem : cartItems) {
+                ProductItem productItem = productItemRepository.findById(cartItem.getItemId())
+                        .orElseThrow(() -> new RuntimeException("Product item not found: " + cartItem.getItemId()));
 
-            // Update stock
-            inventoryService.decreaseStock(productItem.getItemId(), cartItem.getQty());
+                if (!inventoryService.checkAvailability(productItem.getItemId(), cartItem.getQty())) {
+                    throw new RuntimeException("Insufficient stock for product: " + productItem.getProduct().getName());
+                }
 
-            // ✅ SỬA: Tính total với getQty()
-            totalAmount = totalAmount.add(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQty())));
+                OrderItem orderItem = OrderItem.builder()
+                        .order(order)
+                        .productItem(productItem)
+                        .quantity(cartItem.getQty())
+                        .price(cartItem.getPrice())
+                        .build();
+
+                order.getOrderItems().add(orderItem);
+                inventoryService.decreaseStock(productItem.getItemId(), cartItem.getQty());
+                totalAmount = totalAmount.add(cartItem.getPrice().multiply(BigDecimal.valueOf(cartItem.getQty())));
+            }
+
+            order.setTotalAmount(totalAmount.add(order.getShippingFee()));
+            Order savedOrder = orderRepository.save(order);
+
+            Payment payment = Payment.builder()
+                    .order(savedOrder)
+                    .amount(savedOrder.getTotalAmount())
+                    .paymentMethod(paymentMethod)
+                    .status(paymentMethod == PaymentMethod.VNPAY
+                            ? PaymentStatus.PENDING_PAYMENT
+                            : PaymentStatus.PENDING)
+                    .paymentDate(null)
+                    .build();
+
+            if (paymentMethod == PaymentMethod.VNPAY) {
+                payment.setTxnRef(generateTxnRef(savedOrder));
+                payment.setOrderInfo("Thanh toan don hang #" + savedOrder.getOrderId());
+            }
+
+            Payment savedPayment = paymentRepository.save(payment);
+
+            String paymentUrl = null;
+            if (paymentMethod == PaymentMethod.VNPAY) {
+                paymentUrl = vnPayService.createPaymentUrl(savedOrder, savedPayment, clientIp);
+            }
+
+            cartService.clearCart(email);
+            publishOrderCreatedEvent(savedOrder, paymentMethod);
+
+            return CheckoutResponse.builder()
+                    .orderId(savedOrder.getOrderId())
+                    .paymentMethod(paymentMethod.name())
+                    .paymentStatus(savedPayment.getStatus().name())
+                    .orderStatus(savedOrder.getStatus().name())
+                    .paymentUrl(paymentUrl)
+                    .build();
+        } finally {
+            releaseLocksAfterTransaction(locks);
         }
-
-        order.setTotalAmount(totalAmount.add(order.getShippingFee()));
-        Order savedOrder = orderRepository.save(order);
-
-        // Create payment record
-        Payment payment = Payment.builder()
-                .order(savedOrder)
-                .amount(savedOrder.getTotalAmount())
-                .paymentMethod(paymentMethod)
-                .status(paymentMethod == PaymentMethod.VNPAY
-                        ? PaymentStatus.PENDING_PAYMENT
-                        : PaymentStatus.PENDING)
-                .paymentDate(null)
-                .build();
-
-        if (paymentMethod == PaymentMethod.VNPAY) {
-            payment.setTxnRef(generateTxnRef(savedOrder));
-            payment.setOrderInfo("Thanh toan don hang #" + savedOrder.getOrderId());
-        }
-
-        Payment savedPayment = paymentRepository.save(payment);
-
-        String paymentUrl = null;
-        if (paymentMethod == PaymentMethod.VNPAY) {
-            paymentUrl = vnPayService.createPaymentUrl(savedOrder, savedPayment, clientIp);
-        }
-
-        cartService.clearCart(email);
-
-        publishOrderCreatedEvent(savedOrder, paymentMethod);
-
-        return CheckoutResponse.builder()
-                .orderId(savedOrder.getOrderId())
-                .paymentMethod(paymentMethod.name())
-                .paymentStatus(savedPayment.getStatus().name())
-                .orderStatus(savedOrder.getStatus().name())
-                .paymentUrl(paymentUrl)
-                .build();
     }
 
     @Override
@@ -213,16 +218,12 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
-        // Validate status transition
         validateStatusTransition(order.getStatus(), status);
 
-        // If order is delivered, mark payment as completed
         if (status == OrderStatus.DELIVERED && order.getPayment() != null) {
-
-            // VNPAY: phải thanh toán thành công mới được hoàn thành
             if (order.getPayment().getPaymentMethod() == PaymentMethod.VNPAY
                     && order.getPayment().getStatus() != PaymentStatus.SUCCESS) {
-                throw new IllegalStateException("Đơn VNPAY chưa thanh toán thành công");
+                throw new IllegalStateException("VNPAY order has not been paid successfully");
             }
             if (order.getPayment().getPaymentMethod() == PaymentMethod.CASH) {
                 order.getPayment().setStatus(PaymentStatus.SUCCESS);
@@ -241,6 +242,39 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
         orderRepository.save(order);
 
         return getOrderDetail(orderId);
+    }
+
+    private List<InventoryLockService.LockHandle> acquireInventoryLocks(List<CartLineDto> cartItems) {
+        List<InventoryLockService.LockHandle> locks = new ArrayList<>();
+        try {
+            cartItems.stream()
+                    .map(CartLineDto::getItemId)
+                    .distinct()
+                    .sorted(Comparator.naturalOrder())
+                    .forEach(itemId -> locks.add(inventoryLockService.acquireOrThrow(itemId, INVENTORY_LOCK_TTL)));
+            return locks;
+        } catch (RuntimeException ex) {
+            locks.forEach(inventoryLockService::release);
+            throw ex;
+        }
+    }
+
+    private void releaseLocksAfterTransaction(List<InventoryLockService.LockHandle> locks) {
+        if (locks == null || locks.isEmpty()) {
+            return;
+        }
+
+        Runnable release = () -> locks.forEach(inventoryLockService::release);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    release.run();
+                }
+            });
+        } else {
+            release.run();
+        }
     }
 
     private void validateStatusTransition(OrderStatus currentStatus, OrderStatus newStatus) {
@@ -292,8 +326,9 @@ public class OrderServiceImpl implements OrderService { // ✅ SỬA: implements
     }
 
     private String buildFullAddress(Order order) {
-        if (order.getAddress() == null)
+        if (order.getAddress() == null) {
             return null;
+        }
         return String.join(", ",
                 order.getAddress().getStreet(),
                 order.getAddress().getWard(),

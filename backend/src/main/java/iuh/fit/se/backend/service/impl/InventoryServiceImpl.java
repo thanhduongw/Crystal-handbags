@@ -3,6 +3,7 @@ package iuh.fit.se.backend.service.impl;
 import iuh.fit.se.backend.model.Inventory;
 import iuh.fit.se.backend.model.ProductItem;
 import iuh.fit.se.backend.repository.InventoryRepository;
+import iuh.fit.se.backend.service.CacheInvalidationService;
 import iuh.fit.se.backend.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryRepository inventoryRepository;
+    private final CacheInvalidationService cacheInvalidationService;
 
     @Override
     public Inventory getByItemId(Long itemId) {
@@ -33,12 +35,14 @@ public class InventoryServiceImpl implements InventoryService {
         if (updated == 0) {
             throw new RuntimeException("Insufficient stock for item: " + itemId);
         }
+        cacheInvalidationService.evictProductCachesForVariant(itemId);
     }
 
     @Override
     @Transactional
     public void increaseStock(Long itemId, int qty) {
         inventoryRepository.increaseStock(itemId, qty);
+        cacheInvalidationService.evictProductCachesForVariant(itemId);
     }
 
     @Override
@@ -48,6 +52,7 @@ public class InventoryServiceImpl implements InventoryService {
         if (updated == 0) {
             throw new RuntimeException("Insufficient stock to reserve for item: " + itemId);
         }
+        cacheInvalidationService.evictProductCachesForVariant(itemId);
     }
 
     @Override
@@ -57,6 +62,7 @@ public class InventoryServiceImpl implements InventoryService {
         if (updated == 0) {
             throw new RuntimeException("Reserved stock not enough for item: " + itemId);
         }
+        cacheInvalidationService.evictProductCachesForVariant(itemId);
     }
 
     @Override
@@ -68,7 +74,9 @@ public class InventoryServiceImpl implements InventoryService {
                 .reservedQuantity(0)
                 .soldQuantity(0)
                 .build();
-        return inventoryRepository.save(inventory);
+        Inventory saved = inventoryRepository.save(inventory);
+        cacheInvalidationService.evictProductCachesForVariant(item.getItemId());
+        return saved;
     }
 
     @Override
@@ -77,5 +85,6 @@ public class InventoryServiceImpl implements InventoryService {
         Inventory inventory = getByItemId(itemId);
         inventory.setStockQuantity(stockQty);
         inventoryRepository.save(inventory);
+        cacheInvalidationService.evictProductCachesForVariant(itemId);
     }
 }

@@ -1,12 +1,15 @@
 package iuh.fit.se.backend.service.impl;
 
+import iuh.fit.se.backend.constants.RedisKeyConstants;
 import iuh.fit.se.backend.dto.CategoryDto;
 import iuh.fit.se.backend.model.Category;
 import iuh.fit.se.backend.repository.CategoryRepository;
+import iuh.fit.se.backend.service.CacheInvalidationService;
 import iuh.fit.se.backend.service.CategoryService;
 import iuh.fit.se.backend.service.FileUploadService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,7 +22,11 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
     private final FileUploadService fileUploadService;
+    private final CacheInvalidationService cacheInvalidationService;
+
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = RedisKeyConstants.Cache.CATEGORY, key = "'all'", unless = "#result == null")
     public List<CategoryDto> getAllCategories() {
         return categoryRepository.findAll()
                 .stream()
@@ -28,6 +35,8 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = RedisKeyConstants.Cache.CATEGORY, key = "#id", unless = "#result == null")
     public CategoryDto getCategoryById(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Category not found: " + id));
@@ -50,6 +59,8 @@ public class CategoryServiceImpl implements CategoryService {
                 .build();
 
         Category savedCategory = categoryRepository.save(category);
+        cacheInvalidationService.evictCategoryCaches();
+        cacheInvalidationService.evictProductCaches();
         return convertToDto(savedCategory);
     }
 
@@ -71,6 +82,8 @@ public class CategoryServiceImpl implements CategoryService {
         category.setDescription(categoryDto.getDescription());
 
         Category updatedCategory = categoryRepository.save(category);
+        cacheInvalidationService.evictCategoryCaches();
+        cacheInvalidationService.evictProductCaches();
         return convertToDto(updatedCategory);
     }
 
@@ -97,6 +110,8 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         categoryRepository.delete(category);
+        cacheInvalidationService.evictCategoryCaches();
+        cacheInvalidationService.evictProductCaches();
     }
     @Override
     @Transactional
@@ -122,6 +137,8 @@ public class CategoryServiceImpl implements CategoryService {
             }
         }
 
+        cacheInvalidationService.evictCategoryCaches();
+        cacheInvalidationService.evictProductCaches();
         return convertToDto(savedCategory);
     }
     @Override
@@ -143,6 +160,8 @@ public class CategoryServiceImpl implements CategoryService {
 
         category.setImageUrl(null);
         categoryRepository.save(category);
+        cacheInvalidationService.evictCategoryCaches();
+        cacheInvalidationService.evictProductCaches();
     }
     private CategoryDto convertToDto(Category category) {
         return CategoryDto.builder()
