@@ -13,20 +13,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./db/postgres/handbagdb_postgres.sql:/docker-entrypoint-initdb.d/01_handbagdb_postgres.sql:ro
 
-  pgadmin:
-    image: dpage/pgadmin4:8
-    container_name: handbag-pgadmin
-    restart: unless-stopped
-    depends_on:
-      - postgres
-    ports:
-      - "5050:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-
   redis:
     image: redis:7
     container_name: redis
