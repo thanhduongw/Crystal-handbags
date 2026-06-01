@@ -305,9 +305,7 @@ export default function AdminDashboard() {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="admin-empty-state">
-                                    Chưa có dữ liệu tồn kho.
-                                </div>
+                                <div></div>
                             )}
                         </Space>
                     </Card>
