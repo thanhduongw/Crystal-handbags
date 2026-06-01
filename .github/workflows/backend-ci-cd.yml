@@ -2,19 +2,29 @@ name: Backend CI/CD to Render
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci-cd.yml"
 
   pull_request:
-    branches: ["main"]
+    branches: [main]
     paths:
       - "backend/**"
+      - ".github/workflows/backend-ci-cd.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-render-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-test:
-    name: Build and Test Backend
+  ci:
+    name: Build and test backend
     runs-on: ubuntu-latest
 
     defaults:
@@ -22,7 +32,7 @@ jobs:
         working-directory: backend
 
     steps:
-      - name: Checkout source code
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up Java
@@ -30,23 +40,53 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+          cache: maven
 
       - name: Grant permission for Maven wrapper
         run: chmod +x mvnw
 
-      - name: Build and test
-        run: ./mvnw clean test
+      - name: Test
+        run: ./mvnw --batch-mode clean test
 
-      - name: Package application
-        run: ./mvnw clean package -DskipTests
+      - name: Package
+        run: ./mvnw --batch-mode package -DskipTests
+
+      - name: Upload packaged jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/target/*.jar
+          if-no-files-found: error
+          retention-days: 7
 
   deploy:
     name: Deploy to Render
     runs-on: ubuntu-latest
-    needs: build-test
-
+    needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
 
     steps:
+      - name: Validate Render deploy hook secret
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Missing GitHub secret: RENDER_DEPLOY_HOOK_URL"
+            exit 1
+          fi
+
       - name: Trigger Render deploy
-        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          separator="?"
+          if [[ "$RENDER_DEPLOY_HOOK_URL" == *"?"* ]]; then
+            separator="&"
+          fi
+
+          deploy_url="${RENDER_DEPLOY_HOOK_URL}${separator}ref=${COMMIT_SHA}"
+          curl --fail --silent --show-error --request POST "$deploy_url"
+          echo "Triggered Render deploy for commit ${COMMIT_SHA}"
