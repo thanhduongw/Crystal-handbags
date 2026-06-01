@@ -158,8 +158,16 @@
 .admin-table-card,
 .admin-panel {
   border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.admin-shell .ant-btn,
+.admin-shell .ant-input,
+.admin-shell .ant-input-number,
+.admin-shell .ant-select-selector,
+.admin-shell .ant-picker {
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .admin-stat-card .ant-card-body {
@@ -223,6 +231,14 @@
 
 .admin-table-card .ant-table-tbody>tr>td {
   vertical-align: middle;
+}
+
+.admin-table-card .ant-table-tbody>tr:hover>td {
+  background: #f8fbff !important;
+}
+
+.admin-clickable-row {
+  cursor: pointer;
 }
 
 .admin-entity-cell {
@@ -309,12 +325,157 @@
   display: block;
 }
 
+.admin-layout-collapsed {
+  margin-left: 76px;
+}
+
+.admin-breadcrumb {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.admin-notification-badge .ant-badge-count,
+.admin-menu .ant-badge-count {
+  box-shadow: 0 0 0 1px #fff;
+}
+
+.admin-inline-alert {
+  margin-bottom: 16px;
+  border-radius: 12px;
+}
+
+.admin-growth-indicator {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-watch-card .ant-card-body {
+  padding: 16px;
+}
+
+.admin-watch-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-watch-item:hover {
+  border-color: #93c5fd;
+  background: #f8fbff;
+}
+
+.admin-watch-item span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-watch-section {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-watch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.admin-empty-state {
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: 13px;
+}
+
+.admin-empty-state-card {
+  grid-column: 1 / -1;
+}
+
+.admin-timeline-card {
+  margin: 16px 0;
+}
+
+.admin-timeline-card .ant-card-body {
+  padding: 18px;
+}
+
+.admin-status-highlight {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.admin-payment-summary .ant-card-body {
+  padding: 16px;
+}
+
+.admin-stat-value-small {
+  font-size: 18px;
+}
+
+.admin-toolbar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.admin-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.admin-product-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.admin-product-card .ant-card-body {
+  min-height: 142px;
+  padding: 14px;
+}
+
+.admin-product-card .ant-card-actions {
+  background: #f8fafc;
+}
+
+.admin-product-card .anticon {
+  color: #334155;
+}
+
+.admin-product-card .anticon:hover {
+  color: #1677ff;
+}
+
 @media (max-width: 900px) {
   .admin-sider {
-    display: none;
+    position: fixed !important;
   }
 
-  .admin-layout {
+  .admin-layout,
+  .admin-layout-collapsed {
     margin-left: 0;
   }
 
@@ -333,5 +494,19 @@
 
   .admin-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-topbar {
+    padding: 0 16px;
+  }
+
+  .admin-profile-trigger .admin-topbar-subtitle,
+  .admin-profile-trigger .ant-typography {
+    display: none !important;
+  }
+
+  .admin-toolbar-footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

@@ -80,7 +80,7 @@ export default function CategoryForm({
         return false;
     };
 
-    const handleRemoveImage = () => {
+    const applyRemoveImage = () => {
         if (imagePreview?.startsWith('blob:')) {
             URL.revokeObjectURL(imagePreview);
         }
@@ -91,6 +91,17 @@ export default function CategoryForm({
         // Nếu category cũ đang có ảnh thì đánh dấu xóa.
         // Bấm Cập nhật mới gọi API xóa ảnh trên S3.
         setDeleteImageRequested(!!initialValues?.imageUrl);
+    };
+
+    const handleRemoveImage = () => {
+        Modal.confirm({
+            title: 'Xóa ảnh danh mục?',
+            content: 'Ảnh chỉ bị xóa thật sự khi bạn bấm Cập nhật.',
+            okText: 'Xóa ảnh',
+            cancelText: 'Hủy',
+            okButtonProps: { danger: true },
+            onOk: applyRemoveImage,
+        });
     };
 
     const handleSubmit = () => {

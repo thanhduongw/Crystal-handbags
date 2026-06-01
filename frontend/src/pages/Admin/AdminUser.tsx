@@ -1,27 +1,48 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-    Table, Button, Typography, message, Modal, Space, Tag, Spin, Form, Input,
-    Select, Upload, Avatar, Card, Row, Col, Tooltip
+    Avatar,
+    Button,
+    Card,
+    Col,
+    Empty,
+    Form,
+    Input,
+    message,
+    Modal,
+    Row,
+    Select,
+    Space,
+    Table,
+    Tag,
+    Tooltip,
+    Typography,
+    Upload,
 } from 'antd';
 import {
-    DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined,
-    SearchOutlined, UploadOutlined, UserOutlined
+    DeleteOutlined,
+    EditOutlined,
+    LockOutlined,
+    PlusOutlined,
+    ReloadOutlined,
+    SearchOutlined,
+    UnlockOutlined,
+    UploadOutlined,
+    UserOutlined,
 } from '@ant-design/icons';
 import {
-    getAllUsers,
-    deleteUser,
     createUser,
+    deleteUserAvatar,
+    getAllUsers,
     updateUser,
     uploadUserAvatar,
-    deleteUserAvatar,
 } from '../../api/userAPI';
 import type { Gender, UserProfileDto } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title } = Typography;
+const LOCKED_USERS_KEY = 'admin-locked-user-ids';
 
 type UserFormValues = {
     email: string;
@@ -34,15 +55,17 @@ type UserFormValues = {
     roles: string[];
 };
 
+type UserStatusFilter = 'ACTIVE' | 'LOCKED';
+
 const roleOptions = [
-    { value: 'CUSTOMER', label: 'Khách hàng' },
+    { value: 'CUSTOMER', label: 'Khach hang' },
     { value: 'ADMIN', label: 'Admin' },
 ];
 
 const genderOptions = [
     { value: 'MALE', label: 'Nam' },
-    { value: 'FEMALE', label: 'Nữ' },
-    { value: 'OTHER', label: 'Khác' },
+    { value: 'FEMALE', label: 'Nu' },
+    { value: 'OTHER', label: 'Khac' },
 ];
 
 function hasAdminRole(user: UserProfileDto) {
@@ -58,14 +81,38 @@ function getFullName(user: UserProfileDto) {
     return `${user.firstName || ''} ${user.lastName || ''}`.trim() || '-';
 }
 
+function getInitials(user: UserProfileDto) {
+    const source = getFullName(user) !== '-' ? getFullName(user) : user.email;
+    return source
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase())
+        .join('');
+}
+
+function readLockedUsers() {
+    try {
+        const value = window.localStorage.getItem(LOCKED_USERS_KEY);
+        if (!value) return new Set<number>();
+        const ids = JSON.parse(value) as number[];
+        return new Set(ids.filter(id => typeof id === 'number'));
+    } catch {
+        return new Set<number>();
+    }
+}
+
 export default function AdminUsers() {
     const { isAdmin } = useAuth();
     const [users, setUsers] = useState<UserProfileDto[]>([]);
+    const [lockedUserIds, setLockedUserIds] = useState<Set<number>>(() => readLockedUsers());
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfileDto | null>(null);
     const [searchText, setSearchText] = useState('');
+    const [roleFilter, setRoleFilter] = useState<string | undefined>();
+    const [statusFilter, setStatusFilter] = useState<UserStatusFilter | undefined>();
 
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string>();
@@ -85,6 +132,11 @@ export default function AdminUsers() {
         };
     }, [avatarPreview]);
 
+    const persistLockedUsers = (next: Set<number>) => {
+        setLockedUserIds(next);
+        window.localStorage.setItem(LOCKED_USERS_KEY, JSON.stringify(Array.from(next)));
+    };
+
     const resetAvatarState = () => {
         if (avatarPreview) {
             URL.revokeObjectURL(avatarPreview);
@@ -102,7 +154,7 @@ export default function AdminUsers() {
             setUsers(data.filter(user => !hasAdminRole(user)));
         } catch (error) {
             console.error('Load users error:', error);
-            message.error('Tải người dùng thất bại');
+            message.error('Tai nguoi dung that bai');
         } finally {
             setLoading(false);
         }
@@ -110,14 +162,22 @@ export default function AdminUsers() {
 
     const filteredUsers = useMemo(() => {
         const keyword = searchText.trim().toLowerCase();
-        if (!keyword) return users;
 
-        return users.filter(user =>
-            getFullName(user).toLowerCase().includes(keyword) ||
-            user.email.toLowerCase().includes(keyword) ||
-            (user.phoneNumber || '').toLowerCase().includes(keyword)
-        );
-    }, [users, searchText]);
+        return users.filter(user => {
+            const userId = user.userId;
+            const isLocked = typeof userId === 'number' && lockedUserIds.has(userId);
+            const matchesSearch = !keyword ||
+                getFullName(user).toLowerCase().includes(keyword) ||
+                user.email.toLowerCase().includes(keyword) ||
+                (user.phoneNumber || '').toLowerCase().includes(keyword);
+            const matchesRole = !roleFilter || getPrimaryRole(user) === roleFilter;
+            const matchesStatus = !statusFilter ||
+                (statusFilter === 'LOCKED' && isLocked) ||
+                (statusFilter === 'ACTIVE' && !isLocked);
+
+            return matchesSearch && matchesRole && matchesStatus;
+        });
+    }, [users, searchText, roleFilter, statusFilter, lockedUserIds]);
 
     const openCreateModal = () => {
         setEditingUser(null);
@@ -179,7 +239,7 @@ export default function AdminUsers() {
                 setAvatarPreview(undefined);
 
                 if (!avatarUrl) {
-                    message.success('Đã bỏ ảnh vừa chọn');
+                    message.success('Da bo anh vua chon');
                     return;
                 }
             }
@@ -189,10 +249,10 @@ export default function AdminUsers() {
             setAvatarUrl(updatedUser.photoUrl);
             await load();
 
-            message.success('Đã xóa ảnh đại diện');
+            message.success('Da xoa anh dai dien');
         } catch (error) {
             console.error('Delete avatar error:', error);
-            message.error('Xóa ảnh đại diện thất bại');
+            message.error('Xoa anh dai dien that bai');
         } finally {
             setSaving(false);
         }
@@ -217,7 +277,7 @@ export default function AdminUsers() {
                     await uploadUserAvatar(editingUser.userId, selectedAvatarFile);
                 }
 
-                message.success('Cập nhật người dùng thành công');
+                message.success('Cap nhat nguoi dung thanh cong');
             } else {
                 await createUser({
                     email: values.email,
@@ -228,49 +288,49 @@ export default function AdminUsers() {
                     roles: values.roles,
                 });
 
-                message.success('Thêm người dùng thành công');
+                message.success('Them nguoi dung thanh cong');
             }
 
             closeModal();
             await load();
         } catch (error) {
             console.error('Save user error:', error);
-            message.error(editingUser ? 'Cập nhật thất bại' : 'Thêm người dùng thất bại');
+            message.error(editingUser ? 'Cap nhat that bai' : 'Them nguoi dung that bai');
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = (user: UserProfileDto) => {
+    const handleToggleLock = (user: UserProfileDto) => {
         if (!user.userId) return;
 
-        Modal.confirm({
-            title: 'Xóa khách hàng?',
-            content: `Tài khoản "${user.email}" sẽ bị xóa khỏi hệ thống.`,
-            okText: 'Xóa',
-            cancelText: 'Hủy',
-            okButtonProps: { danger: true },
-            async onOk() {
-                try {
-                    await deleteUser(user.userId!);
-                    message.success('Đã xóa');
-                    await load();
-                } catch (error) {
-                    console.error('Delete error:', error);
-                    message.error('Xóa thất bại');
-                }
-            }
-        });
+        const next = new Set(lockedUserIds);
+        const isLocked = next.has(user.userId);
+
+        if (isLocked) {
+            next.delete(user.userId);
+            message.success('Da mo khoa trang thai UI');
+        } else {
+            next.add(user.userId);
+            message.success('Da khoa trang thai UI');
+        }
+
+        persistLockedUsers(next);
     };
+
+    const activeUsers = users.filter(user => !user.userId || !lockedUserIds.has(user.userId)).length;
+    const lockedUsers = users.length - activeUsers;
 
     const columns: ColumnsType<UserProfileDto> = [
         {
-            title: 'Khách hàng',
+            title: 'Khach hang',
             key: 'customer',
             width: 300,
             render: (_, record) => (
                 <div className="admin-entity-cell">
-                    <Avatar size={44} src={record.photoUrl} icon={<UserOutlined />} />
+                    <Avatar size={44} src={record.photoUrl} icon={!record.photoUrl ? undefined : <UserOutlined />}>
+                        {!record.photoUrl ? getInitials(record) : null}
+                    </Avatar>
                     <div style={{ minWidth: 0 }}>
                         <div className="admin-entity-title">{getFullName(record)}</div>
                         <div className="admin-entity-meta">{record.email}</div>
@@ -279,93 +339,102 @@ export default function AdminUsers() {
             ),
         },
         {
-            title: 'Số điện thoại',
+            title: 'So dien thoai',
             dataIndex: 'phoneNumber',
             key: 'phoneNumber',
             width: 150,
-            render: (phone?: string) => phone || <span className="admin-muted">Chưa có</span>,
+            render: (phone?: string) => phone || <span className="admin-muted">Chua co</span>,
         },
         {
-            title: 'Giới tính',
-            dataIndex: 'gender',
-            key: 'gender',
+            title: 'Ngay dang ky',
+            key: 'registeredAt',
+            width: 140,
+            render: () => <span className="admin-muted">--</span>,
+        },
+        {
+            title: 'Order Count',
+            key: 'orderCount',
             width: 120,
-            render: (gender?: Gender) =>
-                genderOptions.find(option => option.value === gender)?.label || <span className="admin-muted">-</span>,
+            align: 'center',
+            render: () => <span className="admin-muted">--</span>,
         },
         {
-            title: 'Ngày sinh',
-            dataIndex: 'dob',
-            key: 'dob',
-            width: 130,
-            render: (dob?: string) => dob ? dayjs(dob).format('DD/MM/YYYY') : <span className="admin-muted">-</span>,
-        },
-        {
-            title: 'Vai trò',
+            title: 'Vai tro',
             key: 'roles',
             width: 130,
             render: (_, record) => {
                 const role = getPrimaryRole(record);
                 return (
                     <Tag className="admin-tag" color={role === 'ADMIN' ? 'red' : 'blue'}>
-                        {role === 'ADMIN' ? 'Admin' : 'Khách hàng'}
+                        {role === 'ADMIN' ? 'Admin' : 'Khach hang'}
                     </Tag>
                 );
             },
         },
         {
-            title: 'Thao tác',
+            title: 'Trang thai',
+            key: 'status',
+            width: 120,
+            render: (_, record) => {
+                const isLocked = !!record.userId && lockedUserIds.has(record.userId);
+                return (
+                    <Tag className="admin-tag" color={isLocked ? 'red' : 'green'}>
+                        {isLocked ? 'Da khoa' : 'Hoat dong'}
+                    </Tag>
+                );
+            },
+        },
+        {
+            title: 'Thao tac',
             key: 'action',
-            width: 130,
+            width: 150,
             fixed: 'right',
             align: 'right',
-            render: (_, record) => (
-                <Space size={4}>
-                    <Tooltip title="Sửa khách hàng">
-                        <Button
-                            className="admin-icon-button"
-                            icon={<EditOutlined />}
-                            onClick={() => openEditModal(record)}
-                        />
-                    </Tooltip>
-                    <Tooltip title="Xóa khách hàng">
-                        <Button
-                            className="admin-icon-button"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={() => handleDelete(record)}
-                            disabled={hasAdminRole(record)}
-                        />
-                    </Tooltip>
-                </Space>
-            )
-        }
+            render: (_, record) => {
+                const isLocked = !!record.userId && lockedUserIds.has(record.userId);
+                return (
+                    <Space size={4}>
+                        <Tooltip title="Sua khach hang">
+                            <Button
+                                className="admin-icon-button"
+                                icon={<EditOutlined />}
+                                onClick={() => openEditModal(record)}
+                            />
+                        </Tooltip>
+                        <Tooltip title={isLocked ? 'Mo khoa tai khoan' : 'Khoa tai khoan'}>
+                            <Button
+                                className="admin-icon-button"
+                                danger={!isLocked}
+                                icon={isLocked ? <UnlockOutlined /> : <LockOutlined />}
+                                onClick={() => handleToggleLock(record)}
+                            />
+                        </Tooltip>
+                    </Space>
+                );
+            },
+        },
     ];
 
     if (!isAdmin) {
         return <Navigate to="/" replace />;
     }
 
-    if (loading && users.length === 0) {
-        return <Spin style={{ display: 'block', margin: '100px auto' }} />;
-    }
-
     return (
         <div className="admin-page">
             <div className="admin-page-header">
                 <div>
-                    <div className="admin-page-eyebrow">Khách hàng</div>
-                    <Title level={2} className="admin-page-title">Tài khoản người dùng</Title>
+                    <div className="admin-page-eyebrow">Khach hang</div>
+                    <Title level={2} className="admin-page-title">Tai khoan nguoi dung</Title>
                     <p className="admin-page-subtitle">
-                        Quản lý hồ sơ khách hàng, thông tin liên hệ và quyền truy cập.
+                        Quan ly ho so khach hang, loc theo vai tro va trang thai khoa cuc bo.
                     </p>
                 </div>
                 <div className="admin-page-actions">
                     <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-                        Làm mới
+                        Lam moi
                     </Button>
                     <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                        Thêm khách hàng
+                        Them khach hang
                     </Button>
                 </div>
             </div>
@@ -373,23 +442,63 @@ export default function AdminUsers() {
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                 <Col xs={24} md={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Tổng khách hàng</div>
+                        <div className="admin-stat-kicker">Tong khach hang</div>
                         <div className="admin-stat-value">{users.length}</div>
-                        <div className="admin-stat-footnote">Không bao gồm tài khoản quản trị</div>
+                        <div className="admin-stat-footnote">Khong bao gom tai khoan quan tri</div>
                     </Card>
                 </Col>
-                <Col xs={24} md={16}>
-                    <Card className="admin-toolbar-card">
-                        <Input
-                            allowClear
-                            prefix={<SearchOutlined />}
-                            placeholder="Tìm theo họ tên, email hoặc số điện thoại..."
-                            value={searchText}
-                            onChange={(event) => setSearchText(event.target.value)}
-                        />
+                <Col xs={24} md={8}>
+                    <Card className="admin-stat-card">
+                        <div className="admin-stat-kicker">Hoat dong</div>
+                        <div className="admin-stat-value">{activeUsers}</div>
+                        <div className="admin-stat-footnote">Trang thai hien thi tren frontend</div>
+                    </Card>
+                </Col>
+                <Col xs={24} md={8}>
+                    <Card className="admin-stat-card">
+                        <div className="admin-stat-kicker">Da khoa</div>
+                        <div className="admin-stat-value">{lockedUsers}</div>
+                        <div className="admin-stat-footnote">Luu bang localStorage khi chua co API</div>
                     </Card>
                 </Col>
             </Row>
+
+            <Card className="admin-toolbar-card">
+                <Row gutter={[12, 12]}>
+                    <Col xs={24} lg={12}>
+                        <Input
+                            allowClear
+                            prefix={<SearchOutlined />}
+                            placeholder="Tim theo ho ten, email hoac so dien thoai..."
+                            value={searchText}
+                            onChange={(event) => setSearchText(event.target.value)}
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <Select
+                            allowClear
+                            style={{ width: '100%' }}
+                            placeholder="Vai tro"
+                            value={roleFilter}
+                            onChange={setRoleFilter}
+                            options={roleOptions}
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <Select
+                            allowClear
+                            style={{ width: '100%' }}
+                            placeholder="Trang thai"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={[
+                                { value: 'ACTIVE', label: 'Hoat dong' },
+                                { value: 'LOCKED', label: 'Da khoa' },
+                            ]}
+                        />
+                    </Col>
+                </Row>
+            </Card>
 
             <Card className="admin-table-card">
                 <Table
@@ -399,23 +508,24 @@ export default function AdminUsers() {
                     loading={loading}
                     pagination={{
                         pageSize: 10,
-                        showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} khách hàng`,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} khach hang`,
                         showSizeChanger: true,
                     }}
-                    scroll={{ x: 960 }}
+                    scroll={{ x: 1110 }}
+                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Khong co khach hang phu hop" /> }}
                 />
             </Card>
 
             <Modal
                 open={modalVisible}
-                title={editingUser ? 'Sửa khách hàng' : 'Thêm khách hàng'}
+                title={editingUser ? 'Sua khach hang' : 'Them khach hang'}
                 onCancel={closeModal}
                 onOk={() => form.submit()}
-                okText={editingUser ? 'Cập nhật' : 'Thêm'}
-                cancelText="Hủy"
+                okText={editingUser ? 'Cap nhat' : 'Them'}
+                cancelText="Huy"
                 confirmLoading={saving}
-                destroyOnClose
-                width={640}
+                destroyOnHidden
+                width={720}
             >
                 <Form form={form} layout="vertical" onFinish={handleSubmit}>
                     <Row gutter={12}>
@@ -423,7 +533,7 @@ export default function AdminUsers() {
                             <Form.Item
                                 name="email"
                                 label="Email"
-                                rules={[{ required: true, type: 'email', message: 'Email không hợp lệ' }]}
+                                rules={[{ required: true, type: 'email', message: 'Email khong hop le' }]}
                             >
                                 <Input disabled={!!editingUser} />
                             </Form.Item>
@@ -432,8 +542,8 @@ export default function AdminUsers() {
                             <Col xs={24} md={12}>
                                 <Form.Item
                                     name="password"
-                                    label="Mật khẩu"
-                                    rules={[{ required: true, min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' }]}
+                                    label="Mat khau"
+                                    rules={[{ required: true, min: 6, message: 'Mat khau toi thieu 6 ky tu' }]}
                                 >
                                     <Input.Password />
                                 </Form.Item>
@@ -442,8 +552,8 @@ export default function AdminUsers() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="lastName"
-                                label="Họ"
-                                rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
+                                label="Ho"
+                                rules={[{ required: true, message: 'Vui long nhap ho' }]}
                             >
                                 <Input />
                             </Form.Item>
@@ -451,8 +561,8 @@ export default function AdminUsers() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="firstName"
-                                label="Tên"
-                                rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
+                                label="Ten"
+                                rules={[{ required: true, message: 'Vui long nhap ten' }]}
                             >
                                 <Input />
                             </Form.Item>
@@ -460,30 +570,30 @@ export default function AdminUsers() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="phoneNumber"
-                                label="Số điện thoại"
+                                label="So dien thoai"
                                 rules={[
-                                    { required: true, message: 'Vui lòng nhập số điện thoại' },
-                                    { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ' },
+                                    { required: true, message: 'Vui long nhap so dien thoai' },
+                                    { pattern: /^[0-9]{10}$/, message: 'So dien thoai khong hop le' },
                                 ]}
                             >
                                 <Input />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item name="gender" label="Giới tính">
+                            <Form.Item name="gender" label="Gioi tinh">
                                 <Select allowClear options={genderOptions} />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item name="dob" label="Ngày sinh">
+                            <Form.Item name="dob" label="Ngay sinh">
                                 <Input type="date" />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="roles"
-                                label="Vai trò"
-                                rules={[{ type: 'array', required: true, min: 1, message: 'Vui lòng chọn vai trò' }]}
+                                label="Vai tro"
+                                rules={[{ type: 'array', required: true, min: 1, message: 'Vui long chon vai tro' }]}
                             >
                                 <Select mode="multiple" options={roleOptions} />
                             </Form.Item>
@@ -491,13 +601,15 @@ export default function AdminUsers() {
                     </Row>
 
                     {editingUser && (
-                        <Form.Item label="Ảnh đại diện">
+                        <Form.Item label="Anh dai dien">
                             <Space direction="vertical" align="center" style={{ width: '100%' }}>
                                 <Avatar
                                     size={96}
                                     src={avatarPreview || avatarUrl}
-                                    icon={<UserOutlined />}
-                                />
+                                    icon={!avatarPreview && !avatarUrl ? undefined : <UserOutlined />}
+                                >
+                                    {!avatarPreview && !avatarUrl ? getInitials(editingUser) : null}
+                                </Avatar>
 
                                 <Space>
                                     <Upload
@@ -506,7 +618,7 @@ export default function AdminUsers() {
                                         beforeUpload={handleSelectAvatar}
                                     >
                                         <Button icon={<UploadOutlined />}>
-                                            Chọn ảnh
+                                            Chon anh
                                         </Button>
                                     </Upload>
 
@@ -517,7 +629,7 @@ export default function AdminUsers() {
                                             onClick={handleDeleteAvatar}
                                             loading={saving}
                                         >
-                                            Xóa ảnh
+                                            Xoa anh
                                         </Button>
                                     )}
                                 </Space>
