@@ -310,13 +310,17 @@ public class ProductServiceImpl implements ProductService {
                 })
                 .collect(Collectors.toList());
 
+        List<String> images = product.getImages() != null
+                ? new ArrayList<>(product.getImages())
+                : new ArrayList<>();
+
         return new ProductDetailDto(
                 product.getProductId(),
                 product.getName(),
                 product.getDescription(),
                 product.getBasePrice(),
                 product.getAvatar(),
-                product.getImages() != null ? product.getImages() : new ArrayList<>(),
+                images,
                 product.getCategory().getCategoryId(),
                 product.getCategory().getName(),
                 items,

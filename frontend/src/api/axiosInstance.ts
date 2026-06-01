@@ -24,6 +24,7 @@ const shouldSendBearerToken = (url = '', method = 'get') => {
     const isPublicRead = normalizedMethod === 'get';
 
     if (url.startsWith('/auth/')) return false;
+    if (url.startsWith('/session-cart/merge')) return true;
     if (url.startsWith('/session-cart')) return false;
     if (url.startsWith('/contact')) return false;
     if (isPublicRead && url.startsWith('/products')) return false;

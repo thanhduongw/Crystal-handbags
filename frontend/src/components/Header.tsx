@@ -34,6 +34,7 @@ export default function AppHeader() {
     const { user, logout, isAdmin } = useAuth();
     const [searchValue, setSearchValue] = useState('');
     const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>();
+    const cartQuantity = lines.reduce((sum, line) => sum + line.qty, 0);
 
     const userMenuItems: MenuProps['items'] = [
         {
@@ -216,7 +217,7 @@ export default function AppHeader() {
             />
 
             <Space size="large" style={{ marginLeft: 32 }}>
-                <Badge count={lines.length} size="small" offset={[-2, 2]}>
+                <Badge count={cartQuantity} size="small" offset={[-2, 2]}>
                     <ShoppingCartOutlined
                         style={{
                             fontSize: 22,

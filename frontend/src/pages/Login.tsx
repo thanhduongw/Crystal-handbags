@@ -40,6 +40,7 @@ export default function Login() {
             }
 
             loginContext(response.accessToken, response.refreshToken, userData);
+            window.dispatchEvent(new Event('cart:changed'));
 
             message.success('Đăng nhập thành công!');
             navigate(isAdminUser(userData) ? '/admin' : '/', { replace: true });

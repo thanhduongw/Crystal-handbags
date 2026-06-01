@@ -5,6 +5,12 @@ import { useAuth } from './useAuth';
 import * as cartAPI from '../api/cartAPI';
 import * as sessionCartAPI from '../api/sessionCartAPI';
 
+const CART_CHANGED_EVENT = 'cart:changed';
+
+const notifyCartChanged = () => {
+    window.dispatchEvent(new Event(CART_CHANGED_EVENT));
+};
+
 interface UseCartReturn {
     lines: CartLineDto[];
     loading: boolean;
@@ -40,13 +46,22 @@ export default function useCart(): UseCartReturn {
         loadCart();
     }, [loadCart]);
 
+    useEffect(() => {
+        window.addEventListener(CART_CHANGED_EVENT, loadCart);
+        return () => window.removeEventListener(CART_CHANGED_EVENT, loadCart);
+    }, [loadCart]);
+
     const total = lines.reduce((sum, item) => sum + item.price * item.qty, 0);
 
     const addItem = useCallback(
         async (product: ProductDetailDto, item: ProductItemDto, quantity: number) => {
             try {
+                if (!item.itemId) {
+                    throw new Error('Product item is missing an id');
+                }
+
                 const dto: CartLineDto = {
-                    itemId: item.itemId || 0,
+                    itemId: item.itemId,
                     name: product.name,
                     avatar: product.avatar || '',
                     price: item.price,
@@ -61,6 +76,7 @@ export default function useCart(): UseCartReturn {
                 }
 
                 await loadCart();
+                notifyCartChanged();
             } catch (error) {
                 console.error('Failed to add item:', error);
                 throw error;
@@ -78,10 +94,10 @@ export default function useCart(): UseCartReturn {
                     await sessionCartAPI.removeItem(itemId);
                 }
                 await loadCart();
+                notifyCartChanged();
                 return;
             }
 
-            // Optimistic update
             const previousLines = [...lines];
             setLines((prev) =>
                 prev.map((line) =>
@@ -95,8 +111,8 @@ export default function useCart(): UseCartReturn {
                 } else {
                     await sessionCartAPI.updateQty(itemId, quantity);
                 }
+                notifyCartChanged();
             } catch (error) {
-                // Rollback on error
                 setLines(previousLines);
                 console.error('Failed to update quantity:', error);
                 message.error('Không thể cập nhật số lượng!');
@@ -114,6 +130,7 @@ export default function useCart(): UseCartReturn {
                     await sessionCartAPI.removeItem(itemId);
                 }
                 await loadCart();
+                notifyCartChanged();
                 message.success('Đã xóa sản phẩm khỏi giỏ hàng!');
             } catch (error) {
                 console.error('Failed to remove item:', error);
@@ -131,6 +148,7 @@ export default function useCart(): UseCartReturn {
                 await sessionCartAPI.clearCart();
             }
             setLines([]);
+            notifyCartChanged();
         } catch (error) {
             console.error('Failed to clear cart:', error);
             message.error('Không thể làm trống giỏ hàng!');
