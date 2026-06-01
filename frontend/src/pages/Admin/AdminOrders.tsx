@@ -307,10 +307,6 @@ export default function AdminOrders() {
     return (
         <div className="admin-page">
             <div className="admin-page-header">
-                <div>
-                    <div className="admin-page-eyebrow">Đơn hàng</div>
-                    <Title level={2} className="admin-page-title">Điều phối đơn hàng</Title>
-                </div>
                 <div className="admin-page-actions">
                     <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={filteredOrders.length === 0}>
                         Xuất CSV

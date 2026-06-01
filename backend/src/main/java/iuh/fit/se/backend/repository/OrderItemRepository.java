@@ -9,6 +9,7 @@ import java.util.Collection;
 
 @Repository
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+    boolean existsByProductItemItemId(Long productItemId);
     boolean existsByProductItemProductProductId(Long productId);
     boolean existsByProductItemProductProductIdAndOrderStatusIn(Long productId, Collection<OrderStatus> statuses);
 }

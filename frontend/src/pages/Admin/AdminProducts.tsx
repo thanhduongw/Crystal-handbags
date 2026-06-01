@@ -459,10 +459,6 @@ export default function AdminProducts() {
     return (
         <div className="admin-page">
             <div className="admin-page-header">
-                <div>
-                    <div className="admin-page-eyebrow">Sản phẩm</div>
-                    <Title level={2} className="admin-page-title">Danh mục hàng hóa</Title>
-                </div>
                 <div className="admin-page-actions">
                     <Segmented
                         value={viewMode}

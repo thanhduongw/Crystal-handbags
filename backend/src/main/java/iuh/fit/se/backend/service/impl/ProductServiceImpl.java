@@ -156,31 +156,26 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        // Xử lý xóa: những item cũ không có trong incomingIds
-        // Chỉ xóa khi item không còn tham chiếu (cartItems và orderItems rỗng)
+        // Xoa nhung bien the cu khong con duoc gui len tu form.
         List<ProductItem> toCheckForDelete = existingItems.stream()
                 .filter(i -> i.getItemId() != null && !incomingIds.contains(i.getItemId()))
                 .collect(Collectors.toList());
 
         for (ProductItem oldItem : toCheckForDelete) {
-            boolean hasCart = oldItem.getCartItems() != null && !oldItem.getCartItems().isEmpty();
-            boolean hasOrder = oldItem.getOrderItems() != null && !oldItem.getOrderItems().isEmpty();
-
-            if (!hasCart && !hasOrder) {
-                // an toàn để xóa
-                try {
-                    productItemRepository.delete(oldItem);
-                } catch (Exception ex) {
-                    // Nếu có lỗi bất thường, log và tiếp tục (không block toàn bộ update)
-                    System.err.println("Failed to delete item " + oldItem.getItemId() + ": " + ex.getMessage());
-                }
-            } else {
-                // Không xóa được — giữ item, và (tuỳ nghiệp vụ) bạn có thể:
-                // - giữ nguyên (đã làm)
-                // - hoặc đánh dấu inactive (bổ sung trường) => tuỳ nhu cầu
-                System.out
-                        .println("Skip delete item " + oldItem.getItemId() + " because it's referenced by cart/order");
+            Long oldItemId = oldItem.getItemId();
+            if (orderItemRepository.existsByProductItemItemId(oldItemId)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Không thể xóa biến thể đã phát sinh trong đơn hàng.");
             }
+
+            if (cartItemRepository.existsByProductItemItemId(oldItemId)) {
+                cartItemRepository.deleteByProductItemItemId(oldItemId);
+            }
+
+            inventoryRepository.findByProductItemItemId(oldItemId)
+                    .ifPresent(inventoryRepository::delete);
+            productItemRepository.delete(oldItem);
         }
 
         cacheInvalidationService.evictProductCaches();

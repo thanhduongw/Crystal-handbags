@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Avatar, Breadcrumb, Dropdown, Grid, Layout, Menu, Space, Typography } from 'antd';
+import { Avatar, Dropdown, Grid, Layout, Menu, Space, Typography } from 'antd';
 import {
     AppstoreOutlined,
     DashboardOutlined,
@@ -30,6 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const navigate = useNavigate();
     const screens = useBreakpoint();
     const { user, logout } = useAuth();
+
     const [collapsed, setCollapsed] = useState(false);
     const [profile, setProfile] = useState<UserProfileDto | null>(null);
 
@@ -78,20 +79,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return '/admin';
     }, [location.pathname]);
 
-    const breadcrumbItems = useMemo(() => {
-        const items = [{ title: <Link to="/admin">Tổng quan</Link> }];
-
-        if (location.pathname.startsWith('/admin/orders')) {
-            items.push({ title: <Link to="/admin/orders">Đơn hàng</Link> });
-        } else if (location.pathname.startsWith('/admin/products')) {
-            items.push({ title: <Link to="/admin/products">Sản phẩm</Link> });
-        } else if (location.pathname.startsWith('/admin/categories')) {
-            items.push({ title: <Link to="/admin/categories">Danh mục</Link> });
-        } else if (location.pathname.startsWith('/admin/users')) {
-            items.push({ title: <Link to="/admin/users">Khách hàng</Link> });
-        }
-
-        return items;
+    const pageTitle = useMemo(() => {
+        if (location.pathname.startsWith('/admin/orders')) return 'Đơn hàng';
+        if (location.pathname.startsWith('/admin/products')) return 'Sản phẩm';
+        if (location.pathname.startsWith('/admin/categories')) return 'Danh mục';
+        if (location.pathname.startsWith('/admin/users')) return 'Khách hàng';
+        return 'Tổng quan';
     }, [location.pathname]);
 
     const menuItems: MenuProps['items'] = [
@@ -189,10 +182,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             <Layout className={`admin-layout ${collapsed ? 'admin-layout-collapsed' : ''}`}>
                 <Header className="admin-topbar">
-                    <div>
-                        <div className="admin-topbar-title">Bảng quản trị</div>
-                        <Breadcrumb className="admin-breadcrumb" items={breadcrumbItems} />
-                    </div>
+                    <div className="admin-topbar-title">{pageTitle}</div>
 
                     <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
                         <div className="admin-profile-trigger">

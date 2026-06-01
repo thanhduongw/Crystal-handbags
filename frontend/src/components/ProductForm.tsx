@@ -519,6 +519,10 @@ export default function ProductForm({
                                 {fields.map(({ key, name, ...restField }) => (
                                     <Card key={key} size="small" style={{ marginBottom: 12 }}>
                                         <Row gutter={16} align="middle">
+                                            <Form.Item {...restField} name={[name, 'itemId']} hidden>
+                                                <Input type="hidden" />
+                                            </Form.Item>
+
                                             <Col span={8}>
                                                 <Form.Item
                                                     {...restField}

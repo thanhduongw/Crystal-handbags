@@ -185,17 +185,6 @@ export default function AdminDashboard() {
 
     return (
         <div className="admin-page">
-            <div className="admin-page-header">
-                <div>
-                    <div className="admin-page-eyebrow">Tổng quan</div>
-                    <Title level={2} className="admin-page-title">Vận hành cửa hàng</Title>
-                </div>
-                <div className="admin-page-actions">
-                    <Button type="primary" icon={<ShoppingOutlined />}>
-                        <Link to="/admin/orders">Xử lý đơn hàng</Link>
-                    </Button>
-                </div>
-            </div>
 
             {error && (
                 <Alert
@@ -240,7 +229,7 @@ export default function AdminDashboard() {
                             <div>
                                 <div className="admin-stat-kicker">Khách hàng</div>
                                 <div className="admin-stat-value">
-                                    {loading ? <Skeleton.Input active size="small" /> : stats.totalUsers}
+                                    {loading ? <Skeleton.Input active size="small" /> : stats.totalUsers - 1}
                                 </div>
                             </div>
                             <div className="admin-stat-icon"><UserOutlined /></div>
@@ -261,17 +250,6 @@ export default function AdminDashboard() {
                     </Card>
                 </Col>
             </Row>
-
-            {stats.pendingOrders > 0 && (
-                <Alert
-                    showIcon
-                    type="warning"
-                    className="admin-inline-alert"
-                    message={`Có ${stats.pendingOrders} đơn đang chờ xác nhận`}
-                    action={<Button size="small"><Link to="/admin/orders">Xem đơn</Link></Button>}
-                />
-            )}
-
             <Row gutter={[16, 16]}>
                 <Col xs={24} xl={16}>
                     <Card
