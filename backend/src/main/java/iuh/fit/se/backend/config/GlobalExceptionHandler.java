@@ -3,6 +3,7 @@ package iuh.fit.se.backend.config;
 import iuh.fit.se.backend.exception.InventoryLockException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -71,6 +72,24 @@ public class GlobalExceptionHandler {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String detail = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage();
+        String message = detail != null
+                && (detail.contains("fk_order_item_product_item") || detail.contains("product_item"))
+                ? "Không thể xóa sản phẩm vì sản phẩm đang nằm trong đơn hàng chưa giao thành công hoặc chưa bị hủy."
+                : "Dữ liệu đang được sử dụng nên không thể xóa hoặc cập nhật.";
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                message,
                 System.currentTimeMillis()
         );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);

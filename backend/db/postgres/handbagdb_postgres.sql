@@ -72,6 +72,7 @@ CREATE TABLE product (
   avatar VARCHAR(255),
   base_price NUMERIC(38,2),
   created_at TIMESTAMP(6),
+  deleted BOOLEAN DEFAULT FALSE,
   description VARCHAR(255),
   name VARCHAR(255),
   show_homepage BOOLEAN,

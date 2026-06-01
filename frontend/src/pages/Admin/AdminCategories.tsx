@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Table, Button, Spin, Typography, message, Modal } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Table, Button, Spin, Typography, message, Modal, Card, Row, Col, Input, Space, Tooltip, Tag } from 'antd';
 import type { TableProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined, TagsOutlined } from '@ant-design/icons';
 import {
     fetchCategories,
     createCategory,
@@ -24,6 +24,7 @@ export default function AdminCategories() {
     const [submitting, setSubmitting] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingCategory, setEditingCategory] = useState<CategoryDto | null>(null);
+    const [searchText, setSearchText] = useState('');
 
     useEffect(() => {
         void loadCategories();
@@ -42,21 +43,31 @@ export default function AdminCategories() {
         }
     };
 
+    const filteredCategories = useMemo(() => {
+        const keyword = searchText.trim().toLowerCase();
+        if (!keyword) return categories;
+
+        return categories.filter(category =>
+            category.name.toLowerCase().includes(keyword) ||
+            (category.description || '').toLowerCase().includes(keyword)
+        );
+    }, [categories, searchText]);
+
     const closeModal = () => {
         setModalVisible(false);
         setEditingCategory(null);
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = (category: CategoryDto) => {
         Modal.confirm({
-            title: 'Xác nhận xóa?',
-            content: 'Bạn sẽ không thể khôi phục danh mục này!',
+            title: 'Xóa danh mục?',
+            content: `Danh mục "${category.name}" sẽ không còn hiển thị trong hệ thống.`,
             okText: 'Xóa',
             cancelText: 'Hủy',
             okButtonProps: { danger: true },
             async onOk() {
                 try {
-                    await deleteCategory(id);
+                    await deleteCategory(category.categoryId);
                     message.success('Xóa thành công!');
                     await loadCategories();
                 } catch (error) {
@@ -80,12 +91,10 @@ export default function AdminCategories() {
                     imageUrl: editingCategory.imageUrl,
                 });
 
-                // Nếu bấm Xóa ảnh trong form, bấm Cập nhật mới xóa ảnh trên S3.
                 if (files?.deleteImage) {
                     await deleteCategoryImage(editingCategory.categoryId);
                 }
 
-                // Nếu chọn ảnh mới, bấm Cập nhật mới upload ảnh lên S3.
                 if (files?.imageFile) {
                     await uploadCategoryImage(editingCategory.categoryId, files.imageFile);
                 }
@@ -97,7 +106,6 @@ export default function AdminCategories() {
                     imageUrl: undefined,
                 });
 
-                // Tạo category xong mới có categoryId để upload ảnh.
                 if (files?.imageFile) {
                     await uploadCategoryImage(createdCategory.categoryId, files.imageFile);
                 }
@@ -117,60 +125,61 @@ export default function AdminCategories() {
 
     const columns: TableProps<CategoryDto>['columns'] = [
         {
-            title: 'ID',
-            dataIndex: 'categoryId',
-            key: 'categoryId',
-            width: 80,
-        },
-        {
-            title: 'Hình ảnh',
-            dataIndex: 'imageUrl',
-            key: 'imageUrl',
-            width: 100,
-            render: (url?: string) => url ? (
-                <img
-                    src={url}
-                    alt="Category"
-                    style={{
-                        width: 50,
-                        height: 50,
-                        objectFit: 'cover',
-                        borderRadius: 6,
-                    }}
-                />
-            ) : '-',
-        },
-        {
-            title: 'Tên',
-            dataIndex: 'name',
-            key: 'name',
+            title: 'Danh mục',
+            key: 'category',
+            render: (_, record) => (
+                <div className="admin-entity-cell">
+                    {record.imageUrl ? (
+                        <img src={record.imageUrl} alt={record.name} className="admin-entity-image" />
+                    ) : (
+                        <div className="admin-empty-thumb"><TagsOutlined /></div>
+                    )}
+                    <div>
+                        <div className="admin-entity-title">{record.name}</div>
+                        <div className="admin-entity-meta">ID #{record.categoryId}</div>
+                    </div>
+                </div>
+            ),
         },
         {
             title: 'Mô tả',
             dataIndex: 'description',
             key: 'description',
             ellipsis: true,
+            render: (description?: string) => description || <span className="admin-muted">Chưa có mô tả</span>,
+        },
+        {
+            title: 'Trạng thái',
+            key: 'status',
+            width: 130,
+            render: () => <Tag className="admin-tag" color="green">Đang dùng</Tag>,
         },
         {
             title: 'Thao tác',
             key: 'action',
-            width: 150,
+            width: 130,
+            align: 'right',
             render: (_, record) => (
-                <>
-                    <Button
-                        icon={<EditOutlined />}
-                        onClick={() => {
-                            setEditingCategory(record);
-                            setModalVisible(true);
-                        }}
-                        style={{ marginRight: 8 }}
-                    />
-                    <Button
-                        icon={<DeleteOutlined />}
-                        danger
-                        onClick={() => handleDelete(record.categoryId)}
-                    />
-                </>
+                <Space size={4}>
+                    <Tooltip title="Sửa danh mục">
+                        <Button
+                            className="admin-icon-button"
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                                setEditingCategory(record);
+                                setModalVisible(true);
+                            }}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Xóa danh mục">
+                        <Button
+                            className="admin-icon-button"
+                            icon={<DeleteOutlined />}
+                            danger
+                            onClick={() => handleDelete(record)}
+                        />
+                    </Tooltip>
+                </Space>
             ),
         },
     ];
@@ -179,32 +188,70 @@ export default function AdminCategories() {
         return <Navigate to="/" replace />;
     }
 
-    if (loading) {
+    if (loading && categories.length === 0) {
         return <Spin style={{ display: 'block', margin: '100px auto' }} />;
     }
 
     return (
-        <div style={{ padding: 24 }}>
-            <Title level={3}>Quản lý danh mục</Title>
+        <div className="admin-page">
+            <div className="admin-page-header">
+                <div>
+                    <div className="admin-page-eyebrow">Danh mục</div>
+                    <Title level={2} className="admin-page-title">Nhóm sản phẩm</Title>
+                    <p className="admin-page-subtitle">
+                        Quản lý cấu trúc phân loại để khách hàng tìm sản phẩm nhanh hơn.
+                    </p>
+                </div>
+                <div className="admin-page-actions">
+                    <Button icon={<ReloadOutlined />} onClick={loadCategories} loading={loading}>
+                        Làm mới
+                    </Button>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
+                            setEditingCategory(null);
+                            setModalVisible(true);
+                        }}
+                    >
+                        Thêm danh mục
+                    </Button>
+                </div>
+            </div>
 
-            <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                    setEditingCategory(null);
-                    setModalVisible(true);
-                }}
-                style={{ marginBottom: 16 }}
-            >
-                Thêm danh mục
-            </Button>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                <Col xs={24} md={8}>
+                    <Card className="admin-stat-card">
+                        <div className="admin-stat-kicker">Tổng danh mục</div>
+                        <div className="admin-stat-value">{categories.length}</div>
+                        <div className="admin-stat-footnote">Đang được quản lý trong cửa hàng</div>
+                    </Card>
+                </Col>
+                <Col xs={24} md={16}>
+                    <Card className="admin-toolbar-card">
+                        <Input
+                            allowClear
+                            prefix={<SearchOutlined />}
+                            placeholder="Tìm theo tên hoặc mô tả danh mục..."
+                            value={searchText}
+                            onChange={(event) => setSearchText(event.target.value)}
+                        />
+                    </Card>
+                </Col>
+            </Row>
 
-            <Table
-                rowKey="categoryId"
-                columns={columns}
-                dataSource={categories}
-                pagination={{ pageSize: 10 }}
-            />
+            <Card className="admin-table-card">
+                <Table
+                    rowKey="categoryId"
+                    columns={columns}
+                    dataSource={filteredCategories}
+                    loading={loading}
+                    pagination={{
+                        pageSize: 10,
+                        showTotal: (total) => `Tổng ${total} danh mục`,
+                    }}
+                />
+            </Card>
 
             <CategoryForm
                 visible={modalVisible}

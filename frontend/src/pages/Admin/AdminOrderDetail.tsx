@@ -17,12 +17,12 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 
 const statusOptions = [
-    { value: 'PENDING', label: 'Chờ xác nhận', color: 'orange' },
+    { value: 'PENDING', label: 'Chờ xác nhận', color: 'gold' },
     { value: 'CONFIRMED', label: 'Đã xác nhận', color: 'blue' },
     { value: 'SHIPPED', label: 'Đang giao', color: 'purple' },
     { value: 'DELIVERED', label: 'Hoàn thành', color: 'green' },
     { value: 'CANCELLED', label: 'Đã hủy', color: 'red' },
-];
+] as const;
 
 type ItemWithAvatar = OrderItemDto & { avatar?: string };
 
@@ -37,6 +37,13 @@ type ApiError = {
     };
 };
 
+const formatCurrency = (value: number) =>
+    Number(value || 0).toLocaleString('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        maximumFractionDigits: 0,
+    });
+
 export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
     const [order, setOrder] = useState<OrderDetailDto | null>(null);
     const [loading, setLoading] = useState(true);
@@ -47,7 +54,6 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
     const loadOrder = useCallback(async () => {
         try {
             setLoading(true);
-            // dùng API admin
             const data = await fetchAdminOrderDetail(orderId);
             setOrder(data);
 
@@ -62,7 +68,6 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
             setItems(data.items);
         } catch (err: unknown) {
             const status = (err as ApiError).response?.status;
-            // xử lý rõ ràng khi backend trả 403/404
             if (status === 403) {
                 message.error('Bạn không có quyền xem đơn hàng này.');
             } else if (status === 404) {
@@ -77,9 +82,8 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
         }
     }, [orderId, onLoaded]);
 
-
     useEffect(() => {
-        loadOrder();
+        void loadOrder();
     }, [loadOrder]);
 
     const handleChangeStatus = (status: OrderStatus) => {
@@ -88,6 +92,8 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
         Modal.confirm({
             title: 'Xác nhận đổi trạng thái',
             content: `Chuyển sang "${statusOptions.find(s => s.value === status)?.label}"?`,
+            okText: 'Cập nhật',
+            cancelText: 'Hủy',
             onOk: async () => {
                 try {
                     setUpdating(true);
@@ -106,133 +112,132 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
     if (!order) return null;
 
     const statusInfo = statusOptions.find(s => s.value === order.status);
+    const canChangeStatus = order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     return (
-        <>
-            <Row justify="space-between" align="middle">
+        <div>
+            <Row justify="space-between" align="middle" gutter={[16, 16]}>
                 <Col>
-                    <Title level={4}>Đơn hàng #{order.orderId}</Title>
-                    <Text type="secondary">
-                        {dayjs(order.orderDate).format('DD/MM/YYYY HH:mm')}
-                    </Text>
+                    <Title level={4} style={{ margin: 0 }}>Đơn hàng #{order.orderId}</Title>
+                    <Text type="secondary">{dayjs(order.orderDate).format('DD/MM/YYYY HH:mm')}</Text>
                 </Col>
                 <Col>
-                    <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-                        In hóa đơn
-                    </Button>
+                    <Space>
+                        <Tag className="admin-tag" color={statusInfo?.color}>{statusInfo?.label}</Tag>
+                        {canChangeStatus && (
+                            <Select
+                                style={{ width: 190 }}
+                                value={order.status}
+                                onChange={handleChangeStatus}
+                                loading={updating}
+                                options={statusOptions.map(status => ({
+                                    value: status.value,
+                                    label: status.label,
+                                }))}
+                            />
+                        )}
+                        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+                            In hóa đơn
+                        </Button>
+                    </Space>
                 </Col>
             </Row>
 
             <Divider />
 
-            <Space orientation="vertical" style={{ width: '100%' }}>
-                <Tag color={statusInfo?.color}>{statusInfo?.label}</Tag>
+            <div className="admin-detail-grid">
+                <Card className="admin-panel" title="Khách hàng" size="small">
+                    <Descriptions column={1} size="small">
+                        <Descriptions.Item label="Họ tên">
+                            {userProfile
+                                ? `${userProfile.firstName} ${userProfile.lastName}`
+                                : order.receiver}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Email">
+                            {userProfile?.email ?? '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="SĐT">
+                            {userProfile?.phoneNumber ?? '-'}
+                        </Descriptions.Item>
+                    </Descriptions>
+                </Card>
 
-                {order.status !== 'DELIVERED' &&
-                    order.status !== 'CANCELLED' && (
-                        <Select
-                            style={{ width: 220 }}
-                            value={order.status}
-                            onChange={handleChangeStatus}
-                            loading={updating}
-                        >
-                            {statusOptions.map(s => (
-                                <Select.Option key={s.value} value={s.value}>
-                                    {s.label}
-                                </Select.Option>
-                            ))}
-                        </Select>
-                    )}
-            </Space>
-
-            <Divider />
-
-            <Row gutter={16}>
-                <Col span={12}>
-                    <Card title="Khách hàng" size="small">
-                        <Descriptions column={1} size="small">
-                            <Descriptions.Item label="Họ tên">
-                                {userProfile
-                                    ? `${userProfile.firstName} ${userProfile.lastName}`
-                                    : order.receiver}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Email">
-                                {userProfile?.email ?? '—'}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="SĐT">
-                                {userProfile?.phoneNumber ?? '—'}
-                            </Descriptions.Item>
-                        </Descriptions>
-                    </Card>
-                </Col>
-
-                <Col span={12}>
-                    <Card title="Giao hàng" size="small">
-                        <Text>{order.address ?? 'Chưa có địa chỉ'}</Text>
-                    </Card>
-                </Col>
-            </Row>
+                <Card className="admin-panel" title="Giao hàng" size="small">
+                    <Descriptions column={1} size="small">
+                        <Descriptions.Item label="Người nhận">{order.receiver || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="Địa chỉ">{order.address || '-'}</Descriptions.Item>
+                    </Descriptions>
+                </Card>
+            </div>
 
             <Divider />
 
-            <Table
-                rowKey="itemId"
-                pagination={false}
-                dataSource={items}
-                columns={[
-                    {
-                        title: 'Sản phẩm',
-                        render: (_, r) => (
-                            <Space>
-                                {r.avatar ? (
-                                    <img
-                                        src={r.avatar}
-                                        width={50}
-                                        height={50}
-                                        style={{ objectFit: 'cover', borderRadius: 6 }}
-                                        alt={r.productName}
-                                        onError={(e) => {
-                                            (e.currentTarget as HTMLImageElement).style.display = 'none';
-                                        }}
-                                    />
-                                ) : (
-                                    <div style={{
-                                        width: 50, height: 50, borderRadius: 6,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        background: '#f5f5f5', color: '#999', fontSize: 12
-                                    }}>
-                                        No image
+            <Card className="admin-table-card" title="Sản phẩm trong đơn">
+                <Table
+                    rowKey={(record) => `${record.itemId}-${record.productName}`}
+                    pagination={false}
+                    dataSource={items}
+                    columns={[
+                        {
+                            title: 'Sản phẩm',
+                            render: (_, record) => (
+                                <div className="admin-entity-cell">
+                                    {record.avatar ? (
+                                        <img
+                                            src={record.avatar}
+                                            className="admin-entity-image"
+                                            alt={record.productName}
+                                            onError={(event) => {
+                                                (event.currentTarget as HTMLImageElement).style.display = 'none';
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="admin-empty-thumb">No image</div>
+                                    )}
+                                    <div>
+                                        <div className="admin-entity-title">{record.productName}</div>
+                                        <div className="admin-entity-meta">Màu: {record.color || 'Không có'}</div>
                                     </div>
-                                )}
-                                <div>
-                                    <div>{r.productName}</div>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                        Màu: {r.color || 'Không có'}
-                                    </Text>
                                 </div>
-                            </Space>
-                        )
-                    }
-                    ,
-                    {
-                        title: 'Đơn giá',
-                        render: (_, r) =>
-                            `${r.price.toLocaleString('vi-VN')} ₫`
-                    },
-                    { title: 'SL', dataIndex: 'quantity', align: 'center' },
-                    {
-                        title: 'Thành tiền',
-                        render: (_, r) =>
-                            `${(r.price * r.quantity).toLocaleString('vi-VN')} ₫`
-                    }
-                ]}
-            />
+                            )
+                        },
+                        {
+                            title: 'Đơn giá',
+                            align: 'right',
+                            render: (_, record) => <span className="admin-money">{formatCurrency(record.price)}</span>
+                        },
+                        { title: 'SL', dataIndex: 'quantity', align: 'center', width: 80 },
+                        {
+                            title: 'Thành tiền',
+                            align: 'right',
+                            render: (_, record) => (
+                                <span className="admin-money">{formatCurrency(record.price * record.quantity)}</span>
+                            )
+                        }
+                    ]}
+                />
+            </Card>
 
-            <Divider />
-
-            <Title level={5} style={{ textAlign: 'right', color: '#ff4d4f' }}>
-                Tổng cộng: {order.totalAmount.toLocaleString('vi-VN')} ₫
-            </Title>
-        </>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                <Card className="admin-panel" style={{ minWidth: 320 }}>
+                    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                        <Row justify="space-between">
+                            <Text type="secondary">Tạm tính</Text>
+                            <Text>{formatCurrency(subtotal)}</Text>
+                        </Row>
+                        <Row justify="space-between">
+                            <Text type="secondary">Phí giao hàng</Text>
+                            <Text>{formatCurrency(order.shippingFee || 0)}</Text>
+                        </Row>
+                        <Divider style={{ margin: '6px 0' }} />
+                        <Row justify="space-between" align="middle">
+                            <Text strong>Tổng cộng</Text>
+                            <Title level={4} style={{ margin: 0 }}>{formatCurrency(order.totalAmount)}</Title>
+                        </Row>
+                    </Space>
+                </Card>
+            </div>
+        </div>
     );
 }

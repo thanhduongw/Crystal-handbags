@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Table, Button, Typography, message, Modal, Space, Tag, Spin, Form, Input, Select, Upload, Avatar } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined, UserOutlined } from '@ant-design/icons';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    Table, Button, Typography, message, Modal, Space, Tag, Spin, Form, Input,
+    Select, Upload, Avatar, Card, Row, Col, Tooltip
+} from 'antd';
+import {
+    DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined,
+    SearchOutlined, UploadOutlined, UserOutlined
+} from '@ant-design/icons';
 import {
     getAllUsers,
     deleteUser,
@@ -13,7 +19,7 @@ import type { Gender, UserProfileDto } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import type { TableProps } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 
 const { Title } = Typography;
 
@@ -48,6 +54,10 @@ function getPrimaryRole(user: UserProfileDto) {
     return user.roles?.[0] || 'CUSTOMER';
 }
 
+function getFullName(user: UserProfileDto) {
+    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || '-';
+}
+
 export default function AdminUsers() {
     const { isAdmin } = useAuth();
     const [users, setUsers] = useState<UserProfileDto[]>([]);
@@ -55,6 +65,7 @@ export default function AdminUsers() {
     const [saving, setSaving] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfileDto | null>(null);
+    const [searchText, setSearchText] = useState('');
 
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string>();
@@ -88,12 +99,7 @@ export default function AdminUsers() {
         try {
             setLoading(true);
             const data = await getAllUsers();
-
-            // Chỉ hiển thị CUSTOMER ở FE.
-            // Admin vẫn có thể tạo ADMIN, nhưng ADMIN sẽ không hiện trong bảng này.
-            const customerUsers = data.filter(user => !hasAdminRole(user));
-
-            setUsers(customerUsers);
+            setUsers(data.filter(user => !hasAdminRole(user)));
         } catch (error) {
             console.error('Load users error:', error);
             message.error('Tải người dùng thất bại');
@@ -101,6 +107,17 @@ export default function AdminUsers() {
             setLoading(false);
         }
     };
+
+    const filteredUsers = useMemo(() => {
+        const keyword = searchText.trim().toLowerCase();
+        if (!keyword) return users;
+
+        return users.filter(user =>
+            getFullName(user).toLowerCase().includes(keyword) ||
+            user.email.toLowerCase().includes(keyword) ||
+            (user.phoneNumber || '').toLowerCase().includes(keyword)
+        );
+    }, [users, searchText]);
 
     const openCreateModal = () => {
         setEditingUser(null);
@@ -148,8 +165,6 @@ export default function AdminUsers() {
 
         setSelectedAvatarFile(file);
         setAvatarPreview(URL.createObjectURL(file));
-
-        // Chỉ preview, bấm Cập nhật mới upload S3.
         return false;
     };
 
@@ -159,7 +174,6 @@ export default function AdminUsers() {
         try {
             setSaving(true);
 
-            // Nếu chỉ mới chọn ảnh nhưng chưa lưu, xóa preview trước.
             if (selectedAvatarFile || avatarPreview) {
                 setSelectedAvatarFile(null);
                 setAvatarPreview(undefined);
@@ -199,7 +213,6 @@ export default function AdminUsers() {
                     roles: values.roles,
                 });
 
-                // Nếu admin chọn ảnh mới thì bấm Cập nhật mới upload lên S3.
                 if (selectedAvatarFile) {
                     await uploadUserAvatar(editingUser.userId, selectedAvatarFile);
                 }
@@ -232,8 +245,8 @@ export default function AdminUsers() {
         if (!user.userId) return;
 
         Modal.confirm({
-            title: 'Xác nhận xóa người dùng?',
-            content: 'Hành động này không thể hoàn tác!',
+            title: 'Xóa khách hàng?',
+            content: `Tài khoản "${user.email}" sẽ bị xóa khỏi hệ thống.`,
             okText: 'Xóa',
             cancelText: 'Hủy',
             okButtonProps: { danger: true },
@@ -250,63 +263,51 @@ export default function AdminUsers() {
         });
     };
 
-    const columns: TableProps<UserProfileDto>['columns'] = [
+    const columns: ColumnsType<UserProfileDto> = [
         {
-            title: 'ID',
-            dataIndex: 'userId',
-            key: 'userId',
-            width: 80,
-        },
-        {
-            title: 'Ảnh',
-            dataIndex: 'photoUrl',
-            key: 'photoUrl',
-            width: 80,
-            render: (photoUrl?: string) => (
-                <Avatar src={photoUrl} icon={<UserOutlined />} />
+            title: 'Khách hàng',
+            key: 'customer',
+            width: 300,
+            render: (_, record) => (
+                <div className="admin-entity-cell">
+                    <Avatar size={44} src={record.photoUrl} icon={<UserOutlined />} />
+                    <div style={{ minWidth: 0 }}>
+                        <div className="admin-entity-title">{getFullName(record)}</div>
+                        <div className="admin-entity-meta">{record.email}</div>
+                    </div>
+                </div>
             ),
-        },
-        {
-            title: 'Email',
-            dataIndex: 'email',
-            key: 'email',
-            ellipsis: true,
-        },
-        {
-            title: 'Họ tên',
-            key: 'fullName',
-            render: (_, record) =>
-                `${record.firstName || ''} ${record.lastName || ''}`.trim() || '-',
         },
         {
             title: 'Số điện thoại',
             dataIndex: 'phoneNumber',
             key: 'phoneNumber',
-            width: 140,
+            width: 150,
+            render: (phone?: string) => phone || <span className="admin-muted">Chưa có</span>,
         },
         {
             title: 'Giới tính',
             dataIndex: 'gender',
             key: 'gender',
-            width: 110,
+            width: 120,
             render: (gender?: Gender) =>
-                genderOptions.find(option => option.value === gender)?.label || '-',
+                genderOptions.find(option => option.value === gender)?.label || <span className="admin-muted">-</span>,
         },
         {
             title: 'Ngày sinh',
             dataIndex: 'dob',
             key: 'dob',
-            width: 120,
-            render: (dob?: string) => dob ? dayjs(dob).format('DD/MM/YYYY') : '-',
+            width: 130,
+            render: (dob?: string) => dob ? dayjs(dob).format('DD/MM/YYYY') : <span className="admin-muted">-</span>,
         },
         {
             title: 'Vai trò',
             key: 'roles',
-            width: 140,
+            width: 130,
             render: (_, record) => {
                 const role = getPrimaryRole(record);
                 return (
-                    <Tag color={role === 'ADMIN' ? 'red' : 'blue'}>
+                    <Tag className="admin-tag" color={role === 'ADMIN' ? 'red' : 'blue'}>
                         {role === 'ADMIN' ? 'Admin' : 'Khách hàng'}
                     </Tag>
                 );
@@ -315,20 +316,27 @@ export default function AdminUsers() {
         {
             title: 'Thao tác',
             key: 'action',
-            width: 150,
+            width: 130,
             fixed: 'right',
+            align: 'right',
             render: (_, record) => (
-                <Space>
-                    <Button
-                        icon={<EditOutlined />}
-                        onClick={() => openEditModal(record)}
-                    />
-                    <Button
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDelete(record)}
-                        disabled={hasAdminRole(record)}
-                    />
+                <Space size={4}>
+                    <Tooltip title="Sửa khách hàng">
+                        <Button
+                            className="admin-icon-button"
+                            icon={<EditOutlined />}
+                            onClick={() => openEditModal(record)}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Xóa khách hàng">
+                        <Button
+                            className="admin-icon-button"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleDelete(record)}
+                            disabled={hasAdminRole(record)}
+                        />
+                    </Tooltip>
                 </Space>
             )
         }
@@ -338,99 +346,149 @@ export default function AdminUsers() {
         return <Navigate to="/" replace />;
     }
 
-    if (loading) {
+    if (loading && users.length === 0) {
         return <Spin style={{ display: 'block', margin: '100px auto' }} />;
     }
 
     return (
-        <div style={{ padding: 24 }}>
-            <Title level={3}>Quản lý người dùng</Title>
-
-            <div style={{ marginBottom: 16 }}>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={openCreateModal}
-                >
-                    Thêm người dùng
-                </Button>
+        <div className="admin-page">
+            <div className="admin-page-header">
+                <div>
+                    <div className="admin-page-eyebrow">Khách hàng</div>
+                    <Title level={2} className="admin-page-title">Tài khoản người dùng</Title>
+                    <p className="admin-page-subtitle">
+                        Quản lý hồ sơ khách hàng, thông tin liên hệ và quyền truy cập.
+                    </p>
+                </div>
+                <div className="admin-page-actions">
+                    <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
+                        Làm mới
+                    </Button>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+                        Thêm khách hàng
+                    </Button>
+                </div>
             </div>
 
-            <Table
-                rowKey="userId"
-                columns={columns}
-                dataSource={users}
-                loading={loading}
-                pagination={{
-                    pageSize: 10,
-                    showTotal: (total) => `Tổng ${total} người dùng`,
-                }}
-                scroll={{ x: 1200 }}
-            />
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                <Col xs={24} md={8}>
+                    <Card className="admin-stat-card">
+                        <div className="admin-stat-kicker">Tổng khách hàng</div>
+                        <div className="admin-stat-value">{users.length}</div>
+                        <div className="admin-stat-footnote">Không bao gồm tài khoản quản trị</div>
+                    </Card>
+                </Col>
+                <Col xs={24} md={16}>
+                    <Card className="admin-toolbar-card">
+                        <Input
+                            allowClear
+                            prefix={<SearchOutlined />}
+                            placeholder="Tìm theo họ tên, email hoặc số điện thoại..."
+                            value={searchText}
+                            onChange={(event) => setSearchText(event.target.value)}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            <Card className="admin-table-card">
+                <Table
+                    rowKey="userId"
+                    columns={columns}
+                    dataSource={filteredUsers}
+                    loading={loading}
+                    pagination={{
+                        pageSize: 10,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} khách hàng`,
+                        showSizeChanger: true,
+                    }}
+                    scroll={{ x: 960 }}
+                />
+            </Card>
 
             <Modal
                 open={modalVisible}
-                title={editingUser ? 'Sửa người dùng' : 'Thêm người dùng'}
+                title={editingUser ? 'Sửa khách hàng' : 'Thêm khách hàng'}
                 onCancel={closeModal}
                 onOk={() => form.submit()}
                 okText={editingUser ? 'Cập nhật' : 'Thêm'}
                 cancelText="Hủy"
                 confirmLoading={saving}
                 destroyOnClose
+                width={640}
             >
                 <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                    <Form.Item
-                        name="email"
-                        label="Email"
-                        rules={[{ required: true, type: 'email', message: 'Email không hợp lệ' }]}
-                    >
-                        <Input disabled={!!editingUser} />
-                    </Form.Item>
-
-                    {!editingUser && (
-                        <Form.Item
-                            name="password"
-                            label="Mật khẩu"
-                            rules={[{ required: true, min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' }]}
-                        >
-                            <Input.Password />
-                        </Form.Item>
-                    )}
-
-                    <Form.Item
-                        name="firstName"
-                        label="Tên"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
-                    >
-                        <Input />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="lastName"
-                        label="Họ"
-                        rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
-                    >
-                        <Input />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="phoneNumber"
-                        label="Số điện thoại"
-                        rules={[
-                            { required: true, message: 'Vui lòng nhập số điện thoại' },
-                            { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ' },
-                        ]}
-                    >
-                        <Input />
-                    </Form.Item>
-
-                    <Form.Item name="gender" label="Giới tính">
-                        <Select allowClear options={genderOptions} />
-                    </Form.Item>
-
-                    <Form.Item name="dob" label="Ngày sinh">
-                        <Input type="date" />
-                    </Form.Item>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="email"
+                                label="Email"
+                                rules={[{ required: true, type: 'email', message: 'Email không hợp lệ' }]}
+                            >
+                                <Input disabled={!!editingUser} />
+                            </Form.Item>
+                        </Col>
+                        {!editingUser && (
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    name="password"
+                                    label="Mật khẩu"
+                                    rules={[{ required: true, min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' }]}
+                                >
+                                    <Input.Password />
+                                </Form.Item>
+                            </Col>
+                        )}
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="lastName"
+                                label="Họ"
+                                rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="firstName"
+                                label="Tên"
+                                rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="phoneNumber"
+                                label="Số điện thoại"
+                                rules={[
+                                    { required: true, message: 'Vui lòng nhập số điện thoại' },
+                                    { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ' },
+                                ]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="gender" label="Giới tính">
+                                <Select allowClear options={genderOptions} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="dob" label="Ngày sinh">
+                                <Input type="date" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="roles"
+                                label="Vai trò"
+                                rules={[{ type: 'array', required: true, min: 1, message: 'Vui lòng chọn vai trò' }]}
+                            >
+                                <Select mode="multiple" options={roleOptions} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
                     {editingUser && (
                         <Form.Item label="Ảnh đại diện">
@@ -466,14 +524,6 @@ export default function AdminUsers() {
                             </Space>
                         </Form.Item>
                     )}
-
-                    <Form.Item
-                        name="roles"
-                        label="Vai trò"
-                        rules={[{ type: 'array', required: true, min: 1, message: 'Vui lòng chọn vai trò' }]}
-                    >
-                        <Select mode="multiple" options={roleOptions} />
-                    </Form.Item>
                 </Form>
             </Modal>
         </div>

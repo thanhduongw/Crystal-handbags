@@ -35,11 +35,15 @@ public class Product {
 
     private Boolean showHomepage;
 
+    @Builder.Default
+    private Boolean deleted = false;
+
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
         if (images == null) images = new ArrayList<>();
         if (items == null) items = new ArrayList<>();
+        if (deleted == null) deleted = false;
     }
 
     @JsonManagedReference

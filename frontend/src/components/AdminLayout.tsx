@@ -1,22 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Layout, Menu, Typography, Avatar, Dropdown } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Space, Typography } from 'antd';
 import {
-    DashboardOutlined,
-    ShoppingOutlined,
     AppstoreOutlined,
-    UserOutlined,
-    LogoutOutlined,
+    DashboardOutlined,
     HomeOutlined,
+    LogoutOutlined,
+    ShoppingOutlined,
     TagsOutlined,
+    UserOutlined,
 } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getProfile } from '../api/userAPI';
 import type { MenuProps } from 'antd';
+import '../styles/admin.css';
 
 const { Sider, Content, Header } = Layout;
-const { Title } = Typography;
+const { Text } = Typography;
 
 interface AdminLayoutProps {
     children: ReactNode;
@@ -63,11 +64,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         };
     }, [user]);
 
+    const selectedKey = useMemo(() => {
+        if (location.pathname.startsWith('/admin/orders')) return '/admin/orders';
+        if (location.pathname.startsWith('/admin/products')) return '/admin/products';
+        if (location.pathname.startsWith('/admin/categories')) return '/admin/categories';
+        if (location.pathname.startsWith('/admin/users')) return '/admin/users';
+        return '/admin';
+    }, [location.pathname]);
+
     const menuItems: MenuProps['items'] = [
         {
             key: '/admin',
             icon: <DashboardOutlined />,
-            label: <Link to="/admin">Dashboard</Link>,
+            label: <Link to="/admin">Tổng quan</Link>,
         },
         {
             key: '/admin/orders',
@@ -87,7 +96,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {
             key: '/admin/users',
             icon: <UserOutlined />,
-            label: <Link to="/admin/users">Người dùng</Link>,
+            label: <Link to="/admin/users">Khách hàng</Link>,
         },
     ];
 
@@ -104,7 +113,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {
             key: 'home',
             icon: <HomeOutlined />,
-            label: 'Về trang chủ',
+            label: 'Về cửa hàng',
             onClick: () => navigate('/'),
         },
         {
@@ -117,81 +126,59 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     ];
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Sider
-                width={250}
-                theme="light"
-                style={{
-                    overflow: 'auto',
-                    height: '100vh',
-                    position: 'fixed',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                }}
-            >
-                <div
-                    style={{
-                        padding: 16,
-                        borderBottom: '1px solid #e8e8e8',
-                        textAlign: 'center',
-                    }}
-                >
-                    <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
-                        Quản trị
-                    </Title>
+        <Layout className="admin-shell">
+            <Sider width={252} theme="light" className="admin-sider">
+                <div className="admin-brand">
+                    <Space size={12} align="center">
+                        <img
+                            src="/Crystal-logo.png"
+                            alt="Crystal Handbags"
+                            className="admin-brand-logo"
+                        />
+                        <div>
+                            <p className="admin-brand-title">Crystal Handbags</p>
+                            <p className="admin-brand-subtitle">Quản trị</p>
+                        </div>
+                    </Space>
                 </div>
 
                 <Menu
                     mode="inline"
-                    selectedKeys={[location.pathname]}
+                    selectedKeys={[selectedKey]}
                     items={menuItems}
-                    style={{ borderRight: 0 }}
+                    className="admin-menu"
                 />
             </Sider>
 
-            <Layout style={{ marginLeft: 250 }}>
-                <Header
-                    style={{
-                        background: '#fff',
-                        padding: '0 24px',
-                        borderBottom: '1px solid #e8e8e8',
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        alignItems: 'center',
-                    }}
-                >
+            <Layout className="admin-layout">
+                <Header className="admin-topbar">
+                    <div>
+                        <div className="admin-topbar-title">Bảng quản trị</div>
+                        <div className="admin-topbar-subtitle">
+                            Theo dõi vận hành, đơn hàng và dữ liệu cửa hàng
+                        </div>
+                    </div>
+
                     <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                cursor: 'pointer',
-                                padding: '0 12px',
-                            }}
-                        >
+                        <div className="admin-profile-trigger">
                             <Avatar
                                 src={profilePhotoUrl}
                                 icon={<UserOutlined />}
                                 style={{
-                                    marginRight: 8,
                                     backgroundColor: profilePhotoUrl ? undefined : '#d9d9d9',
                                 }}
                             />
-                            <span>{user?.email}</span>
+                            <div style={{ minWidth: 0 }}>
+                                <Text strong ellipsis style={{ maxWidth: 180, display: 'block' }}>
+                                    {user?.email}
+                                </Text>
+                                <div className="admin-topbar-subtitle">Quản trị viên</div>
+                            </div>
                         </div>
                     </Dropdown>
                 </Header>
 
-                <Content
-                    style={{
-                        padding: 24,
-                        minHeight: 'calc(100vh - 64px)',
-                        background: '#f0f2f5',
-                    }}
-                >
-                    {children}
-                </Content>
+                <Content className="admin-main">{children}</Content>
             </Layout>
         </Layout>
     );

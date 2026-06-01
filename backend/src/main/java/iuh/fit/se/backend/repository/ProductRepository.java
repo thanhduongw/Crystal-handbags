@@ -7,10 +7,17 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    @Query("SELECT p FROM Product p WHERE p.category.categoryId = :categoryId")
+    @Query("SELECT p FROM Product p WHERE COALESCE(p.deleted, false) = false")
+    List<Product> findAllActive();
+
+    @Query("SELECT p FROM Product p WHERE p.productId = :productId AND COALESCE(p.deleted, false) = false")
+    Optional<Product> findActiveById(@Param("productId") Long productId);
+
+    @Query("SELECT p FROM Product p WHERE p.category.categoryId = :categoryId AND COALESCE(p.deleted, false) = false")
     List<Product> findByCategoryId(@Param("categoryId") Long categoryId);
 
     @Query("""
@@ -18,10 +25,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                 FROM Product p
                 LEFT JOIN p.items i
                 JOIN p.category c
-                WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                WHERE COALESCE(p.deleted, false) = false
+                  AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
                    OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
                    OR LOWER(i.color) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                   OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
             """)
     List<Product> search(@Param("keyword") String keyword);
 
@@ -31,7 +39,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                 JOIN p.items i
                 LEFT JOIN i.inventory inv
                 JOIN p.category c
-                WHERE (:keyword IS NULL OR :keyword = ''
+                WHERE COALESCE(p.deleted, false) = false
+                AND (:keyword IS NULL OR :keyword = ''
                     OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
                     OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
                     OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))

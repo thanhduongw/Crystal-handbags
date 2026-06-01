@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Spin, Typography, Table, Tag } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Card, Col, Row, Skeleton, Space, Table, Tag, Typography } from 'antd';
 import {
     DollarOutlined,
     ProductOutlined,
@@ -7,9 +7,10 @@ import {
     ShoppingOutlined,
     UserOutlined,
 } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import type { OrderListDto, OrderStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { fetchAdminStatistics } from '../../api/adminAPI';
 import { fetchAdminOrders } from '../../api/orderAPI';
 import dayjs from 'dayjs';
@@ -33,7 +34,7 @@ const emptyStats: AdminStats = {
 };
 
 const statusColorMap: Record<OrderStatus, string> = {
-    PENDING: 'orange',
+    PENDING: 'gold',
     CONFIRMED: 'blue',
     SHIPPED: 'purple',
     DELIVERED: 'green',
@@ -47,6 +48,13 @@ const statusLabelMap: Record<OrderStatus, string> = {
     DELIVERED: 'Hoàn thành',
     CANCELLED: 'Đã hủy',
 };
+
+const formatCurrency = (value: number) =>
+    Number(value || 0).toLocaleString('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        maximumFractionDigits: 0,
+    });
 
 export default function AdminDashboard() {
     const [stats, setStats] = useState<AdminStats | null>(null);
@@ -75,7 +83,7 @@ export default function AdminDashboard() {
                 const sortedOrders = [...orders].sort((a, b) =>
                     dayjs(b.orderDate).valueOf() - dayjs(a.orderDate).valueOf()
                 );
-                if (!ignore) setRecentOrders(sortedOrders.slice(0, 5));
+                if (!ignore) setRecentOrders(sortedOrders.slice(0, 6));
             } catch (error) {
                 console.error('Failed to load dashboard orders:', error);
                 if (!ignore) setRecentOrders([]);
@@ -91,25 +99,43 @@ export default function AdminDashboard() {
         };
     }, [isAdmin]);
 
-    const recentOrdersColumns = [
+    const openOrders = useMemo(
+        () => recentOrders.filter(order => ['PENDING', 'CONFIRMED', 'SHIPPED'].includes(order.status)),
+        [recentOrders]
+    );
+
+    const recentOrdersColumns: ColumnsType<OrderListDto> = [
         {
-            title: 'Mã đơn',
+            title: 'Đơn hàng',
             dataIndex: 'orderId',
             key: 'orderId',
-            width: 80,
+            width: 120,
+            render: (id: number) => <span className="admin-entity-title">#{id}</span>,
         },
         {
-            title: 'Ngày đặt',
+            title: 'Khách hàng',
+            key: 'customer',
+            render: (_, record) => (
+                <div>
+                    <div className="admin-entity-title">{record.customerName || record.receiver || '-'}</div>
+                    <div className="admin-entity-meta">{record.customerEmail || '-'}</div>
+                </div>
+            ),
+        },
+        {
+            title: 'Thời gian',
             dataIndex: 'orderDate',
             key: 'orderDate',
+            width: 170,
             render: (date: string) => dayjs(date).format('DD/MM/YYYY HH:mm'),
         },
         {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
+            width: 140,
             render: (status: OrderStatus) => (
-                <Tag color={statusColorMap[status]}>
+                <Tag className="admin-tag" color={statusColorMap[status]}>
                     {statusLabelMap[status]}
                 </Tag>
             ),
@@ -118,7 +144,9 @@ export default function AdminDashboard() {
             title: 'Tổng tiền',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
-            render: (amount: number) => `${Number(amount ?? 0).toLocaleString('vi-VN')} đ`,
+            align: 'right',
+            width: 150,
+            render: (amount: number) => <span className="admin-money">{formatCurrency(amount)}</span>,
         },
     ];
 
@@ -126,123 +154,129 @@ export default function AdminDashboard() {
         return <Navigate to="/" replace />;
     }
 
-    if (loading) {
-        return <Spin style={{ display: 'block', margin: '100px auto' }} />;
-    }
-
     return (
-        <div style={{ padding: 24 }}>
-            <Title level={3}>Bảng điều khiển</Title>
+        <div className="admin-page">
+            <div className="admin-page-header">
+                <div>
+                    <div className="admin-page-eyebrow">Tổng quan</div>
+                    <Title level={2} className="admin-page-title">Vận hành cửa hàng</Title>
+                    <p className="admin-page-subtitle">
+                        Theo dõi doanh thu, đơn mới và các dữ liệu chính trong ngày.
+                    </p>
+                </div>
+                <div className="admin-page-actions">
+                    <Button type="primary" icon={<ShoppingOutlined />}>
+                        <Link to="/admin/orders">Xử lý đơn hàng</Link>
+                    </Button>
+                </div>
+            </div>
 
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={12} md={6}>
-                    <Card
-                        style={{
-                            height: 130,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Statistic
-                            title="Tổng doanh thu"
-                            value={stats?.totalRevenue || 0}
-                            prefix={<DollarOutlined />}
-                            formatter={(value) =>
-                                `${Number(value).toLocaleString('vi-VN')} đ`
-                            }
-                            styles={{ content: { color: '#3f8600' } }}
-                        />
-                    </Card>
-                </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                    <Card
-                        style={{
-                            height: 130,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Statistic
-                            title="Đơn hàng"
-                            value={stats?.totalOrders || 0}
-                            prefix={<ShoppingOutlined />}
-                            styles={{ content: { color: '#1890ff' } }}
-                        />
-
-                        {stats?.pendingOrders && stats.pendingOrders > 0 && (
-                            <div
-                                style={{
-                                    marginTop: 8,
-                                    fontSize: 12,
-                                    color: '#faad14',
-                                }}
-                            >
-                                {stats.pendingOrders} đơn chờ xử lý
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                <Col xs={24} sm={12} lg={6}>
+                    <Card className="admin-stat-card">
+                        <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
+                            <div>
+                                <div className="admin-stat-kicker">Doanh thu đã giao</div>
+                                <div className="admin-stat-value">
+                                    {loading ? <Skeleton.Input active size="small" /> : formatCurrency(stats?.totalRevenue || 0)}
+                                </div>
+                                <div className="admin-stat-footnote">Tính trên đơn hoàn thành</div>
                             </div>
-                        )}
+                            <div className="admin-stat-icon"><DollarOutlined /></div>
+                        </Space>
                     </Card>
                 </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                    <Card
-                        style={{
-                            height: 130,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Statistic
-                            title="Người dùng"
-                            value={stats?.totalUsers || 0}
-                            prefix={<UserOutlined />}
-                            styles={{ content: { color: '#722ed1' } }}
-                        />
+                <Col xs={24} sm={12} lg={6}>
+                    <Card className="admin-stat-card">
+                        <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
+                            <div>
+                                <div className="admin-stat-kicker">Tổng đơn hàng</div>
+                                <div className="admin-stat-value">
+                                    {loading ? <Skeleton.Input active size="small" /> : stats?.totalOrders || 0}
+                                </div>
+                                <div className="admin-stat-footnote">{stats?.pendingOrders || 0} đơn chờ xác nhận</div>
+                            </div>
+                            <div className="admin-stat-icon"><ShoppingCartOutlined /></div>
+                        </Space>
                     </Card>
                 </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                    <Card
-                        style={{
-                            height: 130,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Statistic
-                            title="Sản phẩm"
-                            value={stats?.totalProducts || 0}
-                            prefix={<ProductOutlined />}
-                            styles={{ content: { color: '#eb2f96' } }}
-                        />
+                <Col xs={24} sm={12} lg={6}>
+                    <Card className="admin-stat-card">
+                        <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
+                            <div>
+                                <div className="admin-stat-kicker">Khách hàng</div>
+                                <div className="admin-stat-value">
+                                    {loading ? <Skeleton.Input active size="small" /> : stats?.totalUsers || 0}
+                                </div>
+                                <div className="admin-stat-footnote">Tài khoản đang quản lý</div>
+                            </div>
+                            <div className="admin-stat-icon"><UserOutlined /></div>
+                        </Space>
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                    <Card className="admin-stat-card">
+                        <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
+                            <div>
+                                <div className="admin-stat-kicker">Sản phẩm</div>
+                                <div className="admin-stat-value">
+                                    {loading ? <Skeleton.Input active size="small" /> : stats?.totalProducts || 0}
+                                </div>
+                                <div className="admin-stat-footnote">Đang hiển thị trong hệ thống</div>
+                            </div>
+                            <div className="admin-stat-icon"><ProductOutlined /></div>
+                        </Space>
                     </Card>
                 </Col>
             </Row>
 
-            <Card title="Đơn hàng gần đây" style={{ marginBottom: 24 }}>
-                <Table
-                    rowKey="orderId"
-                    columns={recentOrdersColumns}
-                    dataSource={recentOrders}
-                    pagination={false}
-                    size="small"
-                />
-            </Card>
-
             {stats?.pendingOrders && stats.pendingOrders > 0 ? (
-                <Card>
-                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                        <ShoppingCartOutlined style={{ fontSize: 48, color: '#faad14' }} />
-                        <Title level={4} style={{ marginTop: 16 }}>
-                            Có {stats.pendingOrders} đơn hàng đang chờ xác nhận
-                        </Title>
-                        <p style={{ color: '#8c8c8c' }}>
-                            Vui lòng xem và xử lý các đơn hàng mới
-                        </p>
-                    </div>
-                </Card>
+                <Alert
+                    showIcon
+                    type="warning"
+                    style={{ marginBottom: 16, borderRadius: 8 }}
+                    message={`Có ${stats.pendingOrders} đơn đang chờ xác nhận`}
+                    description="Ưu tiên kiểm tra thanh toán, tồn kho và cập nhật trạng thái để khách hàng nhận thông tin kịp thời."
+                    action={<Button size="small"><Link to="/admin/orders">Xem đơn</Link></Button>}
+                />
             ) : null}
+
+            <Row gutter={[16, 16]}>
+                <Col xs={24} xl={16}>
+                    <Card
+                        className="admin-table-card"
+                        title="Đơn hàng mới nhất"
+                        extra={<Link to="/admin/orders">Xem tất cả</Link>}
+                    >
+                        <Table
+                            rowKey="orderId"
+                            columns={recentOrdersColumns}
+                            dataSource={recentOrders}
+                            pagination={false}
+                            loading={loading}
+                            size="middle"
+                            scroll={{ x: 780 }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} xl={8}>
+                    <Card className="admin-panel" title="Việc cần theo dõi">
+                        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                            <div>
+                                <div className="admin-stat-kicker">Đơn đang mở</div>
+                                <div className="admin-stat-value">{openOrders.length}</div>
+                                <div className="admin-stat-footnote">Chờ xác nhận, đã xác nhận hoặc đang giao</div>
+                            </div>
+                            <div>
+                                <div className="admin-stat-kicker">Tốc độ xử lý</div>
+                                <div className="admin-stat-footnote">
+                                    Giữ số đơn chờ xác nhận thấp để tránh trễ giao hàng.
+                                </div>
+                            </div>
+                        </Space>
+                    </Card>
+                </Col>
+            </Row>
         </div>
     );
 }

@@ -7,8 +7,11 @@ import iuh.fit.se.backend.dto.ProductListDto;
 import iuh.fit.se.backend.model.Product;
 import iuh.fit.se.backend.model.ProductItem;
 import iuh.fit.se.backend.model.Category;
+import iuh.fit.se.backend.model.OrderStatus;
 import iuh.fit.se.backend.repository.CategoryRepository;
+import iuh.fit.se.backend.repository.CartItemRepository;
 import iuh.fit.se.backend.repository.InventoryRepository;
+import iuh.fit.se.backend.repository.OrderItemRepository;
 import iuh.fit.se.backend.repository.ProductItemRepository;
 import iuh.fit.se.backend.repository.ProductRepository;
 import iuh.fit.se.backend.service.CacheInvalidationService;
@@ -17,8 +20,10 @@ import iuh.fit.se.backend.service.InventoryService;
 import iuh.fit.se.backend.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -28,19 +33,26 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
+    private static final List<OrderStatus> OPEN_ORDER_STATUSES = List.of(
+            OrderStatus.PENDING,
+            OrderStatus.CONFIRMED,
+            OrderStatus.SHIPPED);
+
     private final ProductRepository productRepository;
     private final ProductItemRepository productItemRepository;
     private final CategoryRepository categoryRepository;
     private final FileUploadService fileUploadService;
     private final InventoryService inventoryService;
     private final InventoryRepository inventoryRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final CartItemRepository cartItemRepository;
     private final CacheInvalidationService cacheInvalidationService;
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = RedisKeyConstants.Cache.PRODUCT_LIST, key = "'all'", unless = "#result == null || #result.isEmpty()")
     public List<ProductListDto> getAllProducts() {
-        return productRepository.findAll().stream()
+        return productRepository.findAllActive().stream()
                 .map(this::convertToListDto)
                 .collect(Collectors.toList());
     }
@@ -59,6 +71,7 @@ public class ProductServiceImpl implements ProductService {
                 .images(productDto.getImages() != null ? productDto.getImages() : new ArrayList<>())
                 .category(category)
                 .showHomepage(productDto.getShowHomePage() != null ? productDto.getShowHomePage() : false)
+                .deleted(false)
                 .build();
 
         Product savedProduct = productRepository.save(product);
@@ -86,6 +99,10 @@ public class ProductServiceImpl implements ProductService {
     public ProductDetailDto updateProduct(Long id, ProductDetailDto productDto) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (Boolean.TRUE.equals(product.getDeleted())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm");
+        }
 
         Category category = categoryRepository.findById(productDto.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category not found: " + productDto.getCategoryId()));
@@ -173,8 +190,14 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public void deleteProduct(Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productRepository.findActiveById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm"));
+
+        if (orderItemRepository.existsByProductItemProductProductIdAndOrderStatusIn(id, OPEN_ORDER_STATUSES)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Không thể xóa sản phẩm vì sản phẩm đang nằm trong đơn hàng chưa giao thành công hoặc chưa bị hủy.");
+        }
 
         Set<String> imageUrls = new HashSet<>();
 
@@ -186,6 +209,22 @@ public class ProductServiceImpl implements ProductService {
             imageUrls.addAll(product.getImages());
         }
 
+        if (cartItemRepository.existsByProductItemProductProductId(id)) {
+            cartItemRepository.deleteByProductItemProductProductId(id);
+        }
+
+        if (orderItemRepository.existsByProductItemProductProductId(id)) {
+            product.setDeleted(true);
+            product.setShowHomepage(false);
+            productRepository.save(product);
+            cacheInvalidationService.evictProductCaches();
+            return;
+        }
+
+        productRepository.delete(product);
+        productRepository.flush();
+        cacheInvalidationService.evictProductCaches();
+
         for (String imageUrl : imageUrls) {
             try {
                 fileUploadService.deleteImage(imageUrl);
@@ -193,9 +232,6 @@ public class ProductServiceImpl implements ProductService {
                 System.err.println("Failed to delete image: " + imageUrl + " - " + e.getMessage());
             }
         }
-
-        productRepository.deleteById(id);
-        cacheInvalidationService.evictProductCaches();
     }
 
     @Override
@@ -258,8 +294,8 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = RedisKeyConstants.Cache.PRODUCT_DETAIL, key = "#id", unless = "#result == null")
     public ProductDetailDto getProductDetail(Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productRepository.findActiveById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm"));
 
         List<ProductItemDto> items = productItemRepository.findByProductId(id).stream()
                 .map(item -> {

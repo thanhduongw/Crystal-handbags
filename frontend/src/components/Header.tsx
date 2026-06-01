@@ -34,7 +34,7 @@ export default function AppHeader() {
     const { user, logout, isAdmin } = useAuth();
     const [searchValue, setSearchValue] = useState('');
     const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>();
-    
+
     const userMenuItems: MenuProps['items'] = [
         {
             key: 'profile',
@@ -147,7 +147,7 @@ export default function AppHeader() {
             window.removeEventListener('profile:updated', reloadProfilePhoto);
         };
     }, [user]);
-    
+
     return (
         <Header
             style={{
@@ -166,16 +166,27 @@ export default function AppHeader() {
             <Link
                 to="/"
                 style={{
-                    fontSize: 24,
-                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
                     color: '#1890ff',
-                    letterSpacing: 1,
                     textDecoration: 'none',
                     marginRight: 32,
                     whiteSpace: 'nowrap',
                 }}
             >
-                Crystal
+                <img
+                    src="/Crystal-logo.png"
+                    alt="Crystal Handbags"
+                    style={{
+                        width: 38,
+                        height: 38,
+                        objectFit: 'contain',
+                    }}
+                />
+                <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: 0 }}>
+                    Crystal
+                </span>
             </Link>
 
             <Menu
@@ -223,14 +234,14 @@ export default function AppHeader() {
                         trigger={['click']}
                     >
                         <Space style={{ cursor: 'pointer' }}>
-                    <Avatar
-                        size="default"
-                        src={profilePhotoUrl}
-                        icon={<UserOutlined />}
-                        style={{
-                            backgroundColor: profilePhotoUrl ? undefined : '#1890ff',
-                        }}
-                    />
+                            <Avatar
+                                size="default"
+                                src={profilePhotoUrl}
+                                icon={<UserOutlined />}
+                                style={{
+                                    backgroundColor: profilePhotoUrl ? undefined : '#1890ff',
+                                }}
+                            />
                         </Space>
                     </Dropdown>
                 ) : (
