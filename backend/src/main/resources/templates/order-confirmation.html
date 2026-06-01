@@ -9,19 +9,20 @@
         body {
             margin: 0;
             padding: 0;
-            background: #f7f4ef;
+            background: #f8fafc;
             font-family: Arial, sans-serif;
-            color: #3b2f2f;
+            color: #1e293b;
         }
 
         .container {
             max-width: 680px;
             margin: 0 auto;
             background: #ffffff;
+            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.08);
         }
 
         .header {
-            background: linear-gradient(135deg, #c8a882, #a67c52);
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
             padding: 24px;
             color: #ffffff;
         }
@@ -30,37 +31,43 @@
             margin: 0;
             font-size: 24px;
             letter-spacing: 0.5px;
+            font-weight: 700;
         }
 
         .banner {
             text-align: center;
             padding: 24px;
-            background: #fffaf4;
+            background: #eff6ff;
         }
 
         .banner h2 {
             margin: 12px 0 4px;
-            color: #2f7d32;
+            color: #2563eb;
+            font-size: 24px;
+        }
+
+        .banner p {
+            color: #475569;
         }
 
         .box {
             margin: 16px 24px;
             padding: 16px;
-            background: #fff6e8;
-            border: 1px solid #ead9c3;
-            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
         }
 
         .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            gap: 10px;
         }
 
         .badge {
             display: inline-block;
-            background: #ffedd5;
-            color: #a16207;
+            background: #dbeafe;
+            color: #1d4ed8;
             padding: 4px 10px;
             border-radius: 999px;
             font-size: 12px;
@@ -71,63 +78,99 @@
             width: calc(100% - 48px);
             margin: 0 24px 16px;
             border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        .table thead {
+            background: #eff6ff;
+        }
+
+        .table th {
+            color: #1e40af;
+            font-weight: 600;
         }
 
         .table th,
         .table td {
-            padding: 10px;
-            border-bottom: 1px solid #eee2d3;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
             text-align: left;
             font-size: 14px;
         }
 
+        .table tr:hover {
+            background: #f8fafc;
+        }
+
         .qty {
-            background: #f3e4d2;
+            background: #dbeafe;
+            color: #1d4ed8;
             border-radius: 999px;
-            padding: 2px 8px;
+            padding: 3px 10px;
             font-weight: 600;
         }
 
         .summary {
             margin: 16px 24px 24px;
             padding: 16px;
-            background: #fff6e8;
-            border: 1px solid #ead9c3;
-            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
         }
 
         .summary-row {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 6px 0;
+            color: #475569;
         }
 
         .total {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
-            color: #a67c52;
+            color: #2563eb;
+            border-top: 1px solid #dbeafe;
+            margin-top: 8px;
+            padding-top: 10px;
         }
 
         .cta {
             text-align: center;
-            margin: 16px 24px 28px;
+            margin: 20px 24px 32px;
         }
 
         .cta a {
-            background: #a67c52;
+            background: #2563eb;
             color: #fff;
             text-decoration: none;
-            padding: 12px 20px;
-            border-radius: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
             font-weight: 600;
             display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .cta a:hover {
+            background: #1d4ed8;
+        }
+
+        .cta div {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #64748b;
         }
 
         .footer {
-            background: #4a3728;
-            color: #f5eee6;
+            background: #1e3a8a;
+            color: #eff6ff;
             padding: 20px 24px;
             font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .footer div {
+            margin-bottom: 4px;
         }
 
         @media (max-width: 600px) {
@@ -141,6 +184,20 @@
                 margin: 12px;
                 width: calc(100% - 24px);
             }
+
+            .table th,
+            .table td {
+                font-size: 13px;
+                padding: 8px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .banner h2 {
+                font-size: 20px;
+            }
         }
     </style>
 </head>
@@ -152,7 +209,7 @@
         </div>
 
         <div class="banner">
-            <div style="font-size: 36px;">✅</div>
+            <div style="font-size: 48px;">🎉</div>
             <h2>Đặt hàng thành công</h2>
             <p>Cảm ơn bạn đã mua sắm tại Handbag Shop.</p>
         </div>
@@ -189,19 +246,19 @@
 
         <div class="summary">
             <div class="summary-row">
-                <span>Tạm tính</span>
-                <span th:text="${#numbers.formatDecimal(subtotal, 0, 'COMMA', 0, 'POINT')}"></span>
+                <span>Tạm tính </span>
+                <span th:text=" ${#numbers.formatDecimal(subtotal, 0, 'COMMA', 0, 'POINT')}"></span>
             </div>
             <div class="summary-row">
-                <span>Phí giao hàng</span>
-                <span th:text="${#numbers.formatDecimal(shippingFee, 0, 'COMMA', 0, 'POINT')}"></span>
+                <span>Phí giao hàng </span>
+                <span th:text=" ${#numbers.formatDecimal(shippingFee, 0, 'COMMA', 0, 'POINT')}"></span>
             </div>
             <div class="summary-row total">
-                <span>Tổng cộng</span>
-                <span th:text="${#numbers.formatDecimal(totalAmount, 0, 'COMMA', 0, 'POINT')}"></span>
+                <span>Tổng cộng </span>
+                <span th:text=" ${#numbers.formatDecimal(totalAmount, 0, 'COMMA', 0, 'POINT')}"></span>
             </div>
             <div style="margin-top: 12px;">
-                <strong>Giao hàng đến:</strong>
+                <strong>Giao hàng đến: </strong>
                 <div th:text="${receiverName}"></div>
                 <div th:text="${receiverPhone}"></div>
                 <div th:text="${fullAddress}"></div>
@@ -210,7 +267,7 @@
 
         <div class="cta">
             <a th:href="${frontendUrl + '/orders/' + orderId}">Xem đơn hàng</a>
-            <div style="margin-top: 8px; font-size: 12px; color: #6b5a4a;">
+            <div style="margin-top: 8px; font-size: 12px; color: #363636;">
                 Đơn hàng sẽ được xử lý trong 24-48 giờ.
             </div>
         </div>
@@ -218,7 +275,7 @@
         <div class="footer">
             <div>Handbag Shop - Phụ kiện thời trang</div>
             <div>Địa chỉ: 123 Lê Lợi, Q1, TP.HCM</div>
-            <div>Email: support@handbagshop.local</div>
+            <div>Email: support@crystal-handbags.online</div>
         </div>
     </div>
 </body>
