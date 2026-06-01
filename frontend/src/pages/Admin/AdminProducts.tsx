@@ -44,7 +44,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import ProductForm, { type ProductFormUploadFiles } from '../../components/ProductForm';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 type ApiError = {
     response?: {

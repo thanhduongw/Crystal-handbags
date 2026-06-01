@@ -4,7 +4,6 @@ import {
     DollarOutlined,
     ProductOutlined,
     ShoppingCartOutlined,
-    ShoppingOutlined,
     UserOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -17,7 +16,7 @@ import { fetchAdminOrders } from '../../api/orderAPI';
 import { fetchProducts } from '../../api/productAPI';
 import AdminOrderDetail from './AdminOrderDetail';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface AdminStats {
     totalRevenue: number;
