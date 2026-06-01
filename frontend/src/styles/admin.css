@@ -9,12 +9,12 @@
   height: 100vh;
   overflow: auto;
   border-right: 1px solid #e5e7eb;
-  box-shadow: 1px 0 0 rgba(15, 23, 42, 0.03);
+  box-shadow: none;
 }
 
 .admin-brand {
   padding: 20px 18px 16px;
-  border-bottom: 1px solid #eef0f3;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .admin-brand-mark {
@@ -332,11 +332,6 @@
 .admin-breadcrumb {
   margin-top: 2px;
   font-size: 12px;
-}
-
-.admin-notification-badge .ant-badge-count,
-.admin-menu .ant-badge-count {
-  box-shadow: 0 0 0 1px #fff;
 }
 
 .admin-inline-alert {

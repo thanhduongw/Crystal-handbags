@@ -104,6 +104,7 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Only PENDING or CONFIRMED orders can be cancelled");
         }
 
+        restoreInventoryForCancelledOrder(order);
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
 
@@ -231,6 +232,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
         if (status == OrderStatus.CANCELLED && order.getStatus() != OrderStatus.CANCELLED) {
+            restoreInventoryForCancelledOrder(order);
             OrderCancelledEvent event = buildOrderCancelledEvent(order, "Admin cancelled order");
             publishAfterCommit(() -> messagePublisher.publishOrderCancelled(event));
         }
@@ -281,6 +283,23 @@ public class OrderServiceImpl implements OrderService {
 
         if (currentStatus == OrderStatus.DELIVERED) {
             throw new IllegalStateException("Cannot change status of delivered order");
+        }
+    }
+
+    private void restoreInventoryForCancelledOrder(Order order) {
+        if (order.getOrderItems() == null) {
+            return;
+        }
+
+        for (OrderItem item : order.getOrderItems()) {
+            if (item.getProductItem() == null
+                    || item.getProductItem().getItemId() == null
+                    || item.getQuantity() == null
+                    || item.getQuantity() <= 0) {
+                continue;
+            }
+
+            inventoryService.increaseStock(item.getProductItem().getItemId(), item.getQuantity());
         }
     }
 

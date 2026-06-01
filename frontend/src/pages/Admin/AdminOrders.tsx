@@ -39,11 +39,11 @@ const { Title } = Typography;
 const { RangePicker } = DatePicker;
 
 const statusOptions: Array<{ value: OrderStatus; label: string; color: string }> = [
-    { value: 'PENDING', label: 'Cho xac nhan', color: 'gold' },
-    { value: 'CONFIRMED', label: 'Da xac nhan', color: 'blue' },
-    { value: 'SHIPPED', label: 'Dang giao', color: 'purple' },
-    { value: 'DELIVERED', label: 'Hoan thanh', color: 'green' },
-    { value: 'CANCELLED', label: 'Da huy', color: 'red' },
+    { value: 'PENDING', label: 'Chờ xác nhận', color: 'gold' },
+    { value: 'CONFIRMED', label: 'Đã xác nhận', color: 'blue' },
+    { value: 'SHIPPED', label: 'Đang giao', color: 'purple' },
+    { value: 'DELIVERED', label: 'Hoàn thành', color: 'green' },
+    { value: 'CANCELLED', label: 'Đã hủy', color: 'red' },
 ];
 
 const formatCurrency = (value: number) =>
@@ -79,8 +79,8 @@ export default function AdminOrders() {
             setOrders([...data].sort((a, b) => dayjs(b.orderDate).valueOf() - dayjs(a.orderDate).valueOf()));
         } catch (loadError) {
             console.error('Load orders error:', loadError);
-            setError('Tai don hang that bai.');
-            message.error('Tai don hang that bai');
+            setError('Tải đơn hàng thất bại.');
+            message.error('Tải đơn hàng thất bại');
         } finally {
             setLoading(false);
         }
@@ -137,11 +137,11 @@ export default function AdminOrders() {
     const handleStatusChange = async (orderId: number, status: OrderStatus) => {
         try {
             await updateAdminOrderStatus(orderId, status);
-            message.success('Cap nhat trang thai thanh cong');
+            message.success('Cập nhật trạng thái thành công');
             await load();
         } catch (updateError) {
             console.error('Update status error:', updateError);
-            message.error('Cap nhat that bai');
+            message.error('Cập nhật thất bại');
         }
     };
 
@@ -160,14 +160,14 @@ export default function AdminOrders() {
             : filteredOrders;
 
         const rows = [
-            ['Order ID', 'Customer', 'Email', 'Receiver', 'Order Date', 'Status', 'Payment Method', 'Payment Status', 'Item Count', 'Total'],
+            ['Mã đơn hàng', 'Khách hàng', 'Email', 'Người nhận', 'Ngày đặt', 'Trạng thái', 'Phương thức thanh toán', 'Trạng thái thanh toán', 'Số lượng', 'Tổng tiền'],
             ...source.map(order => [
                 order.orderId,
                 order.customerName || '',
                 order.customerEmail || '',
                 order.receiver || '',
                 dayjs(order.orderDate).format('YYYY-MM-DD HH:mm:ss'),
-                order.status,
+                getStatusOption(order.status).label,
                 order.paymentMethod || '',
                 order.paymentStatus || '',
                 order.itemCount ?? '',
@@ -175,7 +175,7 @@ export default function AdminOrders() {
             ]),
         ];
 
-        const csv = rows.map(row => row.map(escapeCsv).join(',')).join('\n');
+        const csv = `\uFEFF${rows.map(row => row.map(escapeCsv).join(',')).join('\n')}`;
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -198,7 +198,7 @@ export default function AdminOrders() {
 
     const columns: ColumnsType<OrderListDto> = [
         {
-            title: 'Don hang',
+            title: 'Đơn hàng',
             dataIndex: 'orderId',
             key: 'orderId',
             width: 120,
@@ -206,7 +206,7 @@ export default function AdminOrders() {
             sorter: (a, b) => a.orderId - b.orderId,
         },
         {
-            title: 'Khach hang',
+            title: 'Khách hàng',
             key: 'customer',
             width: 250,
             render: (_, record) => (
@@ -217,14 +217,14 @@ export default function AdminOrders() {
             ),
         },
         {
-            title: 'Nguoi nhan',
+            title: 'Người nhận',
             dataIndex: 'receiver',
             key: 'receiver',
             width: 170,
-            render: (receiver?: string) => receiver || <span className="admin-muted">Chua co</span>,
+            render: (receiver?: string) => receiver || <span className="admin-muted">Chưa có</span>,
         },
         {
-            title: 'Ngay dat',
+            title: 'Ngày đặt',
             dataIndex: 'orderDate',
             key: 'orderDate',
             width: 170,
@@ -233,7 +233,7 @@ export default function AdminOrders() {
             defaultSortOrder: 'descend',
         },
         {
-            title: 'Trang thai',
+            title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
             width: 150,
@@ -243,7 +243,7 @@ export default function AdminOrders() {
             },
         },
         {
-            title: 'Thanh toan',
+            title: 'Thanh toán',
             key: 'payment',
             width: 160,
             render: (_, record) => (
@@ -261,7 +261,7 @@ export default function AdminOrders() {
             width: 70,
         },
         {
-            title: 'Tong tien',
+            title: 'Tổng tiền',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             width: 150,
@@ -270,7 +270,7 @@ export default function AdminOrders() {
             sorter: (a, b) => a.totalAmount - b.totalAmount,
         },
         {
-            title: 'Thao tac',
+            title: 'Thao tác',
             key: 'action',
             width: 250,
             fixed: 'right',
@@ -288,7 +288,7 @@ export default function AdminOrders() {
                             label: option.label,
                         }))}
                     />
-                    <Tooltip title="Xem chi tiet">
+                    <Tooltip title="Xem chi tiết">
                         <Button
                             className="admin-icon-button"
                             icon={<EyeOutlined />}
@@ -308,18 +308,15 @@ export default function AdminOrders() {
         <div className="admin-page">
             <div className="admin-page-header">
                 <div>
-                    <div className="admin-page-eyebrow">Don hang</div>
-                    <Title level={2} className="admin-page-title">Dieu phoi don hang</Title>
-                    <p className="admin-page-subtitle">
-                        Loc, xuat CSV, cap nhat trang thai va xem chi tiet don hang tren du lieu frontend hien co.
-                    </p>
+                    <div className="admin-page-eyebrow">Đơn hàng</div>
+                    <Title level={2} className="admin-page-title">Điều phối đơn hàng</Title>
                 </div>
                 <div className="admin-page-actions">
                     <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={filteredOrders.length === 0}>
-                        Xuat CSV
+                        Xuất CSV
                     </Button>
                     <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-                        Lam moi
+                        Làm mới
                     </Button>
                 </div>
             </div>
@@ -330,38 +327,38 @@ export default function AdminOrders() {
                     type="error"
                     className="admin-inline-alert"
                     message={error}
-                    action={<Button size="small" onClick={load}>Thu lai</Button>}
+                    action={<Button size="small" onClick={load}>Thử lại</Button>}
                 />
             )}
 
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                 <Col xs={12} sm={8} lg={4}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Tong don</div>
+                        <div className="admin-stat-kicker">Tổng đơn</div>
                         <div className="admin-stat-value">{stats.total}</div>
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} lg={4}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Cho xac nhan</div>
+                        <div className="admin-stat-kicker">Chờ xác nhận</div>
                         <div className="admin-stat-value">{stats.pending}</div>
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} lg={4}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Dang mo</div>
+                        <div className="admin-stat-kicker">Đang mở</div>
                         <div className="admin-stat-value">{stats.open}</div>
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} lg={4}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Hoan thanh</div>
+                        <div className="admin-stat-kicker">Hoàn thành</div>
                         <div className="admin-stat-value">{stats.delivered}</div>
                     </Card>
                 </Col>
                 <Col xs={12} sm={8} lg={4}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Da huy</div>
+                        <div className="admin-stat-kicker">Đã hủy</div>
                         <div className="admin-stat-value">{stats.cancelled}</div>
                     </Card>
                 </Col>
@@ -377,7 +374,7 @@ export default function AdminOrders() {
                 <Row gutter={[12, 12]} align="middle">
                     <Col xs={24} lg={7}>
                         <Input
-                            placeholder="Tim ma don, khach hang, email..."
+                            placeholder="Tìm mã đơn, khách hàng, email..."
                             prefix={<SearchOutlined />}
                             value={searchText}
                             onChange={(event) => setSearchText(event.target.value)}
@@ -386,7 +383,7 @@ export default function AdminOrders() {
                     </Col>
                     <Col xs={24} sm={12} lg={4}>
                         <Select
-                            placeholder="Trang thai"
+                            placeholder="Trạng thái"
                             value={statusFilter}
                             onChange={setStatusFilter}
                             style={{ width: '100%' }}
@@ -399,7 +396,7 @@ export default function AdminOrders() {
                     </Col>
                     <Col xs={24} sm={12} lg={4}>
                         <Select
-                            placeholder="Thanh toan"
+                            placeholder="Thanh toán"
                             value={paymentFilter}
                             onChange={setPaymentFilter}
                             style={{ width: '100%' }}
@@ -413,13 +410,13 @@ export default function AdminOrders() {
                             onChange={(dates) => setDateRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)}
                             style={{ width: '100%' }}
                             format="DD/MM/YYYY"
-                            placeholder={['Tu ngay', 'Den ngay']}
+                            placeholder={['Từ ngày', 'Đến ngày']}
                         />
                     </Col>
                     <Col xs={24} lg={4}>
                         <Space>
-                            <Button onClick={handleClearFilters}>Xoa loc</Button>
-                            <span className="admin-muted">{filteredOrders.length} don</span>
+                            <Button onClick={handleClearFilters}>Xóa lọc</Button>
+                            <span className="admin-muted">{filteredOrders.length} đơn</span>
                         </Space>
                     </Col>
                 </Row>
@@ -438,12 +435,12 @@ export default function AdminOrders() {
                     pagination={{
                         pageSize: 10,
                         showTotal: (total, range) =>
-                            `${range[0]}-${range[1]} trong ${total} don hang`,
+                            `${range[0]}-${range[1]} trong ${total} đơn hàng`,
                         showSizeChanger: true,
                         showQuickJumper: true,
                     }}
                     scroll={{ x: 1480 }}
-                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Khong co don hang phu hop" /> }}
+                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có đơn hàng phù hợp" /> }}
                     rowClassName="admin-clickable-row"
                     onRow={(record) => ({
                         onDoubleClick: () => setDetailOrderId(record.orderId),
@@ -452,7 +449,7 @@ export default function AdminOrders() {
             </Card>
 
             <Drawer
-                title={`Chi tiet don hang #${detailOrderId ?? ''}`}
+                title={`Chi tiết đơn hàng #${detailOrderId ?? ''}`}
                 open={detailOrderId !== null}
                 onClose={() => setDetailOrderId(null)}
                 width={860}
@@ -464,7 +461,7 @@ export default function AdminOrders() {
                             disabled={detailIndex <= 0}
                             onClick={() => setDetailOrderId(filteredOrders[detailIndex - 1]?.orderId ?? null)}
                         >
-                            Truoc
+                            Trước
                         </Button>
                         <Button
                             icon={<RightOutlined />}
@@ -479,7 +476,7 @@ export default function AdminOrders() {
                 {detailOrderId !== null ? (
                     <AdminOrderDetail orderId={detailOrderId} />
                 ) : (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chon don hang" />
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chọn đơn hàng" />
                 )}
             </Drawer>
         </div>

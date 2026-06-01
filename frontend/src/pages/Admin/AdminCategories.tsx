@@ -47,7 +47,7 @@ export default function AdminCategories() {
             setProducts(productData);
         } catch (error) {
             console.error('Load categories error:', error);
-            message.error('Khong the tai danh muc!');
+            message.error('Không thể tải danh mục!');
         } finally {
             setLoading(false);
         }
@@ -82,19 +82,19 @@ export default function AdminCategories() {
 
     const handleDelete = (category: CategoryDto) => {
         Modal.confirm({
-            title: 'Xoa danh muc?',
-            content: `Danh muc "${category.name}" se khong con hien thi trong he thong.`,
-            okText: 'Xoa',
-            cancelText: 'Huy',
+            title: 'Xóa danh mục?',
+            content: `Danh mục "${category.name}" sẽ không còn hiển thị trong hệ thống.`,
+            okText: 'Xóa',
+            cancelText: 'Hủy',
             okButtonProps: { danger: true },
             async onOk() {
                 try {
                     await deleteCategory(category.categoryId);
-                    message.success('Xoa thanh cong!');
+                    message.success('Xóa thành công!');
                     await loadCategories();
                 } catch (error) {
                     console.error('Delete error:', error);
-                    message.error('Xoa that bai!');
+                    message.error('Xóa thất bại!');
                 }
             },
         });
@@ -121,7 +121,7 @@ export default function AdminCategories() {
                     await uploadCategoryImage(editingCategory.categoryId, files.imageFile);
                 }
 
-                message.success('Cap nhat thanh cong!');
+                message.success('Cập nhật thành công!');
             } else {
                 const createdCategory = await createCategory({
                     ...values,
@@ -132,14 +132,14 @@ export default function AdminCategories() {
                     await uploadCategoryImage(createdCategory.categoryId, files.imageFile);
                 }
 
-                message.success('Them thanh cong!');
+                message.success('Thêm thành công!');
             }
 
             closeModal();
             await loadCategories();
         } catch (error) {
             console.error('Submit error:', error);
-            message.error(editingCategory ? 'Cap nhat that bai!' : 'Them that bai!');
+            message.error(editingCategory ? 'Cập nhật thất bại!' : 'Thêm thất bại!');
         } finally {
             setSubmitting(false);
         }
@@ -150,7 +150,7 @@ export default function AdminCategories() {
 
     const columns: TableProps<CategoryRow>['columns'] = [
         {
-            title: 'Danh muc',
+            title: 'Danh mục',
             key: 'category',
             render: (_, record) => (
                 <div className="admin-entity-cell">
@@ -167,41 +167,31 @@ export default function AdminCategories() {
             ),
         },
         {
-            title: 'Mo ta',
+            title: 'Mô tả',
             dataIndex: 'description',
             key: 'description',
             ellipsis: true,
-            render: (description?: string) => description || <span className="admin-muted">Chua co mo ta</span>,
+            render: (description?: string) => description || <span className="admin-muted">Chưa có mô tả</span>,
         },
         {
-            title: 'San pham',
+            title: 'Sản phẩm',
             key: 'productCount',
             width: 130,
             render: (_, record) => (
                 <Tag className="admin-tag" color={(record.productCount || 0) > 0 ? 'blue' : 'default'}>
-                    {record.productCount ?? 0} san pham
+                    {record.productCount ?? 0} sản phẩm
                 </Tag>
             ),
             sorter: (a, b) => (a.productCount ?? 0) - (b.productCount ?? 0),
         },
         {
-            title: 'Trang thai',
-            key: 'status',
-            width: 130,
-            render: (_, record) => (
-                <Tag className="admin-tag" color={(record.productCount || 0) > 0 ? 'green' : 'orange'}>
-                    {(record.productCount || 0) > 0 ? 'Dang dung' : 'Trong'}
-                </Tag>
-            ),
-        },
-        {
-            title: 'Thao tac',
+            title: 'Thao tác',
             key: 'action',
             width: 130,
             align: 'right',
             render: (_, record) => (
                 <Space size={4}>
-                    <Tooltip title="Sua danh muc">
+                    <Tooltip title="Sửa danh mục">
                         <Button
                             className="admin-icon-button"
                             icon={<EditOutlined />}
@@ -211,7 +201,7 @@ export default function AdminCategories() {
                             }}
                         />
                     </Tooltip>
-                    <Tooltip title="Xoa danh muc">
+                    <Tooltip title="Xóa danh mục">
                         <Button
                             className="admin-icon-button"
                             icon={<DeleteOutlined />}
@@ -232,15 +222,12 @@ export default function AdminCategories() {
         <div className="admin-page">
             <div className="admin-page-header">
                 <div>
-                    <div className="admin-page-eyebrow">Danh muc</div>
-                    <Title level={2} className="admin-page-title">Nhom san pham</Title>
-                    <p className="admin-page-subtitle">
-                        Quan ly cau truc phan loai va theo doi danh muc dang co san pham.
-                    </p>
+                    <div className="admin-page-eyebrow">Danh mục</div>
+                    <Title level={2} className="admin-page-title">Nhóm sản phẩm</Title>
                 </div>
                 <div className="admin-page-actions">
                     <Button icon={<ReloadOutlined />} onClick={loadCategories} loading={loading}>
-                        Lam moi
+                        Làm mới
                     </Button>
                     <Button
                         type="primary"
@@ -250,7 +237,7 @@ export default function AdminCategories() {
                             setModalVisible(true);
                         }}
                     >
-                        Them danh muc
+                        Thêm danh mục
                     </Button>
                 </div>
             </div>
@@ -258,23 +245,20 @@ export default function AdminCategories() {
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                 <Col xs={24} md={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Tong danh muc</div>
+                        <div className="admin-stat-kicker">Tổng danh mục</div>
                         <div className="admin-stat-value">{categoryRows.length}</div>
-                        <div className="admin-stat-footnote">Dang duoc quan ly trong cua hang</div>
                     </Card>
                 </Col>
                 <Col xs={24} md={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Co san pham</div>
+                        <div className="admin-stat-kicker">Có sản phẩm</div>
                         <div className="admin-stat-value">{categoriesWithProducts}</div>
-                        <div className="admin-stat-footnote">Tinh tu danh sach san pham da tai</div>
                     </Card>
                 </Col>
                 <Col xs={24} md={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Danh muc trong</div>
+                        <div className="admin-stat-kicker">Danh mục trống</div>
                         <div className="admin-stat-value">{emptyCategories}</div>
-                        <div className="admin-stat-footnote">Chua gan voi san pham nao</div>
                     </Card>
                 </Col>
             </Row>
@@ -283,7 +267,7 @@ export default function AdminCategories() {
                 <Input
                     allowClear
                     prefix={<SearchOutlined />}
-                    placeholder="Tim theo ten hoac mo ta danh muc..."
+                    placeholder="Tìm theo tên hoặc mô tả danh mục..."
                     value={searchText}
                     onChange={(event) => setSearchText(event.target.value)}
                 />
@@ -297,9 +281,9 @@ export default function AdminCategories() {
                     loading={loading}
                     pagination={{
                         pageSize: 10,
-                        showTotal: (total) => `Tong ${total} danh muc`,
+                        showTotal: (total) => `Tổng ${total} danh mục`,
                     }}
-                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Khong co danh muc phu hop" /> }}
+                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có danh mục phù hợp" /> }}
                 />
             </Card>
 

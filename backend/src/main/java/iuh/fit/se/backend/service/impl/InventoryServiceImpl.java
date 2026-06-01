@@ -41,7 +41,10 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @Transactional
     public void increaseStock(Long itemId, int qty) {
-        inventoryRepository.increaseStock(itemId, qty);
+        int updated = inventoryRepository.increaseStock(itemId, qty);
+        if (updated == 0) {
+            throw new RuntimeException("Inventory not found for item: " + itemId);
+        }
         cacheInvalidationService.evictProductCachesForVariant(itemId);
     }
 

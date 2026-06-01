@@ -10,15 +10,12 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { Link, Navigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import type { OrderListDto, OrderStatus, ProductListDto } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchAdminStatistics } from '../../api/adminAPI';
 import { fetchAdminOrders } from '../../api/orderAPI';
 import { fetchProducts } from '../../api/productAPI';
 import AdminOrderDetail from './AdminOrderDetail';
-
-dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
@@ -44,11 +41,11 @@ const emptyStats: AdminStats = {
 };
 
 const statusOptions: Array<{ value: OrderStatus; label: string; color: string }> = [
-    { value: 'PENDING', label: 'Cho xac nhan', color: 'gold' },
-    { value: 'CONFIRMED', label: 'Da xac nhan', color: 'blue' },
-    { value: 'SHIPPED', label: 'Dang giao', color: 'purple' },
-    { value: 'DELIVERED', label: 'Hoan thanh', color: 'green' },
-    { value: 'CANCELLED', label: 'Da huy', color: 'red' },
+    { value: 'PENDING', label: 'Chờ xác nhận', color: 'gold' },
+    { value: 'CONFIRMED', label: 'Đã xác nhận', color: 'blue' },
+    { value: 'SHIPPED', label: 'Đang giao', color: 'purple' },
+    { value: 'DELIVERED', label: 'Hoàn thành', color: 'green' },
+    { value: 'CANCELLED', label: 'Đã hủy', color: 'red' },
 ];
 
 const formatCurrency = (value: number) =>
@@ -95,7 +92,7 @@ export default function AdminDashboard() {
             setProducts(productList);
         } catch (loadError) {
             console.error('Failed to load dashboard:', loadError);
-            setError('Khong tai duoc du lieu tong quan.');
+            setError('Không tải được dữ liệu tổng quan.');
             setStats(emptyStats);
             setRecentOrders([]);
             setProducts([]);
@@ -130,14 +127,14 @@ export default function AdminDashboard() {
 
     const recentOrdersColumns: ColumnsType<OrderListDto> = [
         {
-            title: 'Don hang',
+            title: 'Đơn hàng',
             dataIndex: 'orderId',
             key: 'orderId',
             width: 120,
             render: (id: number) => <span className="admin-entity-title">#{id}</span>,
         },
         {
-            title: 'Khach hang',
+            title: 'Khách hàng',
             key: 'customer',
             render: (_, record) => (
                 <div>
@@ -147,7 +144,7 @@ export default function AdminDashboard() {
             ),
         },
         {
-            title: 'Thoi gian',
+            title: 'Thời gian',
             dataIndex: 'orderDate',
             key: 'orderDate',
             width: 170,
@@ -155,7 +152,7 @@ export default function AdminDashboard() {
         },
         ...(hasPaymentMethod
             ? [{
-                title: 'Thanh toan',
+                title: 'Thanh toán',
                 dataIndex: 'paymentMethod',
                 key: 'paymentMethod',
                 width: 130,
@@ -163,7 +160,7 @@ export default function AdminDashboard() {
             }] satisfies ColumnsType<OrderListDto>
             : []),
         {
-            title: 'Trang thai',
+            title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
             width: 140,
@@ -173,7 +170,7 @@ export default function AdminDashboard() {
             },
         },
         {
-            title: 'Tong tien',
+            title: 'Tổng tiền',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             align: 'right',
@@ -190,15 +187,12 @@ export default function AdminDashboard() {
         <div className="admin-page">
             <div className="admin-page-header">
                 <div>
-                    <div className="admin-page-eyebrow">Tong quan</div>
-                    <Title level={2} className="admin-page-title">Van hanh cua hang</Title>
-                    <p className="admin-page-subtitle">
-                        Theo doi doanh thu, don moi va cac viec can xu ly trong ngay.
-                    </p>
+                    <div className="admin-page-eyebrow">Tổng quan</div>
+                    <Title level={2} className="admin-page-title">Vận hành cửa hàng</Title>
                 </div>
                 <div className="admin-page-actions">
                     <Button type="primary" icon={<ShoppingOutlined />}>
-                        <Link to="/admin/orders">Xu ly don hang</Link>
+                        <Link to="/admin/orders">Xử lý đơn hàng</Link>
                     </Button>
                 </div>
             </div>
@@ -209,7 +203,7 @@ export default function AdminDashboard() {
                     type="error"
                     className="admin-inline-alert"
                     message={error}
-                    action={<Button size="small" onClick={loadDashboard}>Thu lai</Button>}
+                    action={<Button size="small" onClick={loadDashboard}>Thử lại</Button>}
                 />
             )}
 
@@ -218,11 +212,10 @@ export default function AdminDashboard() {
                     <Card className="admin-stat-card">
                         <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
                             <div>
-                                <div className="admin-stat-kicker">Doanh thu da giao</div>
+                                <div className="admin-stat-kicker">Doanh thu đã giao</div>
                                 <div className="admin-stat-value">
                                     {loading ? <Skeleton.Input active size="small" /> : formatCurrency(stats.totalRevenue)}
                                 </div>
-                                <div className="admin-growth-indicator">--</div>
                             </div>
                             <div className="admin-stat-icon"><DollarOutlined /></div>
                         </Space>
@@ -232,11 +225,10 @@ export default function AdminDashboard() {
                     <Card className="admin-stat-card">
                         <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
                             <div>
-                                <div className="admin-stat-kicker">Tong don hang</div>
+                                <div className="admin-stat-kicker">Tổng đơn hàng</div>
                                 <div className="admin-stat-value">
                                     {loading ? <Skeleton.Input active size="small" /> : stats.totalOrders}
                                 </div>
-                                <div className="admin-stat-footnote">{stats.pendingOrders} don cho xac nhan</div>
                             </div>
                             <div className="admin-stat-icon"><ShoppingCartOutlined /></div>
                         </Space>
@@ -246,11 +238,10 @@ export default function AdminDashboard() {
                     <Card className="admin-stat-card">
                         <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
                             <div>
-                                <div className="admin-stat-kicker">Khach hang</div>
+                                <div className="admin-stat-kicker">Khách hàng</div>
                                 <div className="admin-stat-value">
                                     {loading ? <Skeleton.Input active size="small" /> : stats.totalUsers}
                                 </div>
-                                <div className="admin-growth-indicator">--</div>
                             </div>
                             <div className="admin-stat-icon"><UserOutlined /></div>
                         </Space>
@@ -260,11 +251,10 @@ export default function AdminDashboard() {
                     <Card className="admin-stat-card">
                         <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
                             <div>
-                                <div className="admin-stat-kicker">San pham</div>
+                                <div className="admin-stat-kicker">Sản phẩm</div>
                                 <div className="admin-stat-value">
                                     {loading ? <Skeleton.Input active size="small" /> : stats.totalProducts}
                                 </div>
-                                <div className="admin-growth-indicator">--</div>
                             </div>
                             <div className="admin-stat-icon"><ProductOutlined /></div>
                         </Space>
@@ -277,9 +267,8 @@ export default function AdminDashboard() {
                     showIcon
                     type="warning"
                     className="admin-inline-alert"
-                    message={`Co ${stats.pendingOrders} don dang cho xac nhan`}
-                    description="Uu tien kiem tra thanh toan, ton kho va cap nhat trang thai de khach hang nhan thong tin kip thoi."
-                    action={<Button size="small"><Link to="/admin/orders">Xem don</Link></Button>}
+                    message={`Có ${stats.pendingOrders} đơn đang chờ xác nhận`}
+                    action={<Button size="small"><Link to="/admin/orders">Xem đơn</Link></Button>}
                 />
             )}
 
@@ -287,8 +276,8 @@ export default function AdminDashboard() {
                 <Col xs={24} xl={16}>
                     <Card
                         className="admin-table-card"
-                        title="Don hang moi nhat"
-                        extra={<Link to="/admin/orders">Xem tat ca</Link>}
+                        title="Đơn hàng mới nhất"
+                        extra={<Link to="/admin/orders">Xem tất cả</Link>}
                     >
                         <Table
                             rowKey="orderId"
@@ -298,7 +287,7 @@ export default function AdminDashboard() {
                             loading={loading}
                             size="middle"
                             scroll={{ x: 880 }}
-                            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chua co don hang" /> }}
+                            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có đơn hàng" /> }}
                             onRow={(record) => ({
                                 onClick: () => setDetailOrderId(record.orderId),
                             })}
@@ -307,7 +296,7 @@ export default function AdminDashboard() {
                     </Card>
                 </Col>
                 <Col xs={24} xl={8}>
-                    <Card className="admin-panel admin-watch-card" title="Viec can theo doi">
+                    <Card className="admin-panel admin-watch-card" title="Cần theo dõi">
                         <Space direction="vertical" size={14} style={{ width: '100%' }}>
                             {pendingOrders.length > 0 ? (
                                 pendingOrders.slice(0, 4).map(order => (
@@ -318,29 +307,29 @@ export default function AdminDashboard() {
                                         onClick={() => setDetailOrderId(order.orderId)}
                                     >
                                         <span>
-                                            <strong>Don #{order.orderId}</strong>
-                                            <Text type="secondary">{order.customerName || order.receiver || 'Khach hang'}</Text>
+                                            <strong>Đơn #{order.orderId}</strong>
+                                            <Text type="secondary">{order.customerName || order.receiver || 'Khách hàng'}</Text>
                                         </span>
-                                        <Tag className="admin-tag" color="gold">{dayjs(order.orderDate).fromNow()}</Tag>
+                                        <Tag className="admin-tag" color="gold">{dayjs(order.orderDate).format('DD/MM HH:mm')}</Tag>
                                     </button>
                                 ))
                             ) : (
-                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Khong co don PENDING gan day" />
+                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có đơn chờ xác nhận" />
                             )}
 
                             {lowStockProducts.length > 0 ? (
                                 <div className="admin-watch-section">
-                                    <div className="admin-stat-kicker">San pham sap het hang</div>
+                                    <div className="admin-stat-kicker">Sản phẩm sắp hết hàng</div>
                                     {lowStockProducts.map(product => (
                                         <div key={product.productId} className="admin-watch-row">
                                             <span>{product.name}</span>
-                                            <Tag className="admin-tag" color="red">{getProductStock(product)} con lai</Tag>
+                                            <Tag className="admin-tag" color="red">{getProductStock(product)} còn lại</Tag>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="admin-empty-state">
-                                    Chua co du lieu ton kho trong danh sach san pham.
+                                    Chưa có dữ liệu tồn kho.
                                 </div>
                             )}
                         </Space>
@@ -349,7 +338,7 @@ export default function AdminDashboard() {
             </Row>
 
             <Drawer
-                title={`Chi tiet don hang #${detailOrderId ?? ''}`}
+                title={`Chi tiết đơn hàng #${detailOrderId ?? ''}`}
                 open={detailOrderId !== null}
                 onClose={() => setDetailOrderId(null)}
                 width={860}

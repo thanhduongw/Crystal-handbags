@@ -7,6 +7,7 @@ import iuh.fit.se.backend.messaging.publisher.MessagePublisher;
 import iuh.fit.se.backend.model.*;
 import iuh.fit.se.backend.repository.OrderRepository;
 import iuh.fit.se.backend.repository.PaymentRepository;
+import iuh.fit.se.backend.service.InventoryService;
 import iuh.fit.se.backend.service.VNPayService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class VNPayServiceImpl implements VNPayService {
     private final VNPayConfig vnPayConfig;
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
+    private final InventoryService inventoryService;
     private final MessagePublisher messagePublisher;
 
     @Override
@@ -136,6 +138,7 @@ public class VNPayServiceImpl implements VNPayService {
                 publishAfterCommit(() -> messagePublisher.publishPaymentSucceeded(event));
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
+                restoreInventoryForCancelledOrder(order);
                 order.setStatus(OrderStatus.CANCELLED);
                 paymentRepository.save(payment);
                 orderRepository.save(order);
@@ -201,6 +204,7 @@ public class VNPayServiceImpl implements VNPayService {
                 publishAfterCommit(() -> messagePublisher.publishPaymentSucceeded(event));
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
+                restoreInventoryForCancelledOrder(order);
                 order.setStatus(OrderStatus.CANCELLED);
                 paymentRepository.save(payment);
                 orderRepository.save(order);
@@ -265,6 +269,23 @@ public class VNPayServiceImpl implements VNPayService {
                 .amount(payment.getAmount())
                 .inventoryItems(inventoryItems)
                 .build();
+    }
+
+    private void restoreInventoryForCancelledOrder(Order order) {
+        if (order.getOrderItems() == null) {
+            return;
+        }
+
+        for (OrderItem item : order.getOrderItems()) {
+            if (item.getProductItem() == null
+                    || item.getProductItem().getItemId() == null
+                    || item.getQuantity() == null
+                    || item.getQuantity() <= 0) {
+                continue;
+            }
+
+            inventoryService.increaseStock(item.getProductItem().getItemId(), item.getQuantity());
+        }
     }
 
     private void publishAfterCommit(Runnable action) {

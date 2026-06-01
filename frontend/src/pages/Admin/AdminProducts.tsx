@@ -6,7 +6,6 @@ import {
     Empty,
     Image,
     Input,
-    InputNumber,
     message,
     Modal,
     Row,
@@ -22,7 +21,6 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
     AppstoreOutlined,
-    CopyOutlined,
     DeleteOutlined,
     EditOutlined,
     PlusOutlined,
@@ -62,7 +60,6 @@ type StockFilter = 'all' | 'inStock' | 'lowStock' | 'outOfStock' | 'unknown';
 type AdminProductRow = ProductListDto & {
     stockQuantity?: number;
     variantCount?: number;
-    isClientClone?: boolean;
 };
 
 const getApiErrorMessage = (error: unknown, fallback: string) =>
@@ -76,10 +73,10 @@ const formatCurrency = (value: number) =>
     });
 
 const getStockTag = (stock?: number) => {
-    if (typeof stock !== 'number') return <Tag className="admin-tag">Chua co du lieu</Tag>;
-    if (stock <= 0) return <Tag className="admin-tag" color="red">Het hang</Tag>;
-    if (stock <= 5) return <Tag className="admin-tag" color="orange">Sap het: {stock}</Tag>;
-    return <Tag className="admin-tag" color="green">Con hang: {stock}</Tag>;
+    if (typeof stock !== 'number') return <Tag className="admin-tag">Chưa có dữ liệu</Tag>;
+    if (stock <= 0) return <Tag className="admin-tag" color="red">Hết hàng</Tag>;
+    if (stock <= 5) return <Tag className="admin-tag" color="orange">Sắp hết: {stock}</Tag>;
+    return <Tag className="admin-tag" color="green">Còn hàng: {stock}</Tag>;
 };
 
 export default function AdminProducts() {
@@ -98,7 +95,6 @@ export default function AdminProducts() {
     const [homepageFilter, setHomepageFilter] = useState<boolean | undefined>();
     const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
     const [stockFilter, setStockFilter] = useState<StockFilter>('all');
-    const [priceRange, setPriceRange] = useState<[number | null, number | null]>([null, null]);
     const [viewMode, setViewMode] = useState<ViewMode>('table');
 
     useEffect(() => {
@@ -134,44 +130,33 @@ export default function AdminProducts() {
             setProducts(enriched);
         } catch (error) {
             console.error('Load products error:', error);
-            message.error('Tai san pham that bai');
+            message.error('Tải sản phẩm thất bại');
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = (product: AdminProductRow) => {
-        if (product.isClientClone) {
-            setProducts(current => current.filter(item => item.productId !== product.productId));
-            message.success('Da xoa ban sao frontend');
-            return;
-        }
-
         Modal.confirm({
-            title: 'Xoa san pham?',
-            content: `San pham "${product.name}" se bi xoa hoac an khoi cua hang neu da co lich su don hang.`,
-            okText: 'Xoa',
-            cancelText: 'Huy',
+            title: 'Xóa sản phẩm?',
+            content: `Sản phẩm "${product.name}" sẽ bị xóa khỏi cửa hàng.`,
+            okText: 'Xóa',
+            cancelText: 'Hủy',
             okButtonProps: { danger: true },
             async onOk() {
                 try {
                     await deleteProduct(product.productId);
-                    message.success('Da xoa san pham');
+                    message.success('Đã xóa sản phẩm');
                     void load();
                 } catch (error: unknown) {
                     console.error('Delete error:', error);
-                    message.error(getApiErrorMessage(error, 'Xoa that bai'));
+                    message.error(getApiErrorMessage(error, 'Xóa thất bại'));
                 }
             },
         });
     };
 
     const handleEdit = async (record: AdminProductRow) => {
-        if (record.isClientClone) {
-            message.info('Ban sao frontend chi dung de xem truoc, khong goi API sua.');
-            return;
-        }
-
         try {
             setLoading(true);
             const detail = await fetchProductDetail(record.productId);
@@ -179,22 +164,10 @@ export default function AdminProducts() {
             setModalVisible(true);
         } catch (error) {
             console.error('Fetch detail error:', error);
-            message.error(getApiErrorMessage(error, 'Khong the tai chi tiet san pham'));
+            message.error(getApiErrorMessage(error, 'Không thể tải chi tiết sản phẩm'));
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleDuplicate = (record: AdminProductRow) => {
-        const clone: AdminProductRow = {
-            ...record,
-            productId: -Date.now(),
-            name: `${record.name} (copy)`,
-            showHomepage: false,
-            isClientClone: true,
-        };
-        setProducts(current => [clone, ...current]);
-        message.success('Da tao ban sao tren frontend');
     };
 
     const handleSubmit = async (
@@ -233,24 +206,19 @@ export default function AdminProducts() {
                 }
             }
 
-            message.success(isEdit ? 'Cap nhat thanh cong' : 'Tao san pham thanh cong');
+            message.success(isEdit ? 'Cập nhật thành công' : 'Tạo sản phẩm thành công');
             setModalVisible(false);
             setEditing(null);
             void load();
         } catch (error: unknown) {
             console.error('Submit error:', error);
-            message.error(getApiErrorMessage(error, 'Luu that bai'));
+            message.error(getApiErrorMessage(error, 'Lưu thất bại'));
         } finally {
             setSubmitting(false);
         }
     };
 
     const handleManageImages = async (record: AdminProductRow) => {
-        if (record.isClientClone) {
-            message.info('Ban sao frontend khong quan ly anh qua API.');
-            return;
-        }
-
         try {
             const detail = await fetchProductDetail(record.productId);
             setSelectedProduct(detail);
@@ -258,7 +226,7 @@ export default function AdminProducts() {
             setNewImageUrl('');
         } catch (error) {
             console.error('Fetch product error:', error);
-            message.error(getApiErrorMessage(error, 'Khong the tai chi tiet san pham'));
+            message.error(getApiErrorMessage(error, 'Không thể tải chi tiết sản phẩm'));
         }
     };
 
@@ -266,25 +234,25 @@ export default function AdminProducts() {
         if (!selectedProduct) return;
 
         if (!file.type.startsWith('image/')) {
-            message.error('Chi chap nhan file anh!');
+            message.error('Chỉ chấp nhận file ảnh!');
             return;
         }
 
         if (file.size / 1024 / 1024 >= 5) {
-            message.error('Anh phai nho hon 5MB!');
+            message.error('Ảnh phải nhỏ hơn 5MB!');
             return;
         }
 
         try {
             setUploadingImage(true);
             await uploadProductImage(selectedProduct.productId!, file);
-            message.success('Upload thanh cong');
+            message.success('Upload thành công');
             const updated = await fetchProductDetail(selectedProduct.productId!);
             setSelectedProduct(updated);
             void load();
         } catch (error: unknown) {
             console.error('Upload error:', error);
-            message.error(getApiErrorMessage(error, 'Upload that bai'));
+            message.error(getApiErrorMessage(error, 'Upload thất bại'));
         } finally {
             setUploadingImage(false);
         }
@@ -294,21 +262,21 @@ export default function AdminProducts() {
         if (!selectedProduct) return;
 
         Modal.confirm({
-            title: 'Xoa anh?',
-            content: 'Anh se bi go khoi san pham nay.',
-            okText: 'Xoa',
-            cancelText: 'Huy',
+            title: 'Xóa ảnh?',
+            content: 'Ảnh sẽ bị gỡ khỏi sản phẩm này.',
+            okText: 'Xóa',
+            cancelText: 'Hủy',
             okButtonProps: { danger: true },
             async onOk() {
                 try {
                     await deleteProductImage(selectedProduct.productId!, imageUrl);
-                    message.success('Da xoa anh');
+                    message.success('Đã xóa ảnh');
                     const updated = await fetchProductDetail(selectedProduct.productId!);
                     setSelectedProduct(updated);
                     void load();
                 } catch (error: unknown) {
                     console.error('Delete image error:', error);
-                    message.error(getApiErrorMessage(error, 'Xoa anh that bai'));
+                    message.error(getApiErrorMessage(error, 'Xóa ảnh thất bại'));
                 }
             },
         });
@@ -319,14 +287,14 @@ export default function AdminProducts() {
 
         const url = newImageUrl.trim();
         if (!url) {
-            message.error('Vui long nhap URL anh');
+            message.error('Vui lòng nhập URL ảnh');
             return;
         }
 
         try {
             new URL(url);
         } catch {
-            message.error('URL khong hop le');
+            message.error('URL không hợp lệ');
             return;
         }
 
@@ -341,7 +309,7 @@ export default function AdminProducts() {
                 ...selectedProduct,
                 images,
             });
-            message.success('Them anh bang URL thanh cong');
+            message.success('Thêm ảnh bằng URL thành công');
 
             const updated = await fetchProductDetail(selectedProduct.productId!);
             setSelectedProduct(updated);
@@ -349,7 +317,7 @@ export default function AdminProducts() {
             void load();
         } catch (error: unknown) {
             console.error('Add image by URL error:', error);
-            message.error(getApiErrorMessage(error, 'Them anh that bai'));
+            message.error(getApiErrorMessage(error, 'Thêm ảnh thất bại'));
         } finally {
             setUploadingImage(false);
         }
@@ -364,7 +332,6 @@ export default function AdminProducts() {
 
     const filteredProducts = useMemo(() => {
         const search = debouncedSearch.trim().toLowerCase();
-        const [minPrice, maxPrice] = priceRange;
 
         return products.filter(product => {
             const stock = product.stockQuantity;
@@ -374,9 +341,6 @@ export default function AdminProducts() {
             const matchesHomepage = homepageFilter === undefined ||
                 product.showHomepage === homepageFilter;
             const matchesCategory = !categoryFilter || product.categoryName === categoryFilter;
-            const matchesPrice =
-                (minPrice === null || product.basePrice >= minPrice) &&
-                (maxPrice === null || product.basePrice <= maxPrice);
             const matchesStock =
                 stockFilter === 'all' ||
                 (stockFilter === 'unknown' && typeof stock !== 'number') ||
@@ -384,14 +348,9 @@ export default function AdminProducts() {
                 (stockFilter === 'lowStock' && typeof stock === 'number' && stock > 0 && stock <= 5) ||
                 (stockFilter === 'inStock' && typeof stock === 'number' && stock > 5);
 
-            return matchesSearch && matchesHomepage && matchesCategory && matchesPrice && matchesStock;
+            return matchesSearch && matchesHomepage && matchesCategory && matchesStock;
         });
-    }, [products, debouncedSearch, homepageFilter, categoryFilter, priceRange, stockFilter]);
-
-    const categoriesCount = useMemo(
-        () => new Set(products.map(product => product.categoryName)).size,
-        [products]
-    );
+    }, [products, debouncedSearch, homepageFilter, categoryFilter, stockFilter]);
 
     const lowStockCount = useMemo(
         () => products.filter(product => typeof product.stockQuantity === 'number' && product.stockQuantity <= 5).length,
@@ -400,7 +359,7 @@ export default function AdminProducts() {
 
     const columns: ColumnsType<AdminProductRow> = [
         {
-            title: 'San pham',
+            title: 'Sản phẩm',
             key: 'product',
             width: 360,
             render: (_, record) => (
@@ -417,7 +376,6 @@ export default function AdminProducts() {
                     <div style={{ minWidth: 0 }}>
                         <div className="admin-entity-title">
                             {record.name}
-                            {record.isClientClone && <Tag className="admin-tag" color="blue">Frontend clone</Tag>}
                         </div>
                         <div className="admin-entity-meta">ID #{record.productId}</div>
                     </div>
@@ -426,7 +384,7 @@ export default function AdminProducts() {
             sorter: (a, b) => a.name.localeCompare(b.name, 'vi'),
         },
         {
-            title: 'Danh muc',
+            title: 'Danh mục',
             dataIndex: 'categoryName',
             key: 'categoryName',
             width: 180,
@@ -434,7 +392,7 @@ export default function AdminProducts() {
             sorter: (a, b) => a.categoryName.localeCompare(b.categoryName, 'vi'),
         },
         {
-            title: 'Gia ban',
+            title: 'Giá bán',
             dataIndex: 'basePrice',
             key: 'basePrice',
             width: 150,
@@ -442,53 +400,46 @@ export default function AdminProducts() {
             sorter: (a, b) => a.basePrice - b.basePrice,
         },
         {
-            title: 'Ton kho',
+            title: 'Tồn kho',
             key: 'stock',
             width: 150,
             render: (_, record) => getStockTag(record.stockQuantity),
             sorter: (a, b) => (a.stockQuantity ?? -1) - (b.stockQuantity ?? -1),
         },
         {
-            title: 'Trang chu',
+            title: 'Trang chủ',
             dataIndex: 'showHomepage',
             key: 'showHomepage',
             width: 130,
             render: (value: boolean) => (
                 <Tag className="admin-tag" color={value ? 'green' : 'default'}>
-                    {value ? 'Dang hien thi' : 'Khong'}
+                    {value ? 'Đang hiển thị' : 'Không'}
                 </Tag>
             ),
         },
         {
-            title: 'Thao tac',
+            title: 'Thao tác',
             key: 'action',
-            width: 190,
+            width: 150,
             fixed: 'right',
             align: 'right',
             render: (_, record) => (
                 <Space size={4}>
-                    <Tooltip title="Nhan doi tren frontend">
-                        <Button
-                            className="admin-icon-button"
-                            icon={<CopyOutlined />}
-                            onClick={() => handleDuplicate(record)}
-                        />
-                    </Tooltip>
-                    <Tooltip title="Quan ly anh">
+                    <Tooltip title="Quản lý ảnh">
                         <Button
                             className="admin-icon-button"
                             icon={<PictureOutlined />}
                             onClick={() => handleManageImages(record)}
                         />
                     </Tooltip>
-                    <Tooltip title="Sua san pham">
+                    <Tooltip title="Sửa sản phẩm">
                         <Button
                             className="admin-icon-button"
                             icon={<EditOutlined />}
                             onClick={() => handleEdit(record)}
                         />
                     </Tooltip>
-                    <Tooltip title="Xoa san pham">
+                    <Tooltip title="Xóa sản phẩm">
                         <Button
                             className="admin-icon-button"
                             danger
@@ -509,11 +460,8 @@ export default function AdminProducts() {
         <div className="admin-page">
             <div className="admin-page-header">
                 <div>
-                    <div className="admin-page-eyebrow">San pham</div>
-                    <Title level={2} className="admin-page-title">Danh muc hang hoa</Title>
-                    <p className="admin-page-subtitle">
-                        Quan ly gia, hinh anh, ton kho hien co va cach san pham xuat hien trong cua hang.
-                    </p>
+                    <div className="admin-page-eyebrow">Sản phẩm</div>
+                    <Title level={2} className="admin-page-title">Danh mục hàng hóa</Title>
                 </div>
                 <div className="admin-page-actions">
                     <Segmented
@@ -525,7 +473,7 @@ export default function AdminProducts() {
                         ]}
                     />
                     <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-                        Lam moi
+                        Làm mới
                     </Button>
                     <Button
                         type="primary"
@@ -535,7 +483,7 @@ export default function AdminProducts() {
                             setModalVisible(true);
                         }}
                     >
-                        Them san pham
+                        Thêm sản phẩm
                     </Button>
                 </div>
             </div>
@@ -543,23 +491,20 @@ export default function AdminProducts() {
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                 <Col xs={24} sm={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Tong san pham</div>
+                        <div className="admin-stat-kicker">Tổng sản phẩm</div>
                         <div className="admin-stat-value">{products.length}</div>
-                        <div className="admin-stat-footnote">Dang co trong danh muc ban hang</div>
                     </Card>
                 </Col>
                 <Col xs={24} sm={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Hien thi trang chu</div>
+                        <div className="admin-stat-kicker">Hiển thị trang chủ</div>
                         <div className="admin-stat-value">{products.filter(product => product.showHomepage).length}</div>
-                        <div className="admin-stat-footnote">San pham duoc uu tien gioi thieu</div>
                     </Card>
                 </Col>
                 <Col xs={24} sm={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Sap het hang</div>
+                        <div className="admin-stat-kicker">Sắp hết hàng</div>
                         <div className="admin-stat-value">{lowStockCount}</div>
-                        <div className="admin-stat-footnote">{categoriesCount} nhom danh muc dang co san pham</div>
                     </Card>
                 </Col>
             </Row>
@@ -570,7 +515,7 @@ export default function AdminProducts() {
                         <Input
                             allowClear
                             prefix={<SearchOutlined />}
-                            placeholder="Tim ten san pham hoac danh muc..."
+                            placeholder="Tìm tên sản phẩm hoặc danh mục..."
                             value={searchText}
                             onChange={(event) => setSearchText(event.target.value)}
                         />
@@ -579,7 +524,7 @@ export default function AdminProducts() {
                         <Select
                             allowClear
                             style={{ width: '100%' }}
-                            placeholder="Danh muc"
+                            placeholder="Danh mục"
                             value={categoryFilter}
                             onChange={setCategoryFilter}
                             options={categoryOptions}
@@ -589,12 +534,12 @@ export default function AdminProducts() {
                         <Select
                             allowClear
                             style={{ width: '100%' }}
-                            placeholder="Trang chu"
+                            placeholder="Trang chủ"
                             value={homepageFilter}
                             onChange={setHomepageFilter}
                             options={[
-                                { value: true, label: 'Dang hien thi' },
-                                { value: false, label: 'Khong hien thi' },
+                                { value: true, label: 'Đang hiển thị' },
+                                { value: false, label: 'Không hiển thị' },
                             ]}
                         />
                     </Col>
@@ -604,35 +549,17 @@ export default function AdminProducts() {
                             value={stockFilter}
                             onChange={setStockFilter}
                             options={[
-                                { value: 'all', label: 'Tat ca ton kho' },
-                                { value: 'inStock', label: 'Con hang' },
-                                { value: 'lowStock', label: 'Sap het' },
-                                { value: 'outOfStock', label: 'Het hang' },
-                                { value: 'unknown', label: 'Chua co du lieu' },
+                                { value: 'all', label: 'Tất cả tồn kho' },
+                                { value: 'inStock', label: 'Còn hàng' },
+                                { value: 'lowStock', label: 'Sắp hết' },
+                                { value: 'outOfStock', label: 'Hết hàng' },
+                                { value: 'unknown', label: 'Chưa có dữ liệu' },
                             ]}
                         />
                     </Col>
-                    <Col xs={24} lg={5}>
-                        <Space.Compact style={{ width: '100%' }}>
-                            <InputNumber
-                                min={0}
-                                placeholder="Gia tu"
-                                value={priceRange[0]}
-                                onChange={(value) => setPriceRange([value, priceRange[1]])}
-                                style={{ width: '50%' }}
-                            />
-                            <InputNumber
-                                min={0}
-                                placeholder="Den"
-                                value={priceRange[1]}
-                                onChange={(value) => setPriceRange([priceRange[0], value])}
-                                style={{ width: '50%' }}
-                            />
-                        </Space.Compact>
-                    </Col>
                 </Row>
                 <div className="admin-toolbar-footer">
-                    <span className="admin-muted">Dang xem {filteredProducts.length} / {products.length} san pham</span>
+                    <span className="admin-muted">Đang xem {filteredProducts.length} / {products.length} sản phẩm</span>
                     <Button
                         size="small"
                         onClick={() => {
@@ -640,10 +567,9 @@ export default function AdminProducts() {
                             setCategoryFilter(undefined);
                             setHomepageFilter(undefined);
                             setStockFilter('all');
-                            setPriceRange([null, null]);
                         }}
                     >
-                        Xoa loc
+                        Xóa lọc
                     </Button>
                 </div>
             </Card>
@@ -657,12 +583,12 @@ export default function AdminProducts() {
                         loading={loading}
                         pagination={{
                             pageSize: 10,
-                            showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} san pham`,
+                            showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} sản phẩm`,
                             showSizeChanger: true,
                             showQuickJumper: true,
                         }}
                         scroll={{ x: 1180 }}
-                        locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Khong co san pham phu hop" /> }}
+                        locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có sản phẩm phù hợp" /> }}
                     />
                 </Card>
             ) : (
@@ -681,16 +607,13 @@ export default function AdminProducts() {
                                 />
                             }
                             actions={[
-                                <Tooltip title="Nhan doi tren frontend" key="copy">
-                                    <CopyOutlined onClick={() => handleDuplicate(product)} />
-                                </Tooltip>,
-                                <Tooltip title="Quan ly anh" key="image">
+                                <Tooltip title="Quản lý ảnh" key="image">
                                     <PictureOutlined onClick={() => handleManageImages(product)} />
                                 </Tooltip>,
-                                <Tooltip title="Sua san pham" key="edit">
+                                <Tooltip title="Sửa sản phẩm" key="edit">
                                     <EditOutlined onClick={() => handleEdit(product)} />
                                 </Tooltip>,
-                                <Tooltip title="Xoa san pham" key="delete">
+                                <Tooltip title="Xóa sản phẩm" key="delete">
                                     <DeleteOutlined onClick={() => handleDelete(product)} />
                                 </Tooltip>,
                             ]}
@@ -707,7 +630,7 @@ export default function AdminProducts() {
                     ))}
                     {filteredProducts.length === 0 && (
                         <Card className="admin-empty-state-card">
-                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Khong co san pham phu hop" />
+                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có sản phẩm phù hợp" />
                         </Card>
                     )}
                 </div>
@@ -727,7 +650,7 @@ export default function AdminProducts() {
 
             <Modal
                 open={imageModalVisible}
-                title={`Quan ly anh - ${selectedProduct?.name || ''}`}
+                title={`Quản lý ảnh - ${selectedProduct?.name || ''}`}
                 onCancel={() => {
                     setImageModalVisible(false);
                     setSelectedProduct(null);
@@ -753,7 +676,7 @@ export default function AdminProducts() {
                                         <div>
                                             <UploadOutlined />
                                             <div style={{ marginTop: 8 }}>
-                                                {uploadingImage ? 'Dang upload...' : 'Upload anh'}
+                                                {uploadingImage ? 'Đang upload...' : 'Upload ảnh'}
                                             </div>
                                         </div>
                                     </Upload>
@@ -762,7 +685,7 @@ export default function AdminProducts() {
                                 <Col flex="auto">
                                     <Space.Compact style={{ width: '100%' }}>
                                         <Input
-                                            placeholder="Hoac dan URL anh vao day..."
+                                            placeholder="Hoặc dán URL ảnh vào đây..."
                                             value={newImageUrl}
                                             onChange={(event) => setNewImageUrl(event.target.value)}
                                             onPressEnter={handleAddImageByUrl}
@@ -773,11 +696,11 @@ export default function AdminProducts() {
                                             loading={uploadingImage}
                                             type="primary"
                                         >
-                                            Them
+                                            Thêm
                                         </Button>
                                     </Space.Compact>
                                     <div className="admin-entity-meta" style={{ marginTop: 8 }}>
-                                        Ho tro JPG, PNG, GIF. Toi da 5MB.
+                                        Hỗ trợ JPG, PNG, GIF. Tối đa 5MB.
                                     </div>
                                 </Col>
                             </Row>
@@ -789,12 +712,12 @@ export default function AdminProducts() {
                                     <div key={`${img}-${idx}`} className="admin-image-tile">
                                         <Image
                                             src={img}
-                                            alt={`Product ${idx}`}
+                                            alt={`Sản phẩm ${idx}`}
                                             width="100%"
                                             height={150}
                                             style={{ objectFit: 'cover' }}
                                         />
-                                        <Tooltip title="Xoa anh">
+                                        <Tooltip title="Xóa ảnh">
                                             <Button
                                                 danger
                                                 size="small"
@@ -818,7 +741,7 @@ export default function AdminProducts() {
                                 <Card style={{ gridColumn: '1 / -1', textAlign: 'center' }}>
                                     <AppstoreOutlined style={{ color: '#94a3b8', fontSize: 28 }} />
                                     <div className="admin-muted" style={{ marginTop: 8 }}>
-                                        Chua co anh nao
+                                        Chưa có ảnh nào
                                     </div>
                                 </Card>
                             )}

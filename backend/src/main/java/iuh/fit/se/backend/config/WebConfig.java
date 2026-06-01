@@ -11,7 +11,7 @@ import java.util.Arrays;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:5173,https://crystal-handbags.vercel.app}")
+    @Value("${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:5173,https://crystal-handbags.online/}")
     private String corsAllowedOriginPatterns;
 
     @Override

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Avatar, Badge, Breadcrumb, Button, Dropdown, Grid, Layout, Menu, Space, Typography } from 'antd';
+import { Avatar, Breadcrumb, Dropdown, Grid, Layout, Menu, Space, Typography } from 'antd';
 import {
     AppstoreOutlined,
-    BellOutlined,
     DashboardOutlined,
     HomeOutlined,
     LogoutOutlined,
@@ -14,7 +13,6 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import { useAuth } from '../hooks/useAuth';
-import { fetchAdminOrders } from '../api/orderAPI';
 import { getProfile } from '../api/userAPI';
 import type { UserProfileDto } from '../types';
 import '../styles/admin.css';
@@ -34,7 +32,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const { user, logout } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [profile, setProfile] = useState<UserProfileDto | null>(null);
-    const [pendingOrders, setPendingOrders] = useState(0);
 
     const isMobileLayout = !screens.lg;
 
@@ -73,36 +70,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         };
     }, [user]);
 
-    useEffect(() => {
-        let mounted = true;
-
-        const loadPendingOrders = async () => {
-            if (!user) return;
-
-            try {
-                const orders = await fetchAdminOrders();
-
-                if (mounted) {
-                    setPendingOrders(orders.filter(order => order.status === 'PENDING').length);
-                }
-            } catch (error) {
-                console.error('Load pending orders error:', error);
-
-                if (mounted) {
-                    setPendingOrders(0);
-                }
-            }
-        };
-
-        void loadPendingOrders();
-        const intervalId = window.setInterval(loadPendingOrders, 60000);
-
-        return () => {
-            mounted = false;
-            window.clearInterval(intervalId);
-        };
-    }, [user]);
-
     const selectedKey = useMemo(() => {
         if (location.pathname.startsWith('/admin/orders')) return '/admin/orders';
         if (location.pathname.startsWith('/admin/products')) return '/admin/products';
@@ -135,11 +102,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         },
         {
             key: '/admin/orders',
-            icon: (
-                <Badge count={pendingOrders} size="small" offset={[6, -4]}>
-                    <ShoppingOutlined />
-                </Badge>
-            ),
+            icon: <ShoppingOutlined />,
             label: <Link to="/admin/orders">Đơn hàng</Link>,
         },
         {
@@ -231,33 +194,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         <Breadcrumb className="admin-breadcrumb" items={breadcrumbItems} />
                     </div>
 
-                    <Space size={14}>
-                        <Badge count={pendingOrders} size="small" className="admin-notification-badge">
-                            <Button
-                                className="admin-icon-button"
-                                icon={<BellOutlined />}
-                                onClick={() => navigate('/admin/orders')}
+                    <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                        <div className="admin-profile-trigger">
+                            <Avatar
+                                src={profile?.photoUrl}
+                                icon={<UserOutlined />}
+                                style={{
+                                    backgroundColor: profile?.photoUrl ? undefined : '#d9d9d9',
+                                }}
                             />
-                        </Badge>
-
-                        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                            <div className="admin-profile-trigger">
-                                <Avatar
-                                    src={profile?.photoUrl}
-                                    icon={<UserOutlined />}
-                                    style={{
-                                        backgroundColor: profile?.photoUrl ? undefined : '#d9d9d9',
-                                    }}
-                                />
-                                <div style={{ minWidth: 0 }}>
-                                    <Text strong ellipsis style={{ maxWidth: 180, display: 'block' }}>
-                                        {adminName || user?.email}
-                                    </Text>
-                                    <div className="admin-topbar-subtitle">{profile?.email || user?.email}</div>
-                                </div>
+                            <div style={{ minWidth: 0 }}>
+                                <Text strong ellipsis style={{ maxWidth: 180, display: 'block' }}>
+                                    {adminName || 'Admin'}
+                                </Text>
                             </div>
-                        </Dropdown>
-                    </Space>
+                        </div>
+                    </Dropdown>
                 </Header>
 
                 <Content className="admin-main">{children}</Content>

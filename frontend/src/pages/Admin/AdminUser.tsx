@@ -58,14 +58,14 @@ type UserFormValues = {
 type UserStatusFilter = 'ACTIVE' | 'LOCKED';
 
 const roleOptions = [
-    { value: 'CUSTOMER', label: 'Khach hang' },
+    { value: 'CUSTOMER', label: 'Khách hàng' },
     { value: 'ADMIN', label: 'Admin' },
 ];
 
 const genderOptions = [
     { value: 'MALE', label: 'Nam' },
-    { value: 'FEMALE', label: 'Nu' },
-    { value: 'OTHER', label: 'Khac' },
+    { value: 'FEMALE', label: 'Nữ' },
+    { value: 'OTHER', label: 'Khác' },
 ];
 
 function hasAdminRole(user: UserProfileDto) {
@@ -111,7 +111,6 @@ export default function AdminUsers() {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfileDto | null>(null);
     const [searchText, setSearchText] = useState('');
-    const [roleFilter, setRoleFilter] = useState<string | undefined>();
     const [statusFilter, setStatusFilter] = useState<UserStatusFilter | undefined>();
 
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
@@ -154,7 +153,7 @@ export default function AdminUsers() {
             setUsers(data.filter(user => !hasAdminRole(user)));
         } catch (error) {
             console.error('Load users error:', error);
-            message.error('Tai nguoi dung that bai');
+            message.error('Tải người dùng thất bại');
         } finally {
             setLoading(false);
         }
@@ -170,14 +169,13 @@ export default function AdminUsers() {
                 getFullName(user).toLowerCase().includes(keyword) ||
                 user.email.toLowerCase().includes(keyword) ||
                 (user.phoneNumber || '').toLowerCase().includes(keyword);
-            const matchesRole = !roleFilter || getPrimaryRole(user) === roleFilter;
             const matchesStatus = !statusFilter ||
                 (statusFilter === 'LOCKED' && isLocked) ||
                 (statusFilter === 'ACTIVE' && !isLocked);
 
-            return matchesSearch && matchesRole && matchesStatus;
+            return matchesSearch && matchesStatus;
         });
-    }, [users, searchText, roleFilter, statusFilter, lockedUserIds]);
+    }, [users, searchText, statusFilter, lockedUserIds]);
 
     const openCreateModal = () => {
         setEditingUser(null);
@@ -207,7 +205,6 @@ export default function AdminUsers() {
         setSelectedAvatarFile(null);
         setAvatarPreview(undefined);
         setAvatarUrl(user.photoUrl);
-
         setModalVisible(true);
     };
 
@@ -239,20 +236,18 @@ export default function AdminUsers() {
                 setAvatarPreview(undefined);
 
                 if (!avatarUrl) {
-                    message.success('Da bo anh vua chon');
+                    message.success('Đã bỏ ảnh vừa chọn');
                     return;
                 }
             }
 
             const updatedUser = await deleteUserAvatar(editingUser.userId);
-
             setAvatarUrl(updatedUser.photoUrl);
             await load();
-
-            message.success('Da xoa anh dai dien');
+            message.success('Đã xóa ảnh đại diện');
         } catch (error) {
             console.error('Delete avatar error:', error);
-            message.error('Xoa anh dai dien that bai');
+            message.error('Xóa ảnh đại diện thất bại');
         } finally {
             setSaving(false);
         }
@@ -277,7 +272,7 @@ export default function AdminUsers() {
                     await uploadUserAvatar(editingUser.userId, selectedAvatarFile);
                 }
 
-                message.success('Cap nhat nguoi dung thanh cong');
+                message.success('Cập nhật người dùng thành công');
             } else {
                 await createUser({
                     email: values.email,
@@ -288,14 +283,14 @@ export default function AdminUsers() {
                     roles: values.roles,
                 });
 
-                message.success('Them nguoi dung thanh cong');
+                message.success('Thêm người dùng thành công');
             }
 
             closeModal();
             await load();
         } catch (error) {
             console.error('Save user error:', error);
-            message.error(editingUser ? 'Cap nhat that bai' : 'Them nguoi dung that bai');
+            message.error(editingUser ? 'Cập nhật thất bại' : 'Thêm người dùng thất bại');
         } finally {
             setSaving(false);
         }
@@ -309,10 +304,10 @@ export default function AdminUsers() {
 
         if (isLocked) {
             next.delete(user.userId);
-            message.success('Da mo khoa trang thai UI');
+            message.success('Đã mở khóa tài khoản');
         } else {
             next.add(user.userId);
-            message.success('Da khoa trang thai UI');
+            message.success('Đã khóa tài khoản');
         }
 
         persistLockedUsers(next);
@@ -323,9 +318,9 @@ export default function AdminUsers() {
 
     const columns: ColumnsType<UserProfileDto> = [
         {
-            title: 'Khach hang',
+            title: 'Khách hàng',
             key: 'customer',
-            width: 300,
+            width: 320,
             render: (_, record) => (
                 <div className="admin-entity-cell">
                     <Avatar size={44} src={record.photoUrl} icon={!record.photoUrl ? undefined : <UserOutlined />}>
@@ -339,53 +334,40 @@ export default function AdminUsers() {
             ),
         },
         {
-            title: 'So dien thoai',
+            title: 'Số điện thoại',
             dataIndex: 'phoneNumber',
             key: 'phoneNumber',
-            width: 150,
-            render: (phone?: string) => phone || <span className="admin-muted">Chua co</span>,
+            width: 160,
+            render: (phone?: string) => phone || <span className="admin-muted">Chưa có</span>,
         },
         {
-            title: 'Ngay dang ky',
-            key: 'registeredAt',
-            width: 140,
-            render: () => <span className="admin-muted">--</span>,
-        },
-        {
-            title: 'Order Count',
-            key: 'orderCount',
-            width: 120,
-            align: 'center',
-            render: () => <span className="admin-muted">--</span>,
-        },
-        {
-            title: 'Vai tro',
+            title: 'Vai trò',
             key: 'roles',
             width: 130,
             render: (_, record) => {
                 const role = getPrimaryRole(record);
                 return (
                     <Tag className="admin-tag" color={role === 'ADMIN' ? 'red' : 'blue'}>
-                        {role === 'ADMIN' ? 'Admin' : 'Khach hang'}
+                        {role === 'ADMIN' ? 'Admin' : 'Khách hàng'}
                     </Tag>
                 );
             },
         },
         {
-            title: 'Trang thai',
+            title: 'Trạng thái',
             key: 'status',
             width: 120,
             render: (_, record) => {
                 const isLocked = !!record.userId && lockedUserIds.has(record.userId);
                 return (
                     <Tag className="admin-tag" color={isLocked ? 'red' : 'green'}>
-                        {isLocked ? 'Da khoa' : 'Hoat dong'}
+                        {isLocked ? 'Đã khóa' : 'Hoạt động'}
                     </Tag>
                 );
             },
         },
         {
-            title: 'Thao tac',
+            title: 'Thao tác',
             key: 'action',
             width: 150,
             fixed: 'right',
@@ -394,14 +376,14 @@ export default function AdminUsers() {
                 const isLocked = !!record.userId && lockedUserIds.has(record.userId);
                 return (
                     <Space size={4}>
-                        <Tooltip title="Sua khach hang">
+                        <Tooltip title="Sửa khách hàng">
                             <Button
                                 className="admin-icon-button"
                                 icon={<EditOutlined />}
                                 onClick={() => openEditModal(record)}
                             />
                         </Tooltip>
-                        <Tooltip title={isLocked ? 'Mo khoa tai khoan' : 'Khoa tai khoan'}>
+                        <Tooltip title={isLocked ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}>
                             <Button
                                 className="admin-icon-button"
                                 danger={!isLocked}
@@ -423,18 +405,15 @@ export default function AdminUsers() {
         <div className="admin-page">
             <div className="admin-page-header">
                 <div>
-                    <div className="admin-page-eyebrow">Khach hang</div>
-                    <Title level={2} className="admin-page-title">Tai khoan nguoi dung</Title>
-                    <p className="admin-page-subtitle">
-                        Quan ly ho so khach hang, loc theo vai tro va trang thai khoa cuc bo.
-                    </p>
+                    <div className="admin-page-eyebrow">Khách hàng</div>
+                    <Title level={2} className="admin-page-title">Tài khoản người dùng</Title>
                 </div>
                 <div className="admin-page-actions">
                     <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-                        Lam moi
+                        Làm mới
                     </Button>
                     <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                        Them khach hang
+                        Thêm khách hàng
                     </Button>
                 </div>
             </div>
@@ -442,58 +421,45 @@ export default function AdminUsers() {
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                 <Col xs={24} md={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Tong khach hang</div>
+                        <div className="admin-stat-kicker">Tổng khách hàng</div>
                         <div className="admin-stat-value">{users.length}</div>
-                        <div className="admin-stat-footnote">Khong bao gom tai khoan quan tri</div>
                     </Card>
                 </Col>
                 <Col xs={24} md={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Hoat dong</div>
+                        <div className="admin-stat-kicker">Hoạt động</div>
                         <div className="admin-stat-value">{activeUsers}</div>
-                        <div className="admin-stat-footnote">Trang thai hien thi tren frontend</div>
                     </Card>
                 </Col>
                 <Col xs={24} md={8}>
                     <Card className="admin-stat-card">
-                        <div className="admin-stat-kicker">Da khoa</div>
+                        <div className="admin-stat-kicker">Đã khóa</div>
                         <div className="admin-stat-value">{lockedUsers}</div>
-                        <div className="admin-stat-footnote">Luu bang localStorage khi chua co API</div>
                     </Card>
                 </Col>
             </Row>
 
             <Card className="admin-toolbar-card">
                 <Row gutter={[12, 12]}>
-                    <Col xs={24} lg={12}>
+                    <Col xs={24} lg={16}>
                         <Input
                             allowClear
                             prefix={<SearchOutlined />}
-                            placeholder="Tim theo ho ten, email hoac so dien thoai..."
+                            placeholder="Tìm theo họ tên, email hoặc số điện thoại..."
                             value={searchText}
                             onChange={(event) => setSearchText(event.target.value)}
                         />
                     </Col>
-                    <Col xs={24} sm={12} lg={6}>
+                    <Col xs={24} sm={12} lg={8}>
                         <Select
                             allowClear
                             style={{ width: '100%' }}
-                            placeholder="Vai tro"
-                            value={roleFilter}
-                            onChange={setRoleFilter}
-                            options={roleOptions}
-                        />
-                    </Col>
-                    <Col xs={24} sm={12} lg={6}>
-                        <Select
-                            allowClear
-                            style={{ width: '100%' }}
-                            placeholder="Trang thai"
+                            placeholder="Trạng thái"
                             value={statusFilter}
                             onChange={setStatusFilter}
                             options={[
-                                { value: 'ACTIVE', label: 'Hoat dong' },
-                                { value: 'LOCKED', label: 'Da khoa' },
+                                { value: 'ACTIVE', label: 'Hoạt động' },
+                                { value: 'LOCKED', label: 'Đã khóa' },
                             ]}
                         />
                     </Col>
@@ -508,21 +474,21 @@ export default function AdminUsers() {
                     loading={loading}
                     pagination={{
                         pageSize: 10,
-                        showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} khach hang`,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} trong ${total} khách hàng`,
                         showSizeChanger: true,
                     }}
-                    scroll={{ x: 1110 }}
-                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Khong co khach hang phu hop" /> }}
+                    scroll={{ x: 880 }}
+                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có khách hàng phù hợp" /> }}
                 />
             </Card>
 
             <Modal
                 open={modalVisible}
-                title={editingUser ? 'Sua khach hang' : 'Them khach hang'}
+                title={editingUser ? 'Sửa khách hàng' : 'Thêm khách hàng'}
                 onCancel={closeModal}
                 onOk={() => form.submit()}
-                okText={editingUser ? 'Cap nhat' : 'Them'}
-                cancelText="Huy"
+                okText={editingUser ? 'Cập nhật' : 'Thêm'}
+                cancelText="Hủy"
                 confirmLoading={saving}
                 destroyOnHidden
                 width={720}
@@ -533,7 +499,7 @@ export default function AdminUsers() {
                             <Form.Item
                                 name="email"
                                 label="Email"
-                                rules={[{ required: true, type: 'email', message: 'Email khong hop le' }]}
+                                rules={[{ required: true, type: 'email', message: 'Email không hợp lệ' }]}
                             >
                                 <Input disabled={!!editingUser} />
                             </Form.Item>
@@ -542,8 +508,8 @@ export default function AdminUsers() {
                             <Col xs={24} md={12}>
                                 <Form.Item
                                     name="password"
-                                    label="Mat khau"
-                                    rules={[{ required: true, min: 6, message: 'Mat khau toi thieu 6 ky tu' }]}
+                                    label="Mật khẩu"
+                                    rules={[{ required: true, min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' }]}
                                 >
                                     <Input.Password />
                                 </Form.Item>
@@ -552,8 +518,8 @@ export default function AdminUsers() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="lastName"
-                                label="Ho"
-                                rules={[{ required: true, message: 'Vui long nhap ho' }]}
+                                label="Họ"
+                                rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
                             >
                                 <Input />
                             </Form.Item>
@@ -561,8 +527,8 @@ export default function AdminUsers() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="firstName"
-                                label="Ten"
-                                rules={[{ required: true, message: 'Vui long nhap ten' }]}
+                                label="Tên"
+                                rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
                             >
                                 <Input />
                             </Form.Item>
@@ -570,30 +536,30 @@ export default function AdminUsers() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="phoneNumber"
-                                label="So dien thoai"
+                                label="Số điện thoại"
                                 rules={[
-                                    { required: true, message: 'Vui long nhap so dien thoai' },
-                                    { pattern: /^[0-9]{10}$/, message: 'So dien thoai khong hop le' },
+                                    { required: true, message: 'Vui lòng nhập số điện thoại' },
+                                    { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ' },
                                 ]}
                             >
                                 <Input />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item name="gender" label="Gioi tinh">
+                            <Form.Item name="gender" label="Giới tính">
                                 <Select allowClear options={genderOptions} />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item name="dob" label="Ngay sinh">
+                            <Form.Item name="dob" label="Ngày sinh">
                                 <Input type="date" />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="roles"
-                                label="Vai tro"
-                                rules={[{ type: 'array', required: true, min: 1, message: 'Vui long chon vai tro' }]}
+                                label="Vai trò"
+                                rules={[{ type: 'array', required: true, min: 1, message: 'Vui lòng chọn vai trò' }]}
                             >
                                 <Select mode="multiple" options={roleOptions} />
                             </Form.Item>
@@ -601,7 +567,7 @@ export default function AdminUsers() {
                     </Row>
 
                     {editingUser && (
-                        <Form.Item label="Anh dai dien">
+                        <Form.Item label="Ảnh đại diện">
                             <Space direction="vertical" align="center" style={{ width: '100%' }}>
                                 <Avatar
                                     size={96}
@@ -618,7 +584,7 @@ export default function AdminUsers() {
                                         beforeUpload={handleSelectAvatar}
                                     >
                                         <Button icon={<UploadOutlined />}>
-                                            Chon anh
+                                            Chọn ảnh
                                         </Button>
                                     </Upload>
 
@@ -629,7 +595,7 @@ export default function AdminUsers() {
                                             onClick={handleDeleteAvatar}
                                             loading={saving}
                                         >
-                                            Xoa anh
+                                            Xóa ảnh
                                         </Button>
                                     )}
                                 </Space>

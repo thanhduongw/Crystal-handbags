@@ -1,39 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
     Button,
     Card,
     Col,
-    Descriptions,
     Divider,
     Image,
-    Input,
     message,
     Modal,
     Row,
     Select,
     Space,
     Spin,
-    Steps,
     Table,
     Tag,
     Typography,
 } from 'antd';
-import { PrinterOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons';
+import { PrinterOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { fetchAdminOrderDetail, updateAdminOrderStatus } from '../../api/orderAPI';
-import { getUserById } from '../../api/userAPI';
 import type {
     OrderDetailDto,
     OrderItemDto,
     OrderStatus,
-    UserProfileDto,
 } from '../../types';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 const statusOptions: Array<{ value: OrderStatus; label: string; color: string }> = [
     { value: 'PENDING', label: 'Chờ xác nhận', color: 'gold' },
@@ -42,8 +34,6 @@ const statusOptions: Array<{ value: OrderStatus; label: string; color: string }>
     { value: 'DELIVERED', label: 'Hoàn thành', color: 'green' },
     { value: 'CANCELLED', label: 'Đã hủy', color: 'red' },
 ];
-
-const stepStatuses: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
 
 interface Props {
     orderId: number;
@@ -66,18 +56,19 @@ const formatCurrency = (value: number) =>
 const getStatusOption = (status: OrderStatus) =>
     statusOptions.find(option => option.value === status) ?? statusOptions[0];
 
-const getFullName = (user: UserProfileDto) =>
-    `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+const escapeHtml = (value: string | number | undefined | null) =>
+    String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 
 export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
     const [order, setOrder] = useState<OrderDetailDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
-    const [userProfile, setUserProfile] = useState<UserProfileDto | null>(null);
     const [items, setItems] = useState<OrderItemDto[]>([]);
-    const [internalNote, setInternalNote] = useState('');
-
-    const noteKey = `admin-order-note-${orderId}`;
 
     const loadOrder = useCallback(async () => {
         try {
@@ -85,15 +76,6 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
             const data = await fetchAdminOrderDetail(orderId);
             setOrder(data);
             setItems(data.items);
-            setInternalNote(window.localStorage.getItem(`admin-order-note-${orderId}`) || '');
-
-            if (data.userId) {
-                try {
-                    setUserProfile(await getUserById(data.userId));
-                } catch {
-                    setUserProfile(null);
-                }
-            }
         } catch (err: unknown) {
             const status = (err as ApiError).response?.status;
             if (status === 403) {
@@ -148,9 +130,121 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
         });
     };
 
-    const handleSaveNote = () => {
-        window.localStorage.setItem(noteKey, internalNote);
-        message.success('Da luu ghi chu noi bo tren thiet bi nay');
+    const handlePrintInvoice = () => {
+        if (!order) return;
+
+        const statusInfo = getStatusOption(order.status);
+        const itemRows = items.map((item, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>
+                    <strong>${escapeHtml(item.productName)}</strong>
+                    ${item.color ? `<div class="muted">Màu: ${escapeHtml(item.color)}</div>` : ''}
+                </td>
+                <td class="center">${item.quantity}</td>
+                <td class="right">${escapeHtml(formatCurrency(item.price))}</td>
+                <td class="right">${escapeHtml(formatCurrency(item.price * item.quantity))}</td>
+            </tr>
+        `).join('');
+
+        const invoiceHtml = `
+            <!doctype html>
+            <html lang="vi">
+            <head>
+                <meta charset="utf-8" />
+                <title>Hóa đơn #${escapeHtml(order.orderId)}</title>
+                <style>
+                    * { box-sizing: border-box; }
+                    body { margin: 0; padding: 32px; color: #111827; font-family: Arial, sans-serif; font-size: 14px; }
+                    h1, h2, p { margin: 0; }
+                    .invoice { max-width: 820px; margin: 0 auto; }
+                    .header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 18px; }
+                    .brand { font-size: 24px; font-weight: 700; color: #1677ff; }
+                    .title { text-align: right; }
+                    .title h1 { font-size: 24px; }
+                    .muted { color: #6b7280; font-size: 12px; margin-top: 4px; }
+                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 22px 0; }
+                    .box { border: 1px solid #d1d5db; padding: 14px; border-radius: 6px; }
+                    .box h2 { margin-bottom: 10px; font-size: 15px; }
+                    .line { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+                    th, td { border: 1px solid #d1d5db; padding: 10px; vertical-align: top; }
+                    th { background: #f3f4f6; text-align: left; }
+                    .center { text-align: center; }
+                    .right { text-align: right; }
+                    .summary { width: 320px; margin: 18px 0 0 auto; }
+                    .total { border-top: 2px solid #111827; padding-top: 10px; font-size: 18px; font-weight: 700; }
+                    @media print {
+                        body { padding: 0; }
+                        .invoice { max-width: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <main class="invoice">
+                    <section class="header">
+                        <div>
+                            <div class="brand">Crystal Handbags</div>
+                            <div class="muted">Cảm ơn quý khách đã mua hàng</div>
+                        </div>
+                        <div class="title">
+                            <h1>Hóa đơn bán hàng</h1>
+                            <div class="muted">Mã đơn: #${escapeHtml(order.orderId)}</div>
+                            <div class="muted">Ngày đặt: ${escapeHtml(dayjs(order.orderDate).format('DD/MM/YYYY HH:mm'))}</div>
+                        </div>
+                    </section>
+
+                    <section class="grid">
+                        <div class="box">
+                            <h2>Người nhận</h2>
+                            <p>${escapeHtml(order.receiver || '-')}</p>
+                            <p class="muted">${escapeHtml(order.address || '-')}</p>
+                        </div>
+                        <div class="box">
+                            <h2>Đơn hàng</h2>
+                            <div class="line"><span>Trạng thái</span><strong>${escapeHtml(statusInfo.label)}</strong></div>
+                            <div class="line"><span>Số sản phẩm</span><strong>${items.length}</strong></div>
+                        </div>
+                    </section>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 48px;">STT</th>
+                                <th>Sản phẩm</th>
+                                <th class="center" style="width: 80px;">SL</th>
+                                <th class="right" style="width: 140px;">Đơn giá</th>
+                                <th class="right" style="width: 150px;">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemRows}</tbody>
+                    </table>
+
+                    <section class="summary">
+                        <div class="line"><span>Tạm tính</span><span>${escapeHtml(formatCurrency(subtotal))}</span></div>
+                        <div class="line"><span>Phí giao hàng</span><span>${escapeHtml(formatCurrency(order.shippingFee || 0))}</span></div>
+                        ${discount > 0 ? `<div class="line"><span>Giảm giá</span><span>-${escapeHtml(formatCurrency(discount))}</span></div>` : ''}
+                        <div class="line total"><span>Tổng cộng</span><span>${escapeHtml(formatCurrency(order.totalAmount))}</span></div>
+                    </section>
+                </main>
+                <script>
+                    window.addEventListener('load', function () {
+                        window.print();
+                    });
+                </script>
+            </body>
+            </html>
+        `;
+
+        const printWindow = window.open('', '_blank', 'width=900,height=700');
+        if (!printWindow) {
+            message.error('Trình duyệt đang chặn cửa sổ in.');
+            return;
+        }
+
+        printWindow.document.open();
+        printWindow.document.write(invoiceHtml);
+        printWindow.document.close();
     };
 
     const itemColumns: ColumnsType<OrderItemDto> = [
@@ -168,25 +262,24 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
                             fallback="https://placehold.co/80x80?text=Error"
                         />
                     ) : (
-                        <div className="admin-empty-thumb">No image</div>
+                        <div className="admin-empty-thumb">Ảnh</div>
                     )}
                     <div>
                         <div className="admin-entity-title">{record.productName}</div>
-                        <div className="admin-entity-meta">SKU: PRD-{record.productId}-ITEM-{record.itemId}</div>
-                        <div className="admin-entity-meta">Màu: {record.color || 'Khong co'}</div>
+                        {record.color && <div className="admin-entity-meta">Màu: {record.color}</div>}
                     </div>
                 </div>
             ),
         },
         {
-            title: 'Don gia',
+            title: 'Đơn giá',
             align: 'right',
             width: 130,
             render: (_, record) => <span className="admin-money">{formatCurrency(record.price)}</span>,
         },
         { title: 'SL', dataIndex: 'quantity', align: 'center', width: 80 },
         {
-            title: 'Thanh tien',
+            title: 'Thành tiền',
             align: 'right',
             width: 150,
             render: (_, record) => (
@@ -205,7 +298,6 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
 
     const statusInfo = getStatusOption(order.status);
     const canChangeStatus = order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
-    const currentStep = Math.max(0, stepStatuses.findIndex(status => status === order.status));
 
     return (
         <div>
@@ -231,64 +323,47 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
                                 }))}
                             />
                         )}
-                        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+                        <Button icon={<PrinterOutlined />} onClick={handlePrintInvoice}>
                             In hóa đơn
                         </Button>
                     </Space>
                 </Col>
             </Row>
 
-            <Card className="admin-panel admin-timeline-card">
-                {order.status === 'CANCELLED' ? (
-                    <Alert showIcon type="error" message="Đơn hàng đã bị hủy" />
-                ) : (
-                    <Steps
-                        current={currentStep}
-                        items={stepStatuses.map(status => ({
-                            title: getStatusOption(status).label,
-                        }))}
-                    />
-                )}
-            </Card>
-
-            <div className="admin-detail-grid">
-                <Card className="admin-panel" title="Khách hàng" size="small">
-                    <Descriptions column={1} size="small">
-                        <Descriptions.Item label="Họ tên">
-                            {userProfile ? getFullName(userProfile) : order.receiver}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Email">
-                            {userProfile?.email ?? '-'}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="SĐT">
-                            {userProfile?.phoneNumber ?? '-'}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Ho so">
-                            {order.userId ? (
-                                <Link to={`/admin/users?userId=${order.userId}`}>
-                                    <UserOutlined /> Xem khách hàng #{order.userId}
-                                </Link>
-                            ) : (
-                                <span className="admin-muted">Chưa có dữ liệu</span>
-                            )}
-                        </Descriptions.Item>
-                    </Descriptions>
+            <div className="admin-detail-grid" style={{ marginTop: 16 }}>
+                <Card className="admin-panel" title="Người nhận" size="small">
+                    <Space direction="vertical" size={6}>
+                        <Text strong>{order.receiver || '-'}</Text>
+                        <Text>{order.address || '-'}</Text>
+                    </Space>
                 </Card>
 
-                <Card className="admin-panel" title="Giao hàng" size="small">
-                    <Descriptions column={1} size="small">
-                        <Descriptions.Item label="Người nhận">{order.receiver || '-'}</Descriptions.Item>
-                        <Descriptions.Item label="Địa chỉ">{order.address || '-'}</Descriptions.Item>
-                        <Descriptions.Item label="Thống kê đơn">
-                            <span className="admin-muted">Chưa có dữ liệu thống kê</span>
-                        </Descriptions.Item>
-                    </Descriptions>
+                <Card className="admin-panel" title="Thanh toán" size="small">
+                    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                        <Row justify="space-between">
+                            <Text type="secondary">Tạm tính</Text>
+                            <Text>{formatCurrency(subtotal)}</Text>
+                        </Row>
+                        <Row justify="space-between">
+                            <Text type="secondary">Phí giao hàng</Text>
+                            <Text>{formatCurrency(order.shippingFee || 0)}</Text>
+                        </Row>
+                        {discount > 0 && (
+                            <Row justify="space-between">
+                                <Text type="secondary">Giảm giá</Text>
+                                <Text>-{formatCurrency(discount)}</Text>
+                            </Row>
+                        )}
+                        <Divider style={{ margin: '6px 0' }} />
+                        <Row justify="space-between" align="middle">
+                            <Text strong>Tổng cộng</Text>
+                            <Title level={4} style={{ margin: 0 }}>{formatCurrency(order.totalAmount)}</Title>
+                        </Row>
+                    </Space>
                 </Card>
             </div>
 
-            <Divider />
-
-            <Card className="admin-table-card" title="Sản phẩm trong đơn">
+            <Card className="admin-table-card" title="Sản phẩm trong đơn" style={{ marginTop: 16 }}>
                 <Table
                     rowKey={(record) => `${record.itemId}-${record.productName}`}
                     pagination={false}
@@ -297,50 +372,6 @@ export default function AdminOrderDetail({ orderId, onLoaded }: Props) {
                     scroll={{ x: 720 }}
                 />
             </Card>
-
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                <Col xs={24} lg={14}>
-                    <Card className="admin-panel" title="Ghi chú nội bộ" size="small">
-                        <Space direction="vertical" size={10} style={{ width: '100%' }}>
-                            <TextArea
-                                rows={5}
-                                value={internalNote}
-                                onChange={(event) => setInternalNote(event.target.value)}
-                                placeholder="Ghi chú xử lý đơn hàng..."
-                            />
-                            <Button icon={<SaveOutlined />} onClick={handleSaveNote}>
-                                Lưu ghi chú
-                            </Button>
-                        </Space>
-                    </Card>
-                </Col>
-                <Col xs={24} lg={10}>
-                    <Card className="admin-panel admin-payment-summary" title="Thanh toan" size="small">
-                        <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                            <Row justify="space-between">
-                                <Text type="secondary">Tam tinh</Text>
-                                <Text>{formatCurrency(subtotal)}</Text>
-                            </Row>
-                            <Row justify="space-between">
-                                <Text type="secondary">Phi ship</Text>
-                                <Text>{formatCurrency(order.shippingFee || 0)}</Text>
-                            </Row>
-                            <Row justify="space-between">
-                                <Text type="secondary">Giam gia</Text>
-                                <Text>{discount > 0 ? `-${formatCurrency(discount)}` : '--'}</Text>
-                            </Row>
-                            <Divider style={{ margin: '6px 0' }} />
-                            <Row justify="space-between" align="middle">
-                                <Text strong>Tong cong</Text>
-                                <Title level={4} style={{ margin: 0 }}>{formatCurrency(order.totalAmount)}</Title>
-                            </Row>
-                            <Tag className="admin-tag" color={order.status === 'DELIVERED' ? 'green' : 'default'}>
-                                {order.status === 'DELIVERED' ? 'Da thanh toan' : 'Chua thanh toan'}
-                            </Tag>
-                        </Space>
-                    </Card>
-                </Col>
-            </Row>
         </div>
     );
 }

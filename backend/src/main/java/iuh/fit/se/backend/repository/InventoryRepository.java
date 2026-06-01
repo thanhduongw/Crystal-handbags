@@ -26,7 +26,11 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Modifying
     @Query("""
                 update Inventory i
-                set i.stockQuantity = i.stockQuantity + :qty
+                set i.stockQuantity = coalesce(i.stockQuantity, 0) + :qty,
+                    i.soldQuantity = case
+                        when coalesce(i.soldQuantity, 0) >= :qty then i.soldQuantity - :qty
+                        else 0
+                    end
                 where i.productItem.itemId = :itemId
             """)
     int increaseStock(@Param("itemId") Long itemId, @Param("qty") int qty);
