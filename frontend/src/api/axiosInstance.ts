@@ -1,7 +1,22 @@
-import axios from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { isJwtExpired } from '../utils/authToken';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const CLIENT_RATE_LIMIT = {
+    maxRequests: 10,
+    windowMs: 1000,
+};
+const RETRY_CONFIG = {
+    maxAttempts: 2,
+    delayMs: 4000,
+};
+
+type RetryableAxiosConfig = InternalAxiosRequestConfig & {
+    _retry?: boolean;
+    retryCount?: number;
+};
+
+const requestTimestamps: number[] = [];
 
 const instance = axios.create({
     baseURL: apiBaseUrl,
@@ -16,6 +31,25 @@ const refreshInstance = axios.create({
 });
 
 let refreshPromise: Promise<{ accessToken: string; refreshToken: string }> | null = null;
+
+const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+const waitForClientRateLimit = async () => {
+    const now = Date.now();
+    const oldestAllowed = now - CLIENT_RATE_LIMIT.windowMs;
+
+    while (requestTimestamps.length > 0 && requestTimestamps[0] <= oldestAllowed) {
+        requestTimestamps.shift();
+    }
+
+    if (requestTimestamps.length >= CLIENT_RATE_LIMIT.maxRequests) {
+        const waitMs = CLIENT_RATE_LIMIT.windowMs - (now - requestTimestamps[0]);
+        await sleep(waitMs);
+        return waitForClientRateLimit();
+    }
+
+    requestTimestamps.push(Date.now());
+};
 
 const shouldSendCredentials = (url = '') => url.startsWith('/session-cart');
 
@@ -42,8 +76,20 @@ const clearAuthAndRedirect = () => {
     }
 };
 
+const isRetryableRequest = (config: RetryableAxiosConfig) => {
+    const method = (config.method ?? 'get').toLowerCase();
+    return ['get', 'head', 'options'].includes(method);
+};
+
+const isTemporaryFailure = (error: AxiosError) => {
+    const status = error.response?.status;
+    return !error.response || status === 408 || status === 429 || (status !== undefined && status >= 500);
+};
+
 instance.interceptors.request.use(
-    (config) => {
+    async (config) => {
+        await waitForClientRateLimit();
+
         const requestUrl = config.url ?? '';
         config.withCredentials = shouldSendCredentials(requestUrl);
 
@@ -61,7 +107,7 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config;
+        const originalRequest = error.config as RetryableAxiosConfig | undefined;
 
         if (!originalRequest) {
             return Promise.reject(error);
@@ -104,6 +150,16 @@ instance.interceptors.response.use(
                 clearAuthAndRedirect();
                 return Promise.reject(e);
             }
+        }
+
+        if (
+            isRetryableRequest(originalRequest)
+            && isTemporaryFailure(error)
+            && (originalRequest.retryCount ?? 0) < RETRY_CONFIG.maxAttempts
+        ) {
+            originalRequest.retryCount = (originalRequest.retryCount ?? 0) + 1;
+            await sleep(RETRY_CONFIG.delayMs);
+            return instance(originalRequest);
         }
 
         return Promise.reject(error);
