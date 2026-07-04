@@ -157,5 +157,5 @@ npm run dev
 
 ## Thành viên
 
-Lê Vũ Thanh Dương
-Nguyễn Văn Huy
+- Lê Vũ Thanh Dương
+- Nguyễn Văn Huy
